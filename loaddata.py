@@ -73,6 +73,43 @@ def validation_data(variable_name, initial_time = '0000', forecast = '24'):
 
     return data_dict
 
+def fold1_data(variable_name, initial_time = '0000', forecast = '24'):
+    data_dict = {}
+    year = 2015
+    for month in range(10, 13):
+        data_dict.update(extract_variable(year, month, variable_name, initial_time, forecast))
+    
+    year = 2016
+    for month in range(1, 4):
+        data_dict.update(extract_variable(year, month, variable_name, initial_time, forecast))
+
+    return data_dict
+
+def fold2_data(variable_name, initial_time = '0000', forecast = '24'):
+    data_dict = {}
+    year = 2016
+    for month in range(10, 13):
+        data_dict.update(extract_variable(year, month, variable_name, initial_time, forecast))
+
+    year = 2017
+    for month in range(1, 4):
+        data_dict.update(extract_variable(year, month, variable_name, initial_time, forecast))
+
+    return data_dict
+
+def fold3_data(variable_name, initial_time = '0000', forecast = '24'):
+    data_dict = {}
+    year = 2017
+    for month in range(10, 13):
+        data_dict.update(extract_variable(year, month, variable_name, initial_time, forecast))
+
+    year = 2015
+    for month in range(1, 4):
+        data_dict.update(extract_variable(year, month, variable_name, initial_time, forecast))
+    
+    return data_dict
+
+
 
 
 year = '2017'
