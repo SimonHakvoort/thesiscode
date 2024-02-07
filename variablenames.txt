@@ -1,0 +1,93 @@
+Variable names in the verificationset:
+
+125
+124
+200
+33
+34
+11
+52
+1
+33
+33
+34
+34
+6
+6
+6
+40
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+T Temperature K
+R Relative humidity %
+U U-component of wind m s**-1
+V V-component of wind m s**-1
+
+Variable names in the output file (not test)
+
+40
+200
+33
+34
+52
+125
+124
+1
+33
+33
+34
+34
+6
+6
+61
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+R Relative humidity %
+U U-component of wind m s**-1
+V V-component of wind m s**-1
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+SR Surface roughness m
+SR Surface roughness m
+
+variable names in output file (test files)
+
+40
+200
+33
+34
+11
+52
+125
+124
+1
+33
+33
+34
+34
+6
+6
+6
+61
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+T Temperature K
+R Relative humidity %
+U U-component of wind m s**-1
+V V-component of wind m s**-1
+None Momentum flux, u-component N m**-2
+None Momentum flux, v-component N m**-2
+SR Surface roughness m
+SR Surface roughness m
