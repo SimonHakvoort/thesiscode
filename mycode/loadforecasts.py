@@ -132,20 +132,20 @@ def fold3_data(variable_names, initial_time = '0000', lead_time = '24'):
     return forecasts
 
 
-def pickle_fold_forecasts(variable_names, i):
+def pickle_fold_forecasts(variable_names, i, initial_time, lead_time):
     nobackup = '/net/pc200239/nobackup/users/hakvoort/'
 
     if i == 1:
-        forecasts = fold1_data(variable_names)
+        forecasts = fold1_data(variable_names, initial_time, lead_time)
         folder_base = 'fold1data'
     elif i == 2:
-        forecasts = fold2_data(variable_names)
+        forecasts = fold2_data(variable_names, initial_time, lead_time)
         folder_base = 'fold2data'
     elif i == 3:
-        forecasts = fold3_data(variable_names)
+        forecasts = fold3_data(variable_names, initial_time, lead_time)
         folder_base = 'fold3data'
     elif i == 0:
-        forecasts = validation_data(variable_names)
+        forecasts = validation_data(variable_names, initial_time, lead_time)
         folder_base = 'fold0data'
     else:
         raise ValueError("Invalid value for i. Expected values: 0, 1, 2, or 3.")

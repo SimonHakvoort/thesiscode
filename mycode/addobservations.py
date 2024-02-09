@@ -39,10 +39,11 @@ def addobservation(folder_pickle_files, csv_name):
             rownumbers = np.where(df['DATETIME'] == forecasttime)[0]
             
             for index in rownumbers:
-                if code in sample.observations and sample.observations[code][0] != df['OBS'][index]:
-                    print('something wrong?')
-                else:    
-                    sample.add_observation(code, df['OBS'][index], forecasttime)
+                if not np.isnan(df['OBS'][index]):
+                    if code in sample.observations and sample.observations[code][0] != df['OBS'][index]:
+                        print('something wrong?')
+                    else:    
+                        sample.add_observation(code, df['OBS'][index], forecasttime)
             #save sample again as pickle file
             with open(folder_pickle_files + file, 'wb') as f:
                 pkl.dump(sample, f)
