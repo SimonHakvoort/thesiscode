@@ -1,0 +1,29 @@
+
+import pickle as pkl
+from loadforecasts import pickle_fold_forecasts
+import pickle as pkl
+from addobservations import addallobservations
+from forecast import SimplifyName
+
+
+
+variables = ['U-component of wind m s**-1', 'V-component of wind m s**-1', 'R Relative humidity %']
+
+for i in range(0, 4):
+    pickle_fold_forecasts(variables, i)
+    print("done with fold: ", i)
+    addallobservations('fold' + str(i) + 'data/')
+    print("done with adding observations to fold: ", i)
+
+
+#print informatoin about the first forecast
+
+with open('/net/pc200239/nobackup/users/hakvoort/fold1data/2015-10-01_24.0.pkl', 'rb') as file:
+    forecast = pkl.load(file)
+    print("The forecast date is: ", forecast.date)
+    print("The initial time is: ", forecast.initial_time)
+    print("The lead time is: ", forecast.lead_time)
+    print("The predicted wind speed is: ", forecast.wind_speed)
+    print("The variables we use are: ")
+    for variable in variables:
+        print(SimplifyName(variable), " with dimensions: ", getattr(forecast, SimplifyName(variable)).shape)

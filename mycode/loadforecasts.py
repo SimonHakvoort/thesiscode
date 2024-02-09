@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import pygrib
-import numpy as np
 from forecast import Forecast
+import pickle as pkl
 
 def extract_from_grb(path, variable_name):
     grbs = pygrib.open(path)
@@ -130,6 +130,40 @@ def fold3_data(variable_names, initial_time = '0000', lead_time = '24'):
                 continue
     
     return forecasts
+
+
+def pickle_fold_forecasts(variable_names, i):
+    nobackup = '/net/pc200239/nobackup/users/hakvoort/'
+
+    if i == 1:
+        forecasts = fold1_data(variable_names)
+        folder_base = 'fold1data'
+    elif i == 2:
+        forecasts = fold2_data(variable_names)
+        folder_base = 'fold2data'
+    elif i == 3:
+        forecasts = fold3_data(variable_names)
+        folder_base = 'fold3data'
+    elif i == 0:
+        forecasts = validation_data(variable_names)
+        folder_base = 'fold0data'
+    else:
+        raise ValueError("Invalid value for i. Expected values: 0, 1, 2, or 3.")
+
+    counter = 0
+    folder = os.path.join(nobackup, folder_base)
+    while os.path.exists(folder):
+        counter += 1
+        folder = os.path.join(nobackup, f"{folder_base}_{counter}")
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    for i, forecast in enumerate(forecasts):
+        date = forecast.date.date()
+        lead_time = forecast.lead_time.total_seconds() // 3600
+        filename = f"{date}_{lead_time}.pkl"
+        filepath = os.path.join(folder, filename)
+        with open(filepath, 'wb') as f:
+            pkl.dump(forecast, f)
 
 
 
