@@ -6,10 +6,10 @@ tfpd = tfp.distributions
 class EMOS:
     def __init__(self, num_var):
         #we should also consider the case of random initial values
-        self.a = tf.Variable(tf.zeros(1))
-        self.b = tf.Variable(tf.zeros(num_var))
-        self.c = tf.Variable(tf.zeros(1))
-        self.d = tf.Variable(tf.zeros(1))
+        self.a = tf.Variable(tf.zeros(1, dtype=tf.float32))
+        self.b = tf.Variable(tf.zeros(num_var, dtype=tf.float32))
+        self.c = tf.Variable(tf.ones(1, dtype=tf.float32))
+        self.d = tf.Variable(tf.zeros(1, dtype=tf.float32))
 
         # We can also implement Adam optimizer
         self.optimizer = tf.keras.optimizers.SGD(learning_rate=1)
@@ -35,6 +35,6 @@ class EMOS:
             hist.append(loss_value)
             grads = tape.gradient(loss_value, [self.a, self.b, self.c, self.d])
             self.optimizer.apply_gradients(zip(grads, [self.a, self.b, self.c, self.d]))
-            print("Step: {}, Loss: {}".format(step, loss_value))
+            #print("Step: {}, Loss: {}".format(step, loss_value))
         return hist
             

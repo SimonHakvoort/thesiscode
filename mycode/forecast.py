@@ -1,6 +1,7 @@
 import numpy as np
 from datetime import datetime, timedelta
 from station import Station
+import tensorflow as tf
 
 
 class Forecast:
@@ -49,6 +50,19 @@ class Forecast:
             variance = self.neighbourhood_variance((i, j), neighbourhood_size)
 
         return np.array(X), y, variance
+    
+    def get_predictors(self):
+        # get the predictors for the forecast
+        predictors = []
+        for key, value in self.__dict__.items():
+            if key != 'observations' and key != 'date' and key != 'initial_time' and key != 'lead_time' and key != 'U_componentofwindms_1' and key != 'V_componentofwindms_1':
+                predictors.append(value)
+        return predictors
+    
+    def has_observations(self):
+        # check if the forecast has observations
+        return len(self.observations) > 0
+    
         
 
     def generate_all_samples(self, neighbourhood_size, station_info):
@@ -64,7 +78,7 @@ class Forecast:
                 y.append(observation)
                 variances.append(variance)
 
-        return np.array(X), np.array(y), np.array(variances)
+        return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32), tf.convert_to_tensor(variances, dtype=tf.float32)
 
 
 

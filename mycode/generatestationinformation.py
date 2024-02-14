@@ -45,15 +45,25 @@ def find_grid_cell(lat, lon, lats, lons):
     min_lat_index = 0
     min_lon_index = 0
     for i in range(len(lats)):
-        for j in range(len(lons)):
-            lat_diff = abs(lat - lats[i, j])
-            lon_diff = abs(lon - lons[i, j])
-            if lat_diff < min_lat_diff:
-                min_lat_diff = lat_diff
-                min_lat_index = i
-            if lon_diff < min_lon_diff:
-                min_lon_diff = lon_diff
-                min_lon_index = j
+        lat_diff = abs(lat - lats[i, 0])
+        if lat_diff < min_lat_diff:
+            min_lat_diff = lat_diff
+            min_lat_index = i
+    for j in range(len(lons)):
+        lon_diff = abs(lon - lons[0, j])
+        if lon_diff < min_lon_diff:
+            min_lon_diff = lon_diff
+            min_lon_index = j
+    
+        # for j in range(len(lons)):
+        #     lat_diff = abs(lat - lats[i, j])
+        #     lon_diff = abs(lon - lons[i, j])
+        #     if lat_diff < min_lat_diff:
+        #         min_lat_diff = lat_diff
+        #         min_lat_index = i
+        #     if lon_diff < min_lon_diff:
+        #         min_lon_diff = lon_diff
+        #         min_lon_index = j
                 
     return min_lat_index, min_lon_index
 
@@ -82,18 +92,22 @@ with open(pickle_file_location, 'wb') as file:
     pkl.dump(station_info, file)
 
 
-### to compare the grid cells i found with the grid cells of daniel
+## to compare the grid cells i found with the grid cells of daniel
     
 # pickle_file_location_daniel = '/net/pc230053/nobackup/users/klein/BackupDaniel/st-info.pkl'
 
+# mypickle = '/net/pc200239/nobackup/users/hakvoort/station_info.pkl'
+
+# with open(mypickle, 'rb') as file:
+#     station_dict = pkl.load(file)
 
 
 # with open(pickle_file_location_daniel, 'rb') as file:
 #     data = pkl.load(file)
 
 # for key, value in data.items():
-#     if (value['GRID'] != station_dict[key].grid_cell):
+#     if (value['GRID'] != station_dict[key].gridcell):
 #         print("The grid cells do not match for station: ", key)
 #         print("The grid cell in the pickle file is: ", value['GRID'])
-#         print("The grid cell in the station object is: ", station_dict[key].grid_cell)
+#         print("The grid cell in the station object is: ", station_dict[key].gridcell)
 
