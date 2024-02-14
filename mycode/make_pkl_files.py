@@ -9,7 +9,7 @@ from forecast import SimplifyName
 
 variables = ['U-component of wind m s**-1', 'V-component of wind m s**-1', 'R Relative humidity %']
 initial_time = '0000'
-lead_time = '24'
+lead_time = '36'
 for i in range(0, 2):
     pickle_fold_forecasts(variables, i, initial_time, lead_time)
     print("done with fold: ", i)

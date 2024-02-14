@@ -43,11 +43,12 @@ X_list = []
 y_list = []
 variances_list = []
 for forecast in forecasts_val:
-    X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info)
-    if X.shape != (0,):
+    if forecast.has_observations():
+        X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info)
         X_list.append(X)
         y_list.append(y)
         variances_list.append(variances)
+                
 
 X_val = tf.concat(X_list, axis=0)
 y_val = tf.concat(y_list, axis=0)

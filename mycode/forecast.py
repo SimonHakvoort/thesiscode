@@ -17,6 +17,7 @@ class Forecast:
         self.wind_speed = np.sqrt(self.U_componentofwindms_1**2 + self.V_componentofwindms_1**2)
 
         self.observations = {}
+        self.ignore = ['observations', 'date', 'initial_time', 'lead_time', 'U_componentofwindms_1', 'V_componentofwindms_1', 'ignore']
 
     def add_observation(self, station_code, observation, date_time):
         # add the observation and date_time as tuple to the dictionary
@@ -41,7 +42,7 @@ class Forecast:
         y = self.observations[station.code][0]
 
         for key, value in self.__dict__.items():
-            if key != 'observations' and key != 'date' and key != 'initial_time' and key != 'lead_time' and key != 'U_componentofwindms_1' and key != 'V_componentofwindms_1':
+            if key not in self.ignore:
                 X.append(value[i, j])
 
         if neighbourhood_size == 0:
@@ -55,7 +56,7 @@ class Forecast:
         # get the predictors for the forecast
         predictors = []
         for key, value in self.__dict__.items():
-            if key != 'observations' and key != 'date' and key != 'initial_time' and key != 'lead_time' and key != 'U_componentofwindms_1' and key != 'V_componentofwindms_1':
+            if key not in self.ignore:
                 predictors.append(value)
         return predictors
     

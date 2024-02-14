@@ -91,8 +91,10 @@ pickle_file_location = location + 'station_info.pkl'
 with open(pickle_file_location, 'wb') as file:
     pkl.dump(station_info, file)
 
+print("The pickle file has been saved to: ", pickle_file_location)
 
-## to compare the grid cells i found with the grid cells of daniel
+
+# ## to compare the grid cells i found with the grid cells of daniel
     
 # pickle_file_location_daniel = '/net/pc230053/nobackup/users/klein/BackupDaniel/st-info.pkl'
 
