@@ -12,7 +12,7 @@ class EMOS:
         self.d = tf.Variable(tf.zeros(1, dtype=tf.float32))
 
         # We can also implement Adam optimizer
-        self.optimizer = tf.keras.optimizers.SGD(learning_rate=1)
+        self.optimizer = tf.keras.optimizers.SGD(learning_rate=0.0001)
 
     def get_params(self):
         return self.a, self.b, self.c, self.d
@@ -26,7 +26,7 @@ class EMOS:
     def loss(self, X, y, variance):
         forecast_distribution = self.forecast_distribution_trunc_normal(X, variance)
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
-    
+     
     def fit(self, X, y, variance, steps):
         hist = []
         for step in range(steps):
@@ -35,6 +35,6 @@ class EMOS:
             hist.append(loss_value)
             grads = tape.gradient(loss_value, [self.a, self.b, self.c, self.d])
             self.optimizer.apply_gradients(zip(grads, [self.a, self.b, self.c, self.d]))
-            #print("Step: {}, Loss: {}".format(step, loss_value))
+            print("Step: {}, Loss: {}".format(step, loss_value))
         return hist
             

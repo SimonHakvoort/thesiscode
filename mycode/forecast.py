@@ -5,19 +5,18 @@ import tensorflow as tf
 
 
 class Forecast:
-    def __init__(self, date, initial_time, lead_time, **kwargs):
+    def __init__(self, date, initial_time, lead_time, u_wind10, v_wind10, **kwargs):
         year, month, day = map(int, date.split('-'))
         hour, minute = divmod(int(initial_time), 100)
         self.date = datetime(year, month, day)
         self.initial_time = datetime(year, month, day, hour, minute)
         self.lead_time = timedelta(hours=int(lead_time))
         for key, value in kwargs.items():
-            attribute_name = SimplifyName(key)
-            setattr(self, attribute_name, value)
-        self.wind_speed = np.sqrt(self.U_componentofwindms_1**2 + self.V_componentofwindms_1**2)
+            setattr(self, key, value)
+        self.wind_speed = np.sqrt(u_wind10 ** 2 + v_wind10 ** 2)
 
         self.observations = {}
-        self.ignore = ['observations', 'date', 'initial_time', 'lead_time', 'U_componentofwindms_1', 'V_componentofwindms_1', 'ignore']
+        self.ignore = ['observations', 'date', 'initial_time', 'lead_time', 'ignore']
 
     def add_observation(self, station_code, observation, date_time):
         # add the observation and date_time as tuple to the dictionary
@@ -32,7 +31,7 @@ class Forecast:
         wind_speeds = self.wind_speed[x - half:x + half + 1, y - half:y + half + 1]
         return np.var(wind_speeds)
 
-    def generate_sample(self, station, neighbourhood_size):
+    def generate_sample(self, station, neighbourhood_size, variables_names):
         # generate a sample for the given station, which includes the wind speed, the wind speed variance in the neighbourhood and the other variables
         # station is an instance of the Station class
         # neighbourhood_size is an odd number
@@ -42,7 +41,7 @@ class Forecast:
         y = self.observations[station.code][0]
 
         for key, value in self.__dict__.items():
-            if key not in self.ignore:
+            if key not in self.ignore and key in variables_names:
                 X.append(value[i, j])
 
         if neighbourhood_size == 0:
@@ -66,22 +65,37 @@ class Forecast:
     
         
 
-    def generate_all_samples(self, neighbourhood_size, station_info):
+    def generate_all_samples(self, neighbourhood_size, station_info, variable_names, station_ignore = []):
         # generate samples for all stations in station_info
         # station_info is a dictionary with station codes as keys and Station instances as values
         X = []
         y = []
         variances = []
         for station in station_info.values():
-            if station.code in self.observations:
-                x, observation, variance = self.generate_sample(station, neighbourhood_size)
+            if station.code in self.observations and station.code not in station_ignore:
+                x, observation, variance = self.generate_sample(station, neighbourhood_size, variable_names)
                 X.append(x)
                 y.append(observation)
                 variances.append(variance)
 
         return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32), tf.convert_to_tensor(variances, dtype=tf.float32)
 
-
+def ObtainParameterName(parameter_name):
+    # returns a tuple, where the first element is the indicatorOfParameter for the grb and the second element is the level
+    if parameter_name == 'u_wind10':
+        return (33,10)
+    elif parameter_name == 'v_wind10':
+        return (34,10)
+    elif parameter_name == 'press':
+        return (1, 0)
+    elif parameter_name == 'kinetic':
+        return (200, 47)
+    elif parameter_name =='humid':
+        return (52, 2)
+    elif parameter_name == 'geopot':
+        return (6, 700)
+    else:
+        raise ValueError("Invalid parameter name")
 
 def SimplifyName(string):
     # Remove spaces and special characters from the attribute name

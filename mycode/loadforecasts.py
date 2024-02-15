@@ -3,29 +3,37 @@ import os
 import pygrib
 from forecast import Forecast
 import pickle as pkl
+from forecast import ObtainParameterName
 
 def extract_from_grb(path, variable_name):
     grbs = pygrib.open(path)
-                
-    # Initialize variable to store the data
-    variable = 0
-    
-    # Iterate through the messages (fields) in the GRIB file
-    for grb in grbs:
-        # Check if the current message corresponds to variable_name
-        if variable_name in grb.parameterName:
-            if not isinstance(variable, int):
-                raise ValueError("Please enter a more precise variable name!")
-            # Access the data values for the u-component and store them
-            variable = grb.values
 
-    if isinstance(variable, int):
-        raise ValueError("Please enter a correct variable name!")
+    try:
+        indicatorOfParameter, level = ObtainParameterName(variable_name)
+        variable = grbs.select(indicatorOfParameter=indicatorOfParameter, level=level)
+        return variable[0].values
+    except:
+        raise ValueError("Unable to obtain the variable from the GRIB file")
 
-    # Close the GRIB file
-    grbs.close()
+    # # Initialize variable to store the data
+    # variable = 0
     
-    return variable
+    # # Iterate through the messages (fields) in the GRIB file
+    # for grb in grbs:
+    #     # Check if the current message corresponds to variable_name
+    #     if variable_name in grb.parameterName:
+    #         if not isinstance(variable, int):
+    #             raise ValueError("Please enter a more precise variable name!")
+    #         # Access the data values for the u-component and store them
+    #         variable = grb.values
+
+    # if isinstance(variable, int):
+    #     raise ValueError("Please enter a correct variable name!")
+
+    # # Close the GRIB file
+    # grbs.close()
+    
+    # return variable
 
 def get_filepath(year, month, day, initial_time, lead_time):
     if year == '2015' or year == '2016' or year == '2017':
@@ -45,11 +53,13 @@ def make_forecast(year, month, day, initial_time, lead_time, variable_names):
     file_path = get_filepath(year, month, day, initial_time, lead_time)
     if os.path.isfile(file_path):
         variables = {}
+        u_wind10 = extract_from_grb(file_path, 'u_wind10')
+        v_wind10 = extract_from_grb(file_path, 'v_wind10')
         for variable_name in variable_names:
             variable = extract_from_grb(file_path, variable_name)
             variables[variable_name] = variable
         
-        return Forecast(f'{year}-{month}-{day}', initial_time, lead_time, **variables)
+        return Forecast(f'{year}-{month}-{day}', initial_time, lead_time, u_wind10, v_wind10, **variables)
     else:
         raise ValueError("File does not exist!")
 
@@ -165,8 +175,29 @@ def pickle_fold_forecasts(variable_names, i, initial_time, lead_time):
         with open(filepath, 'wb') as f:
             pkl.dump(forecast, f)
 
+# retrieve the forecasts from the pickle files and returns them as a list
+def get_folds():
+    fold0 = get_fold_i(0)
+    fold1 = get_fold_i(1)
+    fold2 = get_fold_i(2)
+    fold3 = get_fold_i(3)
 
+    return fold0, fold1, fold2, fold3
 
+def get_fold_i(i):
+    foldi = []
 
+    for file in os.listdir(f'/net/pc200239/nobackup/users/hakvoort/fold{i}data/'):
+        if file.endswith('.pkl'):
+            with open(f'/net/pc200239/nobackup/users/hakvoort/fold{i}data/' + file, 'rb') as f:
+                forecast = pkl.load(f)
+                foldi.append(forecast)
+    
+    return foldi
+
+def get_station_info():
+    with open('/net/pc200239/nobackup/users/hakvoort/station_info.pkl', 'rb') as f:
+        station_info = pkl.load(f)
+    return station_info
 
 

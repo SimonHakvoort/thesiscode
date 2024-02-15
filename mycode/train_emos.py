@@ -23,17 +23,20 @@ for file in os.listdir(validationfolder):
 
 station_info = pkl.load(open('/net/pc200239/nobackup/users/hakvoort/station_info.pkl', 'rb'))
 
-neighbourhood_size = 3
+neighbourhood_size = 5
+# possible parameters: 'wind_speed', 'press', 'kinetic', 'humid', 'geopot'
+parameter_names = ['wind_speed', 'kinetic', 'humid']
 
 X_list = []
 y_list = []
 variances_list = []
 for forecast in forecasts1:
-    X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info)
-    if X.shape != (0,):
+    if forecast.has_observations():
+        X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names)
         X_list.append(X)
         y_list.append(y)
         variances_list.append(variances)
+
 
 X_1 = tf.concat(X_list, axis=0)
 y_1 = tf.concat(y_list, axis=0)
@@ -44,7 +47,7 @@ y_list = []
 variances_list = []
 for forecast in forecasts_val:
     if forecast.has_observations():
-        X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info)
+        X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names)
         X_list.append(X)
         y_list.append(y)
         variances_list.append(variances)
@@ -54,15 +57,14 @@ X_val = tf.concat(X_list, axis=0)
 y_val = tf.concat(y_list, axis=0)
 variances_val = tf.concat(variances_list, axis=0)
 
-emos = EMOS(2)
+emos = EMOS(len(parameter_names))
 
-for _ in range(0, 500):
-    emos.fit(X_1, y_1, variances_1, 10)
-    validation_loss = emos.loss(X_val, y_val, variances_val)
-    print("Validation loss: ", validation_loss)
-
+emos.fit(X_1, y_1, variances_1, 500)
 a, b, c, d = emos.get_params()
 print("a: ", a)
 print("b: ", b)
 print("c: ", c)
 print("d: ", d)
+
+val_loss = emos.loss(X_val, y_val, variances_val)
+print("Validation loss: ", val_loss)

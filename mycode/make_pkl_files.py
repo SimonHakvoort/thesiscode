@@ -1,21 +1,30 @@
 
 import pickle as pkl
-from loadforecasts import pickle_fold_forecasts
+from loadforecasts import fold1_data, pickle_fold_forecasts
 import pickle as pkl
 from addobservations import addallobservations
-from forecast import SimplifyName
 
 
 
-variables = ['U-component of wind m s**-1', 'V-component of wind m s**-1', 'R Relative humidity %']
+# variables = ['U-component of wind m s**-1', 'V-component of wind m s**-1', 'R Relative humidity %']
+# initial_time = '0000'
+# lead_time = '36'
+# for i in range(0, 2):
+#     pickle_fold_forecasts(variables, i, initial_time, lead_time)
+#     print("done with fold: ", i)
+#     addallobservations('fold' + str(i) + 'data/')
+#     print("done with adding observations to fold: ", i)
+
+
+variables = ['press', 'kinetic', 'humid', 'geopot']
 initial_time = '0000'
 lead_time = '36'
-for i in range(0, 2):
+
+for i in range(0, 4):
     pickle_fold_forecasts(variables, i, initial_time, lead_time)
     print("done with fold: ", i)
     addallobservations('fold' + str(i) + 'data/')
     print("done with adding observations to fold: ", i)
-
 
 # #print informatoin about the first forecast
 
