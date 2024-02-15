@@ -3,23 +3,9 @@ import pickle as pkl
 import tensorflow as tf
 
 from emos import EMOS
+from loadforecasts import get_folds
 
-datafolder = '/net/pc200239/nobackup/users/hakvoort/fold1data/'
-validationfolder = '/net/pc200239/nobackup/users/hakvoort/fold1data/'
-
-forecasts1 = []
-for file in os.listdir(datafolder):
-    if file.endswith('.pkl'):
-        with open(datafolder + file, 'rb') as f:
-            forecast = pkl.load(f)
-            forecasts1.append(forecast)
-
-forecasts_val = []
-for file in os.listdir(validationfolder):
-    if file.endswith('.pkl'):
-        with open(validationfolder + file, 'rb') as f:
-            forecast = pkl.load(f)
-            forecasts_val.append(forecast)
+fold_test, fold1, fold2, fold3 = get_folds()
 
 station_info = pkl.load(open('/net/pc200239/nobackup/users/hakvoort/station_info.pkl', 'rb'))
 
@@ -30,7 +16,7 @@ parameter_names = ['wind_speed', 'kinetic', 'humid']
 X_list = []
 y_list = []
 variances_list = []
-for forecast in forecasts1:
+for forecast in fold1:
     if forecast.has_observations():
         X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names)
         X_list.append(X)
@@ -45,7 +31,7 @@ variances_1 = tf.concat(variances_list, axis=0)
 X_list = []
 y_list = []
 variances_list = []
-for forecast in forecasts_val:
+for forecast in fold_test:
     if forecast.has_observations():
         X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names)
         X_list.append(X)
