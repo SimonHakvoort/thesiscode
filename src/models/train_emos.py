@@ -2,14 +2,16 @@ import os
 import pickle as pkl
 import tensorflow as tf
 
-from emos import EMOS
-from loadforecasts import get_folds
+from src.models.emos import EMOS
+from src.models.get_data import get_folds
 
 fold_test, fold1, fold2, fold3 = get_folds()
 
 station_info = pkl.load(open('/net/pc200239/nobackup/users/hakvoort/station_info.pkl', 'rb'))
 
 neighbourhood_size = 5
+
+
 # possible parameters: 'wind_speed', 'press', 'kinetic', 'humid', 'geopot'
 parameter_names = ['wind_speed', 'kinetic', 'humid']
 

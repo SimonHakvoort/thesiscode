@@ -1,9 +1,26 @@
 #!/usr/bin/env python3
 import os
 import pygrib
-from forecast import Forecast
+from src.loading_data.forecast import Forecast
 import pickle as pkl
-from forecast import ObtainParameterName
+
+
+def ObtainParameterName(parameter_name):
+    # returns a tuple, where the first element is the indicatorOfParameter for the grb and the second element is the level
+    if parameter_name == 'u_wind10':
+        return (33,10)
+    elif parameter_name == 'v_wind10':
+        return (34,10)
+    elif parameter_name == 'press':
+        return (1, 0)
+    elif parameter_name == 'kinetic':
+        return (200, 47)
+    elif parameter_name =='humid':
+        return (52, 2)
+    elif parameter_name == 'geopot':
+        return (6, 700)
+    else:
+        raise ValueError("Invalid parameter name")
 
 def extract_from_grb(path, variable_name):
     grbs = pygrib.open(path)
@@ -14,26 +31,6 @@ def extract_from_grb(path, variable_name):
         return variable[0].values
     except:
         raise ValueError("Unable to obtain the variable from the GRIB file")
-
-    # # Initialize variable to store the data
-    # variable = 0
-    
-    # # Iterate through the messages (fields) in the GRIB file
-    # for grb in grbs:
-    #     # Check if the current message corresponds to variable_name
-    #     if variable_name in grb.parameterName:
-    #         if not isinstance(variable, int):
-    #             raise ValueError("Please enter a more precise variable name!")
-    #         # Access the data values for the u-component and store them
-    #         variable = grb.values
-
-    # if isinstance(variable, int):
-    #     raise ValueError("Please enter a correct variable name!")
-
-    # # Close the GRIB file
-    # grbs.close()
-    
-    # return variable
 
 def get_filepath(year, month, day, initial_time, lead_time):
     if year == '2015' or year == '2016' or year == '2017':
@@ -175,29 +172,6 @@ def pickle_fold_forecasts(variable_names, i, initial_time, lead_time):
         with open(filepath, 'wb') as f:
             pkl.dump(forecast, f)
 
-# retrieve the forecasts from the pickle files and returns them as a list
-def get_folds():
-    fold0 = get_fold_i(0)
-    fold1 = get_fold_i(1)
-    fold2 = get_fold_i(2)
-    fold3 = get_fold_i(3)
 
-    return fold0, fold1, fold2, fold3
-
-def get_fold_i(i):
-    foldi = []
-
-    for file in os.listdir(f'/net/pc200239/nobackup/users/hakvoort/fold{i}data/'):
-        if file.endswith('.pkl'):
-            with open(f'/net/pc200239/nobackup/users/hakvoort/fold{i}data/' + file, 'rb') as f:
-                forecast = pkl.load(f)
-                foldi.append(forecast)
-    
-    return foldi
-
-def get_station_info():
-    with open('/net/pc200239/nobackup/users/hakvoort/station_info.pkl', 'rb') as f:
-        station_info = pkl.load(f)
-    return station_info
 
 

@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-from station import Station
+from src.loading_data.station import Station
 import pygrib
 import pickle as pkl
 
@@ -54,16 +54,6 @@ def find_grid_cell(lat, lon, lats, lons):
         if lon_diff < min_lon_diff:
             min_lon_diff = lon_diff
             min_lon_index = j
-    
-        # for j in range(len(lons)):
-        #     lat_diff = abs(lat - lats[i, j])
-        #     lon_diff = abs(lon - lons[i, j])
-        #     if lat_diff < min_lat_diff:
-        #         min_lat_diff = lat_diff
-        #         min_lat_index = i
-        #     if lon_diff < min_lon_diff:
-        #         min_lon_diff = lon_diff
-        #         min_lon_index = j
                 
     return min_lat_index, min_lon_index
 

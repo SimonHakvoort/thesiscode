@@ -1,6 +1,6 @@
 import numpy as np
 from datetime import datetime, timedelta
-from station import Station
+from src.loading_data.station import Station
 import tensorflow as tf
 
 
@@ -80,27 +80,4 @@ class Forecast:
 
         return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32), tf.convert_to_tensor(variances, dtype=tf.float32)
 
-def ObtainParameterName(parameter_name):
-    # returns a tuple, where the first element is the indicatorOfParameter for the grb and the second element is the level
-    if parameter_name == 'u_wind10':
-        return (33,10)
-    elif parameter_name == 'v_wind10':
-        return (34,10)
-    elif parameter_name == 'press':
-        return (1, 0)
-    elif parameter_name == 'kinetic':
-        return (200, 47)
-    elif parameter_name =='humid':
-        return (52, 2)
-    elif parameter_name == 'geopot':
-        return (6, 700)
-    else:
-        raise ValueError("Invalid parameter name")
 
-def SimplifyName(string):
-    # Remove spaces and special characters from the attribute name
-    attribute_name = ''.join(c if c.isalnum() else '_' for c in string.replace(' ', ''))
-    while '__' in attribute_name:
-        attribute_name = attribute_name.replace('__', '_')
-    
-    return attribute_name
