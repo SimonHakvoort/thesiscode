@@ -27,7 +27,7 @@ def get_station_info():
         station_info = pkl.load(f)
     return station_info
 
-def get_tensors(neighberhood_size, parameter_names, fold):
+def get_tensors(neighbourhood_size, parameter_names, fold):
     fold = get_fold_i(fold)
     station_info = get_station_info()
     X_list = []
@@ -35,7 +35,7 @@ def get_tensors(neighberhood_size, parameter_names, fold):
     variances_list = []
     for forecast in fold:
         if forecast.has_observations():
-            X, y, variances = forecast.generate_all_samples(neighberhood_size, station_info, parameter_names)
+            X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names)
             X_list.append(X)
             y_list.append(y)
             variances_list.append(variances)
@@ -44,3 +44,39 @@ def get_tensors(neighberhood_size, parameter_names, fold):
     y = tf.concat(y_list, axis=0)
     variances = tf.concat(variances_list, axis=0)
     return X, y, variances
+
+def get_normalized_tensor(neighbourhood_size, parameter_names, folds):
+    X_list = []
+    y_list = []
+    variances_list = []
+    for fold in folds:
+        X, y, variances = get_tensors(neighbourhood_size, parameter_names, fold)
+        X_list.append(X)
+        y_list.append(y)
+        variances_list.append(variances)
+
+    X = tf.concat(X_list, axis=0)
+    y = tf.concat(y_list, axis=0)
+    variances = tf.concat(variances_list, axis=0)    
+
+    mean = tf.reduce_mean(X, axis=0)
+    std = tf.math.reduce_std(X, axis=0)
+    
+    mean = tf.Variable(mean)
+    std = tf.Variable(std)
+
+    mean[0].assign(tf.constant(0.0))
+    std[0].assign(tf.constant(1.0))
+
+    X = (X - mean) / std
+    output_dict = {'X': X, 'y': y, 'variances': variances, 'mean': mean, 'std': std}
+    return output_dict
+    
+def sort_tensor(X, y, variance):
+    order = tf.argsort(y, axis=0)
+    X = tf.gather(X, order)
+    y = tf.gather(y, order)
+    variance = tf.gather(variance, order)
+
+    return X, y, variance
+    

@@ -80,3 +80,5 @@ print("Test: ", np.sum(data_test > threshold))
 print("1: ", np.sum(data_1 > threshold))
 print("2: ", np.sum(data_2 > threshold))
 print("3: ", np.sum(data_3 > threshold))
+
+print("top 20 values in test: " , np.sort(data_test)[-20:])

@@ -40,9 +40,12 @@ class Forecast:
         X = []
         y = self.observations[station.code][0]
 
-        for key, value in self.__dict__.items():
-            if key not in self.ignore and key in variables_names:
-                X.append(value[i, j])
+        # for key, value in self.__dict__.items():
+        #     if key not in self.ignore and key in variables_names:
+        #         X.append(value[i, j])
+
+        for key in variables_names:
+            X.append(getattr(self, key)[i, j])
 
         if neighbourhood_size == 0:
             variance = 0
