@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pygrib
 import pickle as pkl
-from src.loading_data.loadforecasts import get_folds, get_station_info
+from src.models.get_data import get_folds, get_station_info
 from itertools import chain
 
 
@@ -54,10 +54,10 @@ for forecast in fold3:
 
 
 
-data_test = list(chain.from_iterable(data_test))
-data_1 = list(chain.from_iterable(data_1))
-data_2 = list(chain.from_iterable(data_2))
-data_3 = list(chain.from_iterable(data_3))
+data_test = np.array(list(chain.from_iterable(data_test)))
+data_1 = np.array(list(chain.from_iterable(data_1)))
+data_2 = np.array(list(chain.from_iterable(data_2)))
+data_3 = np.array(list(chain.from_iterable(data_3)))
 
 percentiles = [90, 95, 99, 99.5]
 
