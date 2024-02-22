@@ -23,11 +23,16 @@ X_val = (X_val - emos_model.feature_mean) / emos_model.feature_std
 
 X_val, y_val, variances_val = sort_tensor(X_val, y_val, variances_val)
 
+top_values = 200
+
+X_val = X_val[:top_values]
+y_val = y_val[:top_values]
+variances_val = variances_val[:top_values]
+
 loss = []
 for i in x:
-    loss_i = emos_model.Brier_score(X_val, y_val, variances_val, i)
+    loss_i = emos_model.loss_Brier_score(X_val, y_val, variances_val, i)
     loss.append(loss_i.numpy())
 
-plt.plot(x, loss)
-plt.show()
+print(loss)
 

@@ -5,7 +5,19 @@ import tensorflow as tf
 
 
 class Forecast:
+    """
+    The Forecast class represents a forecast. It contains the day and time that the forecast is made, the lead time and the wind speed.
+    It can optionally contain other variables. These other variables and the wind speed are stored as numpy arrays.
+    We can add observations to the forecast, which are stored in a dictionary with the station code as key and the observation and date_time as value.
+    """
     def __init__(self, date, initial_time, lead_time, u_wind10, v_wind10, **kwargs):
+        """
+        Creates a Forecast instance.
+
+        Arguments:
+        - date: the date of  the forecast, which is a string of the form 'YYYY-MM-DD'. It will be converted to a datetime object.
+        - initial_time: the time of the forecast, which is a string of the form 'HHMM'. It will be converted to a datetime object.
+        """
         year, month, day = map(int, date.split('-'))
         hour, minute = divmod(int(initial_time), 100)
         self.date = datetime(year, month, day)

@@ -39,23 +39,47 @@ def train_and_save_emos(neighbourhood_size, parameter_names, epochs, folds, setu
 # IMPORTANT: the first parameter should be 'wind_speed', this is assumed in the normalization process
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
-# possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood'
-loss = "loss_CRPS_sample"
+# possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
+loss = "loss_twCRPS_sample"
 samples = 50
+
+# possible chain functions: 'chain_function_indicator'
+chain_function = "chain_function_indicator"
+threshold = 8
 
 # possible optimizers: 'SGD', 'Adam'
 optimizer = "Adam"
 learning_rate = 0.01
 
-# possible forecast distributions: 'distr_trunc_normal'
-forecast_distribution = "distr_trunc_normal"
+# possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal'
+forecast_distribution = "distr_log_normal"
 
-setup = {'loss': loss, 'samples': samples, 'optimizer': optimizer, 'learning_rate': learning_rate, 'forecast_distribution': forecast_distribution}
+setup = {'loss': loss,
+         'samples': samples, 
+         'optimizer': optimizer, 
+         'learning_rate': learning_rate, 
+         'forecast_distribution': forecast_distribution,
+         'chain_function': chain_function,
+         'threshold': threshold
+         }
 
 neighbourhood_size = 11
-epochs = 500
+epochs = 100
 folds = [1,2,3]
 
-train_and_save_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
+#tf.debugging.enable_check_numerics()
 
+emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
+
+params = emos.to_dict()
+
+emos2 = EMOS(params)
+
+parameters = emos2.get_params()
+print(parameters)
+
+emos3 = train_emos(neighbourhood_size, parameter_names, epochs, folds, params)
+
+
+print(emos3.get_params())
 

@@ -73,7 +73,7 @@ def get_normalized_tensor(neighbourhood_size, parameter_names, folds):
     return output_dict
     
 def sort_tensor(X, y, variance):
-    order = tf.argsort(y, axis=0)
+    order = tf.argsort(y, axis=0, direction='DESCENDING')
     X = tf.gather(X, order)
     y = tf.gather(y, order)
     variance = tf.gather(variance, order)
