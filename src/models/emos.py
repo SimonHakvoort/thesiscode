@@ -70,11 +70,11 @@ class EMOS:
             raise ValueError("Invalid optimizer: " + setup['optimizer'])
         
         # The setup of the forecast distribution
-        if 'mixture' not in setup or setup['mixture'] == 1:
-            try:
-                self.forecast_distribution = getattr(self, setup['forecast_distribution'])
-            except AttributeError:
-                raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
+        try:
+            self.forecast_distribution = getattr(self, setup['forecast_distribution'])
+        except AttributeError:
+            raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
+
         
 
         self.feature_names = setup['features']
@@ -84,15 +84,20 @@ class EMOS:
         # PARAMETERS
         self.parameter_dict = {}
         if self.forecast_distribution == self.distr_trunc_normal:
-            if 'a_tn' in setup and 'b_tn' in setup and 'c_tn' in setup and 'd_tn' in setup:
-                self.initialize_trunc_normal(default = False,  a = setup['a_tn'], b = setup['b_tn'], c = setup['c_tn'], d = setup['d_tn'])
+            if 'parameters' in setup:
+                self.initialize_trunc_normal(default = False, parameters = setup['parameters'])
             else:
                 self.initialize_trunc_normal(default = True)
         elif self.forecast_distribution == self.distr_log_normal:
-            if 'a_ln' in setup and 'b_ln' in setup and 'c_ln' in setup and 'd_ln' in setup:
-                self.initialize_log_normal(default = False, a = setup['a_ln'], b = setup['b_ln'], c = setup['c_ln'], d = setup['d_ln'])
+            if 'parameters' in setup:
+                self.initialize_log_normal(default = False, parameters = setup['parameters'])
             else:
                 self.initialize_log_normal(default = True)
+        elif self.forecast_distribution == self.distr_mixture:
+            if 'parameters' in setup:
+                self.initialize_mixture(default = False, setup = setup)
+            else:
+                self.initialize_mixture(default = True, setup = setup)
 
         # Optionally we can initialize the feature mean and standard deviation with the given values. Not sure whether this needs to be included
         if setup['feature_mean'] is not None and setup['feature_std'] is not None:
@@ -106,16 +111,13 @@ class EMOS:
             self.steps_made = 0
             
   
-    def initialize_trunc_normal(self, default, a = 0, b = 0, c = 1, d = 0):
+    def initialize_trunc_normal(self, default, parameters = {}):
         """
         Initialize the parameters of the truncated normal distribution and stores them in parameter_dict. We use a linear relationship between the parameters and the features.
 
         Arguments:
         - default: whether to initialize the parameters with default values
-        - a: the initial value of the parameter a
-        - b: the initial value of the parameter b
-        - c: the initial value of the parameter c
-        - d: the initial value of the parameter d
+        - parameters: a dictionary containing the parameters of the truncated normal distribution
         """
         if default:
             self.parameter_dict['a_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32))
@@ -123,22 +125,22 @@ class EMOS:
             self.parameter_dict['c_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32))
         else:
-            self.parameter_dict['a_tn'] = tf.Variable(a, dtype=tf.float32)
-            self.parameter_dict['b_tn'] = tf.Variable(b, dtype=tf.float32)
-            self.parameter_dict['c_tn'] = tf.Variable(c, dtype=tf.float32)
-            self.parameter_dict['d_tn'] = tf.Variable(d, dtype=tf.float32)
+            try:
+                self.parameter_dict['a_tn'] = tf.Variable(parameters['a_tn'], dtype=tf.float32)
+                self.parameter_dict['b_tn'] = tf.Variable(parameters['b_tn'], dtype=tf.float32)
+                self.parameter_dict['c_tn'] = tf.Variable(parameters['c_tn'], dtype=tf.float32)
+                self.parameter_dict['d_tn'] = tf.Variable(parameters['d_tn'], dtype=tf.float32)
+            except KeyError:
+                raise ValueError("Invalid parameters for truncated normal distribution")
 
 
-    def initialize_log_normal(self, default, a = 0, b = 0, c = 1, d = 0):
+    def initialize_log_normal(self, default, parameters = {}):
         """
         Initialize the parameters of the log normal distribution and stores them in parameter_dict. We use a linear relationship between the parameters and the features.
 
         Arguments:
         - default: whether to initialize the parameters with default values.
-        - a: the initial value of the parameter a.
-        - b: the initial value of the parameter b.
-        - c: the initial value of the parameter c.
-        - d: the initial value of the parameter d.
+        - parameters: a dictionary containing the parameters of the log normal distribution.
         """
         if default:
             self.parameter_dict['a_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
@@ -146,12 +148,37 @@ class EMOS:
             self.parameter_dict['c_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
         else:
-            self.parameter_dict['a_ln'] = tf.Variable(a, dtype=tf.float32)
-            self.parameter_dict['b_ln'] = tf.Variable(b, dtype=tf.float32)
-            self.parameter_dict['c_ln'] = tf.Variable(c, dtype=tf.float32)
-            self.parameter_dict['d_ln'] = tf.Variable(d, dtype=tf.float32)
+            try:
+                self.parameter_dict['a_ln'] = tf.Variable(parameters['a_ln'], dtype=tf.float32)
+                self.parameter_dict['b_ln'] = tf.Variable(parameters['b_ln'], dtype=tf.float32)
+                self.parameter_dict['c_ln'] = tf.Variable(parameters['c_ln'], dtype=tf.float32)
+                self.parameter_dict['d_ln'] = tf.Variable(parameters['d_ln'], dtype=tf.float32)
+            except KeyError:
+                raise ValueError("Invalid parameters for log normal distribution")
+            
+    def initialize_mixture(self, default, setup):
+        try:
+            self.distribution_1 = getattr(self, setup['distribution_1'])
+            self.distribution_2 = getattr(self, setup['distribution_2'])
 
-        
+            if self.distribution_1 == self.distr_trunc_normal or self.distribution_2 == self.distr_trunc_normal:
+                if default:
+                    self.initialize_trunc_normal(default)
+                else:
+                    self.initialize_trunc_normal(default, setup['parameters'])
+
+            if self.distribution_1 == self.distr_log_normal or self.distribution_2 == self.distr_log_normal:
+                if default:
+                    self.initialize_log_normal(default)
+                else:
+                    self.initialize_log_normal(default, setup['parameters'])
+
+            if default: ## should be changed to 0.5, but right now easier for testing
+                self.parameter_dict['weight'] = tf.Variable(initial_value=0.4, dtype=tf.float32, trainable=True, name='weight')
+            else:
+                self.parameter_dict['weight'] = tf.Variable(setup['parameters']['weight'], dtype=tf.float32, trainable=True, name='weight')
+        except AttributeError:
+            raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
     
     def get_params(self):
         """
@@ -178,8 +205,11 @@ class EMOS:
             'features': self.feature_names,
             'neighbourhood_size': self.neighbourhood_size
         }
-        for parameter in self.parameter_dict:
-            model_dict[parameter] = self.parameter_dict[parameter].numpy()
+        model_dict['parameters'] = self.get_params()
+
+        if self.need_chain:
+            model_dict['chain_function'] = self.chain_function.__name__
+            model_dict['threshold'] = self.threshold.numpy()
         return model_dict
     
     def indicator_function(self, y, t):
@@ -194,6 +224,8 @@ class EMOS:
         - 1 if y <= t, 0 otherwise.
         """
         return tf.cast(y <= t, tf.float32)
+
+    #def distr_mixture(self, X, variance):
 
     
     def distr_trunc_normal(self, X, variance):
@@ -225,6 +257,22 @@ class EMOS:
         mu = self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1)
         sigma = tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance))
         return tfpd.LogNormal(mu, sigma)
+    
+    def distr_mixture(self, X, variance):
+        distribution_1 = self.distribution_1(X, variance)
+        distribution_2 = self.distribution_2(X, variance)
+        size = X.shape[0]
+        # prob1 = tf.fill([size], self.parameter_dict['weight'])
+        # prob2 = tf.fill([size], 1 - self.parameter_dict['weight'])
+        prob1 = tf.ones(size) * self.parameter_dict['weight']
+        prob2 = tf.ones(size) * (1 - self.parameter_dict['weight'])
+        probs = tf.stack([prob1, prob2], axis=-1)
+        categorical = tfpd.Categorical(probs=probs)
+        mixture = tfpd.Mixture(
+            cat=categorical,
+            components=[distribution_1, distribution_2]
+        )
+        return mixture
 
     
     def loss_log_likelihood(self, X, y, variance):
@@ -283,8 +331,10 @@ class EMOS:
         E_1 = tf.norm(vX_1 - chain_function(y), axis=0)
         E_2 = tf.norm(vX_2 - vX_1, axis=0)
 
+        #checken of ik ook gemiddelde kan nemen ipv reduce_sum
         #E_1_ = tf.sqrt(tf.reduce_sum(tf.square(vX_1 - chain_function(y)) + 1.0e-20))
         #E_2_ = tf.sqrt(tf.reduce_sum(tf.square(vX_2 - vX_1) + 1.0e-20))
+
 
 
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
@@ -292,8 +342,15 @@ class EMOS:
         
 
     def chain_function_indicator(self, y):
-        # This is the chaining function for the indicator weight function, where t is the threshold
-        # The output will be max(y, t)
+        """
+        Implements the chain function in case the weight function is the indicator function, which is used in weighted loss functions.
+
+        Arguments:
+        - y: the input value.
+
+        Returns:
+        - the maximum of y and the threshold.
+        """
         return tf.maximum(y, self.threshold)
      
     def fit(self, X, y, variance, steps):
@@ -301,13 +358,13 @@ class EMOS:
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
 
         Arguments:
-        - X: the input data
-        - y: the output data
-        - variance: the variance of the forecast around the grid point, with grid size neighbourhood_size
-        - steps: the amount of steps to take with the optimizer
+        - X: the input data.
+        - y: the output data.
+        - variance: the variance of the forecast around the grid point, with grid size neighbourhood_size.
+        - steps: the amount of steps to take with the optimizer.
 
         Returns:
-        - hist: a list containing the loss value at each step
+        - hist: a list containing the loss value at each step.
         """
         hist = []
         self.steps_made += steps
@@ -320,6 +377,12 @@ class EMOS:
                 print("Gradient contains NaN")
                 continue
             hist.append(loss_value)
+
+
+            # clip the gradient 
+            grads = [tf.clip_by_value(grad, -1, 1) for grad in grads]
+
+
             self.optimizer.apply_gradients(zip(grads, self.parameter_dict.values()))
 
             print("Step: {}, Loss: {}".format(step, loss_value))

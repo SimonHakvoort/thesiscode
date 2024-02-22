@@ -60,7 +60,7 @@ data_2 = np.array(list(chain.from_iterable(data_2)))
 data_3 = np.array(list(chain.from_iterable(data_3)))
 
 percentiles = [90, 95, 99, 99.5]
-
+#consider between 95 and 99
 percentiles_test = np.percentile(data_test, percentiles)
 percentiles_1 = np.percentile(data_1, percentiles)
 percentiles_2 = np.percentile(data_2, percentiles)

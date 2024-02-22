@@ -51,8 +51,12 @@ threshold = 8
 optimizer = "Adam"
 learning_rate = 0.01
 
-# possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal'
+# possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal' and 'distr_mixture', which can be a mixture distribution of two previously mentioned distributions.
 forecast_distribution = "distr_log_normal"
+
+# necessary in case of a mixture distribution
+distribution_1 = "distr_trunc_normal"
+distribution_2 = "distr_log_normal"
 
 setup = {'loss': loss,
          'samples': samples, 
@@ -60,26 +64,20 @@ setup = {'loss': loss,
          'learning_rate': learning_rate, 
          'forecast_distribution': forecast_distribution,
          'chain_function': chain_function,
-         'threshold': threshold
+         'threshold': threshold,
+         'distribution_1': distribution_1,
+         'distribution_2': distribution_2
          }
 
 neighbourhood_size = 11
-epochs = 100
+epochs = 200
 folds = [1,2,3]
 
 #tf.debugging.enable_check_numerics()
 
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-params = emos.to_dict()
+params = emos.get_params()
 
-emos2 = EMOS(params)
-
-parameters = emos2.get_params()
-print(parameters)
-
-emos3 = train_emos(neighbourhood_size, parameter_names, epochs, folds, params)
-
-
-print(emos3.get_params())
+print(params)
 
