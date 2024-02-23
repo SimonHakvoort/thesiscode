@@ -56,8 +56,8 @@ chain_function_std = 2
 optimizer = "Adam"
 learning_rate = 0.01
 
-# possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal' and 'distr_mixture', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture"
+# possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
+forecast_distribution = "distr_mixture_linear"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"

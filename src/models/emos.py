@@ -113,6 +113,11 @@ class EMOS:
                 self.initialize_mixture(default = False, setup = setup)
             else:
                 self.initialize_mixture(default = True, setup = setup)
+        elif self.forecast_distribution == self.distr_mixture_linear:
+            if 'parameters' in setup:
+                self.initialize_mixture_linear(default = False, setup = setup)
+            else:
+                self.initialize_mixture_linear(default = True, setup = setup)
 
 
         # Optionally we can initialize the feature mean and standard deviation with the given values. Not sure whether this needs to be included
@@ -232,8 +237,6 @@ class EMOS:
                 raise ValueError("Invalid parameters for log normal distribution")
             
     def initialize_mixture(self, default, setup):
-
-
         try:
             self.distribution_1 = getattr(self, setup['distribution_1'])
             self.distribution_2 = getattr(self, setup['distribution_2'])
@@ -253,9 +256,37 @@ class EMOS:
             constraint = tf.keras.constraints.MinMaxNorm(min_value=0.0, max_value=1.0)
 
             if default: ## should be changed to 0.5, but right now easier for testing
-                self.parameter_dict['weight'] = tf.Variable(0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+                self.parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
             else:
-                self.parameter_dict['weight'] = tf.Variable(setup['parameters']['weight'], dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+                self.parameter_dict['weight'] = tf.Variable(initial_value=setup['parameters']['weight'], dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+        except AttributeError:
+            raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
+        
+    def initialize_mixture_linear(self, default, setup):
+        try:
+            self.distribution_1 = getattr(self, setup['distribution_1'])
+            self.distribution_2 = getattr(self, setup['distribution_2'])
+
+            if self.distribution_1 == self.distr_trunc_normal or self.distribution_2 == self.distr_trunc_normal:
+                if default:
+                    self.initialize_trunc_normal(default)
+                else:
+                    self.initialize_trunc_normal(default, setup['parameters'])
+
+            if self.distribution_1 == self.distr_log_normal or self.distribution_2 == self.distr_log_normal:
+                if default:
+                    self.initialize_log_normal(default)
+                else:
+                    self.initialize_log_normal(default, setup['parameters'])
+            
+            if default:
+                self.parameter_dict['weight_a'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+                self.parameter_dict['weight_b'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+                self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            else:
+                self.parameter_dict['weight_a'] = tf.Variable(setup['parameters']['weight_a'], dtype=tf.float32)
+                self.parameter_dict['weight_b'] = tf.Variable(setup['parameters']['weight_b'], dtype=tf.float32)
+                self.parameter_dict['weight_c'] = tf.Variable(setup['parameters']['weight_c'], dtype=tf.float32)
         except AttributeError:
             raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
     
@@ -285,6 +316,7 @@ class EMOS:
             'neighbourhood_size': self.neighbourhood_size
         }
         model_dict['parameters'] = self.get_params()
+        
 
         if self.need_chain:
             if self.chain_function == self.chain_function_indicator:
@@ -294,6 +326,16 @@ class EMOS:
                 model_dict['chain_function'] = 'chain_function_normal_cdf'
                 model_dict['chain_function_mean'] = self.chain_function_mean.numpy()
                 model_dict['chain_function_std'] = self.chain_function_std.numpy()
+
+        if hasattr(self, 'distribution_1') and hasattr(self, 'distribution_2'):
+            model_dict['distribution_1'] = self.distribution_1.__name__
+            model_dict['distribution_2'] = self.distribution_2.__name__
+            if self.forecast_distribution == self.distr_mixture:
+                model_dict['weight'] = self.parameter_dict['weight'].numpy()
+            elif self.forecast_distribution == self.distr_mixture_linear:
+                model_dict['weight_a'] = self.parameter_dict['weight_a'].numpy()
+                model_dict['weight_b'] = self.parameter_dict['weight_b'].numpy()
+                model_dict['weight_c'] = self.parameter_dict['weight_c'].numpy()
         return model_dict
     
     def indicator_function(self, y, t):
@@ -339,18 +381,7 @@ class EMOS:
         mu = self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1)
         sigma = tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance))
         return tfpd.LogNormal(mu, sigma)
-    
-    def distr_gev(self, X, variance):
-        """
-        The generalised extreme value distribution. We use a linear relationship between the parameters and the features.
 
-        Arguments:
-        - X: the input data.
-        - variance: the variance around the grid point, with a square grid around the neighbourhood station of size neighbourhood_size x neighbourhood_size.
-
-        Returns:
-        - the generalised extreme value distribution.
-        """
 
 
     class DistributionMixture:
@@ -367,10 +398,21 @@ class EMOS:
 
         def sample(self, n):
             return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
+        
+        def mean(self):
+            return self.weight * self.distribution_1.mean() + (1 - self.weight) * self.distribution_2.mean()
+    
+        
 
     def distr_mixture(self, X, variance):
         mixture_distr = self.DistributionMixture(self.distribution_1(X, variance), self.distribution_2(X, variance), self.parameter_dict['weight'])
         return mixture_distr 
+
+    def distr_mixture_linear(self, X, variance):
+        weight = tf.math.sigmoid(self.parameter_dict['weight_a'] + tf.tensordot(X, self.parameter_dict['weight_b'], axes=1) + self.parameter_dict['weight_c'] * variance)
+        
+        mixture_distr = self.DistributionMixture(self.distribution_1(X, variance), self.distribution_2(X, variance), weight)
+        return mixture_distr
 
 
     
