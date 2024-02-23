@@ -57,7 +57,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal' and 'distr_mixture', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_log_normal"
+forecast_distribution = "distr_mixture"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -77,7 +77,7 @@ setup = {'loss': loss,
          }
 
 neighbourhood_size = 11
-epochs = 20
+epochs = 320
 folds = [1,2,3]
 
 #tf.debugging.enable_check_numerics()

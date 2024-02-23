@@ -232,6 +232,8 @@ class EMOS:
                 raise ValueError("Invalid parameters for log normal distribution")
             
     def initialize_mixture(self, default, setup):
+
+
         try:
             self.distribution_1 = getattr(self, setup['distribution_1'])
             self.distribution_2 = getattr(self, setup['distribution_2'])
@@ -248,10 +250,12 @@ class EMOS:
                 else:
                     self.initialize_log_normal(default, setup['parameters'])
 
+            constraint = tf.keras.constraints.MinMaxNorm(min_value=0.0, max_value=1.0)
+
             if default: ## should be changed to 0.5, but right now easier for testing
-                self.parameter_dict['weight'] = tf.Variable(initial_value=0.4, dtype=tf.float32, trainable=True, name='weight')
+                self.parameter_dict['weight'] = tf.Variable(0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
             else:
-                self.parameter_dict['weight'] = tf.Variable(setup['parameters']['weight'], dtype=tf.float32, trainable=True, name='weight')
+                self.parameter_dict['weight'] = tf.Variable(setup['parameters']['weight'], dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
         except AttributeError:
             raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
     
@@ -336,21 +340,38 @@ class EMOS:
         sigma = tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance))
         return tfpd.LogNormal(mu, sigma)
     
+    def distr_gev(self, X, variance):
+        """
+        The generalised extreme value distribution. We use a linear relationship between the parameters and the features.
+
+        Arguments:
+        - X: the input data.
+        - variance: the variance around the grid point, with a square grid around the neighbourhood station of size neighbourhood_size x neighbourhood_size.
+
+        Returns:
+        - the generalised extreme value distribution.
+        """
+
+
+    class DistributionMixture:
+        def __init__(self, distribution_1, distribution_2, weight):
+            self.distribution_1 = distribution_1
+            self.distribution_2 = distribution_2
+            self.weight = weight
+
+        def log_prob(self, x):
+            return self.weight * self.distribution_1.log_prob(x) + (1 - self.weight) * self.distribution_2.log_prob(x)
+
+        def cdf(self, x):
+            return self.weight * self.distribution_1.cdf(x) + (1 - self.weight) * self.distribution_2.cdf(x)
+
+        def sample(self, n):
+            return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
+
     def distr_mixture(self, X, variance):
-        distribution_1 = self.distribution_1(X, variance)
-        distribution_2 = self.distribution_2(X, variance)
-        size = X.shape[0]
-        # prob1 = tf.fill([size], self.parameter_dict['weight'])
-        # prob2 = tf.fill([size], 1 - self.parameter_dict['weight'])
-        prob1 = tf.ones(size) * self.parameter_dict['weight']
-        prob2 = tf.ones(size) * (1 - self.parameter_dict['weight'])
-        probs = tf.stack([prob1, prob2], axis=-1)
-        categorical = tfpd.Categorical(probs=probs)
-        mixture = tfpd.Mixture(
-            cat=categorical,
-            components=[distribution_1, distribution_2]
-        )
-        return mixture
+        mixture_distr = self.DistributionMixture(self.distribution_1(X, variance), self.distribution_2(X, variance), self.parameter_dict['weight'])
+        return mixture_distr 
+
 
     
     def loss_log_likelihood(self, X, y, variance):
@@ -470,10 +491,8 @@ class EMOS:
                 continue
             hist.append(loss_value)
 
-
-            # clip the gradient 
-            grads = [tf.clip_by_value(grad, -1, 1) for grad in grads]
-
+            if 'weight' in self.parameter_dict:
+                print("Weight: ", self.parameter_dict['weight'].numpy())
 
             self.optimizer.apply_gradients(zip(grads, self.parameter_dict.values()))
 
