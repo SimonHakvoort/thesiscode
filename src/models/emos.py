@@ -126,7 +126,66 @@ class EMOS:
         else:
             self.steps_made = 0
             
-  
+    
+    def __len__(self):
+        return len(self.parameter_dict)
+    
+    def __str__(self):
+        # Loss function info
+        loss_info = f"Loss function: {self.loss.__name__}"
+        if hasattr(self, 'samples'):
+            loss_info += f" (Samples: {self.samples})"
+
+        # Optimizer info
+        optimizer_info = f"Optimizer: {self.optimizer.__class__.__name__}"
+        learning_rate_info = f"Learning rate: {self.optimizer.learning_rate.numpy()}"
+
+        # Forecast distribution info
+        forecast_distribution_info = f"Forecast distribution: {self.forecast_distribution.__name__}"
+
+        # Feature info
+        feature_info = f"Features: {', '.join(self.feature_names)}"
+        num_features_info = f"Number of features: {self.num_features}"
+        neighbourhood_size_info = f"Neighbourhood size: {self.neighbourhood_size}"
+
+        # Parameters info
+        parameters_info = "Parameters:"
+        for parameter, value in self.parameter_dict.items():
+            parameters_info += f"\n  {parameter}: {value.numpy()}"
+
+        # Chaining function info
+        chaining_function_info = ""
+        if hasattr(self, 'chain_function'):
+            chaining_function_info = f"Chaining function: {self.chain_function.__name__}"
+            if hasattr(self, 'threshold'):
+                chaining_function_info += f" (Threshold: {self.threshold.numpy()})"
+            elif hasattr(self, 'chain_function_mean') and hasattr(self, 'chain_function_std'):
+                chaining_function_info += f" (Mean: {self.chain_function_mean.numpy()}, Std: {self.chain_function_std.numpy()})"
+
+        # Distribution components info for mixture distribution
+        distribution_info = ""
+        if hasattr(self, 'distribution_1') and hasattr(self, 'distribution_2'):
+            distribution_info = f"Distribution 1: {self.distribution_1.__name__}\n"
+            distribution_info += f"Distribution 2: {self.distribution_2.__name__}\n"
+            distribution_info += f"Mixture weight: {self.parameter_dict['weight'].numpy()}"
+
+        return (
+            f"EMOS Model Information:\n"
+            f"{loss_info}\n"
+            f"{optimizer_info}\n"
+            f"{learning_rate_info}\n"
+            f"{forecast_distribution_info}\n"
+            f"{feature_info}\n"
+            f"{num_features_info}\n"
+            f"{neighbourhood_size_info}\n"
+            f"{parameters_info}\n"
+            f"{chaining_function_info}\n"
+            f"{distribution_info}"
+        )
+
+
+        
+
     def initialize_trunc_normal(self, default, parameters = {}):
         """
         Initialize the parameters of the truncated normal distribution and stores them in parameter_dict. We use a linear relationship between the parameters and the features.
@@ -385,7 +444,6 @@ class EMOS:
         first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
         return first_part + second_part
-        #return (y - self.chain_function_mean) / self.chain_normal_distr.cdf(y) + self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
      
     def fit(self, X, y, variance, steps):
         """

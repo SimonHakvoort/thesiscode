@@ -87,3 +87,4 @@ emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 mydict = emos.to_dict()
 
 emos2 = train_emos(neighbourhood_size, parameter_names, epochs, folds, mydict)
+print(emos2)
