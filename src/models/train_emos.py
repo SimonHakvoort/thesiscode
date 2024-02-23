@@ -43,9 +43,14 @@ parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 loss = "loss_twCRPS_sample"
 samples = 50
 
-# possible chain functions: 'chain_function_indicator'
-chain_function = "chain_function_indicator"
+# possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
+# if chain_function_indicator is chosen, threshold is not necessary
+# if chain_function_normal_cdf is chosen, threshold is necessary
+chain_function = "chain_function_normal_cdf"
 threshold = 8
+chain_function_mean = 9
+chain_function_std = 2
+
 
 # possible optimizers: 'SGD', 'Adam'
 optimizer = "Adam"
@@ -66,18 +71,19 @@ setup = {'loss': loss,
          'chain_function': chain_function,
          'threshold': threshold,
          'distribution_1': distribution_1,
-         'distribution_2': distribution_2
+         'distribution_2': distribution_2,
+         'chain_function_mean': chain_function_mean,
+         'chain_function_std': chain_function_std
          }
 
 neighbourhood_size = 11
-epochs = 200
+epochs = 20
 folds = [1,2,3]
 
 #tf.debugging.enable_check_numerics()
 
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-params = emos.get_params()
+mydict = emos.to_dict()
 
-print(params)
-
+emos2 = train_emos(neighbourhood_size, parameter_names, epochs, folds, mydict)

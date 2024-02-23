@@ -56,8 +56,23 @@ class EMOS:
         # CHAIN FUNCTION
         if self.need_chain:
             try:
-                self.chain_function = getattr(self, setup['chain_function'])
-                self.threshold = tf.constant(setup['threshold'], dtype=tf.float32) # this needs to be changed later on, in case we have normal distribution as chain function
+                if setup['chain_function'] == 'chain_function_indicator':
+                    self.chain_function = self.chain_function_indicator
+                    if 'threshold' not in setup:
+                        raise ValueError("Threshold of the chain function not specified")
+                    else:
+                        self.threshold = tf.constant(setup['threshold'], dtype=tf.float32)
+                elif setup['chain_function'] == 'chain_function_normal_cdf':
+                    self.chain_function = self.chain_function_normal_cdf
+                    if 'chain_function_mean' not in setup:
+                        raise ValueError("Mean  of the chain function not specified")
+                    else:
+                        self.chain_function_mean = tf.constant(setup['chain_function_mean'], dtype=tf.float32)
+                    if 'chain_function_std' not in setup:
+                        raise ValueError("Standard deviation of the chain function not specified")
+                    else:
+                        self.chain_function_std = tf.constant(setup['chain_function_std'], dtype=tf.float32)
+                    self.chain_normal_distr = tfpd.Normal(self.chain_function_mean, self.chain_function_std)
             except AttributeError:
                 raise ValueError("Invalid chain function: " + setup['chain_function'])
 
@@ -98,6 +113,7 @@ class EMOS:
                 self.initialize_mixture(default = False, setup = setup)
             else:
                 self.initialize_mixture(default = True, setup = setup)
+
 
         # Optionally we can initialize the feature mean and standard deviation with the given values. Not sure whether this needs to be included
         if setup['feature_mean'] is not None and setup['feature_std'] is not None:
@@ -208,8 +224,13 @@ class EMOS:
         model_dict['parameters'] = self.get_params()
 
         if self.need_chain:
-            model_dict['chain_function'] = self.chain_function.__name__
-            model_dict['threshold'] = self.threshold.numpy()
+            if self.chain_function == self.chain_function_indicator:
+                model_dict['chain_function'] = 'chain_function_indicator'
+                model_dict['threshold'] = self.threshold.numpy()
+            elif self.chain_function == self.chain_function_normal_cdf:
+                model_dict['chain_function'] = 'chain_function_normal_cdf'
+                model_dict['chain_function_mean'] = self.chain_function_mean.numpy()
+                model_dict['chain_function_std'] = self.chain_function_std.numpy()
         return model_dict
     
     def indicator_function(self, y, t):
@@ -224,8 +245,6 @@ class EMOS:
         - 1 if y <= t, 0 otherwise.
         """
         return tf.cast(y <= t, tf.float32)
-
-    #def distr_mixture(self, X, variance):
 
     
     def distr_trunc_normal(self, X, variance):
@@ -332,8 +351,8 @@ class EMOS:
         E_2 = tf.norm(vX_2 - vX_1, axis=0)
 
         #checken of ik ook gemiddelde kan nemen ipv reduce_sum
-        #E_1_ = tf.sqrt(tf.reduce_sum(tf.square(vX_1 - chain_function(y)) + 1.0e-20))
-        #E_2_ = tf.sqrt(tf.reduce_sum(tf.square(vX_2 - vX_1) + 1.0e-20))
+        #E_1_ = tf.sqrt(tf.reduce_mean(tf.square(vX_1 - chain_function(y)) + 1.0e-20))
+        #E_2_ = tf.sqrt(tf.reduce_mean(tf.square(vX_2 - vX_1) + 1.0e-20))
 
 
 
@@ -352,6 +371,21 @@ class EMOS:
         - the maximum of y and the threshold.
         """
         return tf.maximum(y, self.threshold)
+    
+    def chain_function_normal_cdf(self, y):
+        """
+        Implements the chain function in case the weight function is the normal cumulative distribution, with mean and standard deviation in the setup.
+
+        Arguments:
+        - y: the input value.
+
+        Returns:
+        - (y - mean) * cdf(y) + std^2 * pdf(y)
+        """
+        first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
+        second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
+        return first_part + second_part
+        #return (y - self.chain_function_mean) / self.chain_normal_distr.cdf(y) + self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
      
     def fit(self, X, y, variance, steps):
         """
