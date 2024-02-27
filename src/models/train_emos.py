@@ -41,7 +41,7 @@ parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
 loss = "loss_twCRPS_sample"
-samples = 50
+samples = 500
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
@@ -57,11 +57,11 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture_linear"
+forecast_distribution = "distr_mixture"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
-distribution_2 = "distr_log_normal"
+distribution_2 = "distr_gev"
 
 setup = {'loss': loss,
          'samples': samples, 
@@ -77,14 +77,13 @@ setup = {'loss': loss,
          }
 
 neighbourhood_size = 11
-epochs = 320
-folds = [1,2,3]
+epochs = 1000
+folds = [2,3]
 
 #tf.debugging.enable_check_numerics()
 
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-mydict = emos.to_dict()
+print(emos)
 
-emos2 = train_emos(neighbourhood_size, parameter_names, epochs, folds, mydict)
-print(emos2)
+

@@ -108,6 +108,11 @@ class EMOS:
                 self.initialize_log_normal(default = False, parameters = setup['parameters'])
             else:
                 self.initialize_log_normal(default = True)
+        elif self.forecast_distribution == self.distr_gev:
+            if 'parameters' in setup:
+                self.initialize_gev(default = False, parameters = setup['parameters'])
+            else:
+                self.initialize_gev(default = True)
         elif self.forecast_distribution == self.distr_mixture:
             if 'parameters' in setup:
                 self.initialize_mixture(default = False, setup = setup)
@@ -167,25 +172,31 @@ class EMOS:
             elif hasattr(self, 'chain_function_mean') and hasattr(self, 'chain_function_std'):
                 chaining_function_info += f" (Mean: {self.chain_function_mean.numpy()}, Std: {self.chain_function_std.numpy()})"
 
-        # Distribution components info for mixture distribution
         distribution_info = ""
-        if hasattr(self, 'distribution_1') and hasattr(self, 'distribution_2'):
+        if self.forecast_distribution == self.distr_mixture:
             distribution_info = f"Distribution 1: {self.distribution_1.__name__}\n"
             distribution_info += f"Distribution 2: {self.distribution_2.__name__}\n"
             distribution_info += f"Mixture weight: {self.parameter_dict['weight'].numpy()}"
+        elif self.forecast_distribution == self.distr_mixture_linear:
+            distribution_info = f"Distribution 1: {self.distribution_1.__name__}\n"
+            distribution_info += f"Distribution 2: {self.distribution_2.__name__}\n"
+            distribution_info += f"Mixture weight a: {self.parameter_dict['weight_a'].numpy()}\n"
+            distribution_info += f"Mixture weight b: {self.parameter_dict['weight_b'].numpy()}\n"
+            distribution_info += f"Mixture weight c: {self.parameter_dict['weight_c'].numpy()}"
+
 
         return (
             f"EMOS Model Information:\n"
             f"{loss_info}\n"
-            f"{optimizer_info}\n"
-            f"{learning_rate_info}\n"
             f"{forecast_distribution_info}\n"
+            f"{distribution_info}"
+            f"{parameters_info}\n"
             f"{feature_info}\n"
             f"{num_features_info}\n"
             f"{neighbourhood_size_info}\n"
-            f"{parameters_info}\n"
             f"{chaining_function_info}\n"
-            f"{distribution_info}"
+            f"{optimizer_info}\n"
+            f"{learning_rate_info}\n"
         )
 
 
@@ -236,6 +247,24 @@ class EMOS:
             except KeyError:
                 raise ValueError("Invalid parameters for log normal distribution")
             
+
+    def initialize_gev(self, default, parameters = {}):
+        if default:
+            self.parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+            self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+            self.parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+        else:
+            try:
+                self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
+                self.parameter_dict['b_gev'] = tf.Variable(parameters['b_gev'], dtype=tf.float32)
+                self.parameter_dict['c_gev'] = tf.Variable(parameters['c_gev'], dtype=tf.float32)
+                self.parameter_dict['d_gev'] = tf.Variable(parameters['d_gev'], dtype=tf.float32)
+                self.parameter_dict['e_gev'] = tf.Variable(parameters['e_gev'], dtype=tf.float32)
+            except KeyError:
+                raise ValueError("Invalid parameters for Generalized Extreme Value distribution")
+
     def initialize_mixture(self, default, setup):
         try:
             self.distribution_1 = getattr(self, setup['distribution_1'])
@@ -252,6 +281,12 @@ class EMOS:
                     self.initialize_log_normal(default)
                 else:
                     self.initialize_log_normal(default, setup['parameters'])
+
+            if self.distribution_1 == self.distr_gev or self.distribution_2 == self.distr_gev:
+                if default:
+                    self.initialize_gev(default)
+                else:
+                    self.initialize_gev(default, setup['parameters'])
 
             constraint = tf.keras.constraints.MinMaxNorm(min_value=0.0, max_value=1.0)
 
@@ -289,6 +324,8 @@ class EMOS:
                 self.parameter_dict['weight_c'] = tf.Variable(setup['parameters']['weight_c'], dtype=tf.float32)
         except AttributeError:
             raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
+    
+
     
     def get_params(self):
         """
@@ -381,7 +418,13 @@ class EMOS:
         mu = self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1)
         sigma = tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance))
         return tfpd.LogNormal(mu, sigma)
-
+    
+    def distr_gev(self, X, variance):
+        location = self.parameter_dict['a_gev'] + tf.tensordot(X, self.parameter_dict['b_gev'], axes=1)
+        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)
+        shape = self.parameter_dict['e_gev']
+        return tfpd.GeneralizedExtremeValue(location, scale, shape)
+        
 
 
     class DistributionMixture:
