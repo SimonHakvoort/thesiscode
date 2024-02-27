@@ -493,7 +493,7 @@ class EMOS:
         # y will be broadcasted to the shape of X_1 and X_2
         # we compute the norm for each sample (resulting in an estimation of the expected value of the CRPS)
         E_1 = tf.norm(X_1 - y, axis=0)
-        E_2 = tf.norm(X_2 - y, axis=0)
+        E_2 = tf.norm(X_1 - X_2, axis=0)
         
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
     
