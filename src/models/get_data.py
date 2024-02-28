@@ -46,6 +46,20 @@ def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
     return X, y, variances
 
 def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = []):
+    """
+    Returns a dictionary containing the normalized X (except the first row), y and variances of the neighberhoods in the folds, except for the stations from ignore.
+    In the dictionary this can be accessed with the keys 'X', 'y' and 'variances'. The mean and standard deviation of the features are also included in the dictionary, 
+    which can be accessed with the keys 'mean' and 'std'.
+
+    Args:
+    - neighbourhood_size: int
+    - parameter_names: list of strings
+    - folds: list of ints
+    - ignore: list of strings
+
+    Returns:
+    - dict: dictionary
+    """
     X_list = []
     y_list = []
     variances_list = []

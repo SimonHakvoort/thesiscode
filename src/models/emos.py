@@ -435,6 +435,7 @@ class EMOS:
         for parameter in parameters:
             if parameter in self.parameter_dict:
                 self.parameter_dict[parameter].assign(parameters[parameter])
+                print(f"Parameter {parameter} set to {parameters[parameter]}")
             else:
                 raise ValueError("Invalid parameter: " + parameter)
     
@@ -666,7 +667,8 @@ class EMOS:
         """
         first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
-        return first_part + second_part        
+        return first_part + second_part   
+     
 
     def fit(self, X, y, variance, steps):
         """
