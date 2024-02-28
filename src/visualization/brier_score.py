@@ -1,38 +1,30 @@
 import matplotlib.pyplot as plt
-import pickle as pkl
-
-import tensorflow as tf
-from src.models.emos import EMOS
 import numpy as np
 
-from src.models.get_data import get_tensors, sort_tensor
 
 
-path = '/net/pc200239/nobackup/users/hakvoort/models/emos_loss_CRPS_sample_distr_trunc_normal.pkl'
 
-with open(path, 'rb') as f:
-    emos_dict = pkl.load(f)
+def brier_plot(emos, X, y, variances, title = 'Brier score'):
+    """
+    Makes a plot of the Brier score for the model. We assume that X is already normalized.
 
-emos_model = EMOS(emos_dict)
+    Args:
+    - emos: EMOS object
+    - X: tensor
+    - y: tensor
+    - variances: tensor
+    - title: string
 
-x = np.linspace(0, 20, 100)
+    Returns:
+    - None
+    """
+    thresholds = np.linspace(0, 20, 2000)
+    brier_scores = np.zeros(thresholds.shape)
+    for i, threshold in enumerate(thresholds):
+        brier_scores[i] = emos.brier_score(X, y, variances, threshold)
 
-X_val, y_val, variances_val = get_tensors(emos_dict['neighbourhood_size'], emos_dict['features'], 0)
-
-X_val = (X_val - emos_model.feature_mean) / emos_model.feature_std
-
-X_val, y_val, variances_val = sort_tensor(X_val, y_val, variances_val)
-
-top_values = 200
-
-X_val = X_val[:top_values]
-y_val = y_val[:top_values]
-variances_val = variances_val[:top_values]
-
-loss = []
-for i in x:
-    loss_i = emos_model.loss_Brier_score(X_val, y_val, variances_val, i)
-    loss.append(loss_i.numpy())
-
-print(loss)
-
+    plt.plot(thresholds, brier_scores)
+    plt.xlabel('wind speed threshold (m/s)')
+    plt.ylabel('Brier score')
+    plt.title(title)
+    plt.show()

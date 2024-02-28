@@ -27,7 +27,7 @@ def get_station_info():
         station_info = pkl.load(f)
     return station_info
 
-def get_tensors(neighbourhood_size, parameter_names, fold):
+def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
     fold = get_fold_i(fold)
     station_info = get_station_info()
     X_list = []
@@ -35,7 +35,7 @@ def get_tensors(neighbourhood_size, parameter_names, fold):
     variances_list = []
     for forecast in fold:
         if forecast.has_observations():
-            X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names)
+            X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names, ignore)
             X_list.append(X)
             y_list.append(y)
             variances_list.append(variances)
@@ -45,12 +45,12 @@ def get_tensors(neighbourhood_size, parameter_names, fold):
     variances = tf.concat(variances_list, axis=0)
     return X, y, variances
 
-def get_normalized_tensor(neighbourhood_size, parameter_names, folds):
+def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = []):
     X_list = []
     y_list = []
     variances_list = []
     for fold in folds:
-        X, y, variances = get_tensors(neighbourhood_size, parameter_names, fold)
+        X, y, variances = get_tensors(neighbourhood_size, parameter_names, fold, ignore)
         X_list.append(X)
         y_list.append(y)
         variances_list.append(variances)

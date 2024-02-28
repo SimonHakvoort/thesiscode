@@ -113,6 +113,16 @@ class EMOS:
                 self.initialize_gev(default = False, parameters = setup['parameters'])
             else:
                 self.initialize_gev(default = True)
+        elif self.forecast_distribution == self.distr_gev2:
+            if 'parameters' in setup:
+                self.initialize_gev2(default = False, parameters = setup['parameters'])
+            else:
+                self.initialize_gev2(default = True)
+        elif self.forecast_distribution == self.distr_gev3:
+            if 'parameters' in setup:
+                self.initialize_gev3(default = False, parameters = setup['parameters'])
+            else:
+                self.initialize_gev3(default = True)    
         elif self.forecast_distribution == self.distr_mixture:
             if 'parameters' in setup:
                 self.initialize_mixture(default = False, setup = setup)
@@ -255,9 +265,44 @@ class EMOS:
             self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
             self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+        else:
+            try:
+                self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
+                self.parameter_dict['b_gev'] = tf.Variable(parameters['b_gev'], dtype=tf.float32)
+                self.parameter_dict['c_gev'] = tf.Variable(parameters['c_gev'], dtype=tf.float32)
+                self.parameter_dict['d_gev'] = tf.Variable(parameters['d_gev'], dtype=tf.float32)
+                self.parameter_dict['e_gev'] = tf.Variable(parameters['e_gev'], dtype=tf.float32)
+            except KeyError:
+                raise ValueError("Invalid parameters for Generalized Extreme Value distribution")
+            
+    def initialize_gev2(self, default, parameters = {}):
+        if default:
+            self.parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+            self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+            self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
 
             self.parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
-            #self.parameter_dict['extra2_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+        else:
+            try:
+                self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
+                self.parameter_dict['b_gev'] = tf.Variable(parameters['b_gev'], dtype=tf.float32)
+                self.parameter_dict['c_gev'] = tf.Variable(parameters['c_gev'], dtype=tf.float32)
+                self.parameter_dict['d_gev'] = tf.Variable(parameters['d_gev'], dtype=tf.float32)
+                self.parameter_dict['e_gev'] = tf.Variable(parameters['e_gev'], dtype=tf.float32)
+            except KeyError:
+                raise ValueError("Invalid parameters for Generalized Extreme Value distribution")
+            
+    def initialize_gev3(self, default, parameters = {}):
+        if default:
+            self.parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+            self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+            self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+
+            self.parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
         else:
             try:
                 self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
@@ -290,6 +335,18 @@ class EMOS:
                     self.initialize_gev(default)
                 else:
                     self.initialize_gev(default, setup['parameters'])
+            
+            if self.distribution_1 == self.distr_gev2 or self.distribution_2 == self.distr_gev2:
+                if default:
+                    self.initialize_gev2(default)
+                else:
+                    self.initialize_gev2(default, setup['parameters'])
+            
+            if self.distribution_1 == self.distr_gev3 or self.distribution_2 == self.distr_gev3:
+                if default:
+                    self.initialize_gev3(default)
+                else:
+                    self.initialize_gev3(default, setup['parameters'])
 
             constraint = tf.keras.constraints.MinMaxNorm(min_value=0.0, max_value=1.0)
 
@@ -428,7 +485,17 @@ class EMOS:
         shape = self.parameter_dict['e_gev'] 
         return tfpd.GeneralizedExtremeValue(location, scale, shape)
         
+    def distr_gev2(self, X, variance):
+        location = self.parameter_dict['a_gev'] + tf.tensordot(X, self.parameter_dict['b_gev'], axes=1)
+        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)  + self.parameter_dict['extra_gev'] * variance
+        shape = self.parameter_dict['e_gev'] 
+        return tfpd.GeneralizedExtremeValue(location, scale, shape)
 
+    def distr_gev3(self, X, variance):
+        location = self.parameter_dict['a_gev'] + tf.tensordot(X, self.parameter_dict['b_gev'], axes=1)
+        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)  
+        shape = self.parameter_dict['e_gev'] + 0.001 * variance * self.parameter_dict['extra_gev']
+        return tfpd.GeneralizedExtremeValue(location, scale, shape)
 
     class DistributionMixture:
         def __init__(self, distribution_1, distribution_2, weight):
