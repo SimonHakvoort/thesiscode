@@ -126,7 +126,7 @@ class EMOS:
         elif self.forecast_distribution == self.distr_mixture:
             if 'parameters' in setup:
                 self.initialize_mixture(default = False, setup = setup)
-            else:
+            else:   
                 self.initialize_mixture(default = True, setup = setup)
         elif self.forecast_distribution == self.distr_mixture_linear:
             if 'parameters' in setup:
@@ -225,12 +225,14 @@ class EMOS:
             self.parameter_dict['b_tn'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
             self.parameter_dict['c_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            print("Using default parameters for truncated normal distribution")
         else:
             try:
                 self.parameter_dict['a_tn'] = tf.Variable(parameters['a_tn'], dtype=tf.float32)
                 self.parameter_dict['b_tn'] = tf.Variable(parameters['b_tn'], dtype=tf.float32)
                 self.parameter_dict['c_tn'] = tf.Variable(parameters['c_tn'], dtype=tf.float32)
                 self.parameter_dict['d_tn'] = tf.Variable(parameters['d_tn'], dtype=tf.float32)
+                print("Using given parameters for truncated normal distribution")
             except KeyError:
                 raise ValueError("Invalid parameters for truncated normal distribution")
 
@@ -248,12 +250,14 @@ class EMOS:
             self.parameter_dict['b_ln'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32))
             self.parameter_dict['c_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+            print("Using default parameters for log normal distribution")
         else:
             try:
                 self.parameter_dict['a_ln'] = tf.Variable(parameters['a_ln'], dtype=tf.float32)
                 self.parameter_dict['b_ln'] = tf.Variable(parameters['b_ln'], dtype=tf.float32)
                 self.parameter_dict['c_ln'] = tf.Variable(parameters['c_ln'], dtype=tf.float32)
                 self.parameter_dict['d_ln'] = tf.Variable(parameters['d_ln'], dtype=tf.float32)
+                print("Using given parameters for log normal distribution")
             except KeyError:
                 raise ValueError("Invalid parameters for log normal distribution")
             
@@ -265,6 +269,7 @@ class EMOS:
             self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
             self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+            print("Using default parameters for Generalized Extreme Value distribution")
         else:
             try:
                 self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
@@ -272,6 +277,7 @@ class EMOS:
                 self.parameter_dict['c_gev'] = tf.Variable(parameters['c_gev'], dtype=tf.float32)
                 self.parameter_dict['d_gev'] = tf.Variable(parameters['d_gev'], dtype=tf.float32)
                 self.parameter_dict['e_gev'] = tf.Variable(parameters['e_gev'], dtype=tf.float32)
+                print("Using given parameters for Generalized Extreme Value distribution")
             except KeyError:
                 raise ValueError("Invalid parameters for Generalized Extreme Value distribution")
             
@@ -284,6 +290,7 @@ class EMOS:
             self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
 
             self.parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            print("Using default parameters for Generalized Extreme Value distribution 2")
         else:
             try:
                 self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
@@ -291,6 +298,9 @@ class EMOS:
                 self.parameter_dict['c_gev'] = tf.Variable(parameters['c_gev'], dtype=tf.float32)
                 self.parameter_dict['d_gev'] = tf.Variable(parameters['d_gev'], dtype=tf.float32)
                 self.parameter_dict['e_gev'] = tf.Variable(parameters['e_gev'], dtype=tf.float32)
+                
+                self.parameter_dict['extra_gev'] = tf.Variable(parameters['extra_gev'], dtype=tf.float32)
+                print("Using given parameters for Generalized Extreme Value distribution 2")
             except KeyError:
                 raise ValueError("Invalid parameters for Generalized Extreme Value distribution")
             
@@ -303,6 +313,7 @@ class EMOS:
             self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
 
             self.parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            print("Using default parameters for Generalized Extreme Value distribution 3")
         else:
             try:
                 self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
@@ -310,6 +321,9 @@ class EMOS:
                 self.parameter_dict['c_gev'] = tf.Variable(parameters['c_gev'], dtype=tf.float32)
                 self.parameter_dict['d_gev'] = tf.Variable(parameters['d_gev'], dtype=tf.float32)
                 self.parameter_dict['e_gev'] = tf.Variable(parameters['e_gev'], dtype=tf.float32)
+
+                self.parameter_dict['extra_gev'] = tf.Variable(parameters['extra_gev'], dtype=tf.float32)
+                print("Using given parameters for Generalized Extreme Value distribution 3")
             except KeyError:
                 raise ValueError("Invalid parameters for Generalized Extreme Value distribution")
 
@@ -350,10 +364,17 @@ class EMOS:
 
             constraint = tf.keras.constraints.MinMaxNorm(min_value=0.0, max_value=1.0)
 
-            if default: ## should be changed to 0.5, but right now easier for testing
+            if default: 
                 self.parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+                print("Using default weight parameter")
             else:
-                self.parameter_dict['weight'] = tf.Variable(initial_value=setup['parameters']['weight'], dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+                if 'weight' in setup['parameters']:
+                    self.parameter_dict['weight'] = tf.Variable(initial_value=setup['parameters']['weight'], dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+                    print("Using given weight parameter")
+                else:
+                    self.parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+                    print("No weight parameter found, using default value of 0.5")
+
         except AttributeError:
             raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
         
@@ -378,16 +399,24 @@ class EMOS:
                 self.parameter_dict['weight_a'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
                 self.parameter_dict['weight_b'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
                 self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+                print("Using default weight parameters")
             else:
-                self.parameter_dict['weight_a'] = tf.Variable(setup['parameters']['weight_a'], dtype=tf.float32)
-                self.parameter_dict['weight_b'] = tf.Variable(setup['parameters']['weight_b'], dtype=tf.float32)
-                self.parameter_dict['weight_c'] = tf.Variable(setup['parameters']['weight_c'], dtype=tf.float32)
+                if 'weight_a' in setup['parameters'] and 'weight_b' in setup['parameters'] and 'weight_c' in setup['parameters']:
+                    self.parameter_dict['weight_a'] = tf.Variable(setup['parameters']['weight_a'], dtype=tf.float32)
+                    self.parameter_dict['weight_b'] = tf.Variable(setup['parameters']['weight_b'], dtype=tf.float32)
+                    self.parameter_dict['weight_c'] = tf.Variable(setup['parameters']['weight_c'], dtype=tf.float32)
+                    print("Using given weight parameters")
+                else:
+                    self.parameter_dict['weight_a'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+                    self.parameter_dict['weight_b'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
+                    self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+                    print("No weight parameters found, using default values")
         except AttributeError:
             raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
     
 
     
-    def get_params(self):
+    def get_parameters(self):
         """
         Return the parameters of the model as a dictionary.
         """
@@ -395,6 +424,19 @@ class EMOS:
         for parameter in self.parameter_dict:
             output_dict[parameter] = self.parameter_dict[parameter].numpy()
         return output_dict
+    
+    def set_parameters(self, parameters):
+        """
+        Set the parameters of the model to the given values.
+
+        Arguments:
+        - parameters: a dictionary containing the parameters of the model.
+        """
+        for parameter in parameters:
+            if parameter in self.parameter_dict:
+                self.parameter_dict[parameter].assign(parameters[parameter])
+            else:
+                raise ValueError("Invalid parameter: " + parameter)
     
     def to_dict(self):
         """
@@ -412,7 +454,7 @@ class EMOS:
             'features': self.feature_names,
             'neighbourhood_size': self.neighbourhood_size
         }
-        model_dict['parameters'] = self.get_params()
+        model_dict['parameters'] = self.get_parameters()
         
 
         if self.need_chain:

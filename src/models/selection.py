@@ -3,6 +3,7 @@
 # possible parameters: 'wind_speed', 'press', 'kinetic', 'humid', 'geopot'
 # IMPORTANT: the first parameter should be 'wind_speed', this is assumed in the normalization process
 import numpy as np
+from src.models.emos import EMOS
 from src.models.initial_params import get_gev_initial_params, get_trunc_normal_initial_params
 from src.models.train_emos import train_and_test_emos
 
@@ -59,11 +60,15 @@ parameters['weight'] = np.array([0.5])
 #setup['parameters'] = parameters
 
 neighbourhood_size = 11
-epochs = 100
+epochs = 10
 test_folds = 1
 train_folds = [2,3]
 
 dict = train_and_test_emos(neighbourhood_size, parameter_names, epochs, train_folds, test_folds, setup)
 #emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-print(dict["test_loss"].numpy())
+emos = dict["model"]
+dict = emos.to_dict()
+
+emos2 = EMOS(dict)
+print(emos2.get_parameters())

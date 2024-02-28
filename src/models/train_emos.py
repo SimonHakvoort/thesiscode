@@ -7,8 +7,7 @@ import numpy as np
 from src.models.emos import EMOS
 from src.models.get_data import get_normalized_tensor, get_tensors
 from src.models.initial_params import get_gev_initial_params, get_trunc_normal_initial_params
-
-
+    
 
 def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup):
     
