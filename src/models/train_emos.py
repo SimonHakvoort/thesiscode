@@ -29,6 +29,29 @@ def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup):
 
     return emos
 
+def train_and_test_emos(neighbourhood_size, parameter_names, epochs, train_folds, test_folds, setup):
+    data = get_normalized_tensor(neighbourhood_size, parameter_names, train_folds)
+
+    X = data["X"]
+    y = data["y"]
+    variances = data["variances"]
+
+    setup["num_features"] = len(parameter_names)
+    setup["feature_mean"] = data["mean"]
+    setup["feature_std"] = data["std"]
+    setup["features"] = parameter_names
+    setup["neighbourhood_size"] = neighbourhood_size
+
+    emos = EMOS(setup)
+    emos.fit(X, y, variances, epochs)
+
+    X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_folds)
+
+
+    X_test = (X_test - data["mean"]) / data["std"]
+    emos.samples = 1000
+    return {"model" : emos, "test_loss" : emos.loss(X_test, y_test, variances_test)}
+
 def train_and_save_emos(neighbourhood_size, parameter_names, epochs, folds, setup):
     emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
     mydict = emos.to_dict()
@@ -43,8 +66,8 @@ def train_and_save_emos(neighbourhood_size, parameter_names, epochs, folds, setu
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_twCRPS_sample"
-samples = 300
+loss = "loss_CRPS_sample"
+samples = 400
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
@@ -60,7 +83,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture"
+forecast_distribution = "distr_gev"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -89,16 +112,16 @@ for key in initial_params_trunc_normal:
     parameters[key] = initial_params_trunc_normal[key]
 
 parameters['weight'] = np.array([0.5])
-setup['parameters'] = parameters
+#setup['parameters'] = parameters
 
 neighbourhood_size = 11
-epochs = 100
-folds = [2,3]
+epochs = 400
+test_folds = 1
+train_folds = [2,3]
 
-#tf.debugging.enable_check_numerics()
+dict = train_and_test_emos(neighbourhood_size, parameter_names, epochs, train_folds, test_folds, setup)
+#emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
-
-print(emos)
+print(dict["test_loss"].numpy())
 
 

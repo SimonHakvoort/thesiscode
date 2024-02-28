@@ -254,7 +254,10 @@ class EMOS:
             self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
             self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
-            self.parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+
+            self.parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
+            #self.parameter_dict['extra2_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
         else:
             try:
                 self.parameter_dict['a_gev'] = tf.Variable(parameters['a_gev'], dtype=tf.float32)
@@ -421,8 +424,8 @@ class EMOS:
     
     def distr_gev(self, X, variance):
         location = self.parameter_dict['a_gev'] + tf.tensordot(X, self.parameter_dict['b_gev'], axes=1)
-        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)
-        shape = self.parameter_dict['e_gev']
+        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)  
+        shape = self.parameter_dict['e_gev'] 
         return tfpd.GeneralizedExtremeValue(location, scale, shape)
         
 
@@ -491,11 +494,14 @@ class EMOS:
         X_2 = forecast_distribution.sample(self.samples)
 
         # y will be broadcasted to the shape of X_1 and X_2
-        # we compute the norm for each sample (resulting in an estimation of the expected value of the CRPS)
-        E_1 = tf.norm(X_1 - y, axis=0)
-        E_2 = tf.norm(X_1 - X_2, axis=0)
+        E_1 = tf.reduce_mean(tf.abs(X_1 - y), axis=0)
+        E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
+
+        return tf.reduce_mean(E_1 - 0.5 * E_2)
+        # E_1 = tf.norm(X_1 - y, axis=0)
+        # E_2 = tf.norm(X_1 - X_2, axis=0)
         
-        return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
+        # return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
     
     def loss_Brier_score(self, X, y, variance, threshold):
         forecast_distribution = self.forecast_distribution(X, variance)
@@ -512,8 +518,10 @@ class EMOS:
         X_2 = forecast_distribution.sample(samples)
         vX_1 = chain_function(X_1)
         vX_2 = chain_function(X_2)
-        E_1 = tf.norm(vX_1 - chain_function(y), axis=0)
-        E_2 = tf.norm(vX_2 - vX_1, axis=0)
+        # E_1 = tf.norm(vX_1 - chain_function(y), axis=0)
+        # E_2 = tf.norm(vX_2 - vX_1, axis=0)
+        E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
+        E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
 
         #checken of ik ook gemiddelde kan nemen ipv reduce_sum
         #E_1_ = tf.sqrt(tf.reduce_mean(tf.square(vX_1 - chain_function(y)) + 1.0e-20))
@@ -549,8 +557,8 @@ class EMOS:
         """
         first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
-        return first_part + second_part
-     
+        return first_part + second_part        
+
     def fit(self, X, y, variance, steps):
         """
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
