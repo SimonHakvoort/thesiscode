@@ -210,8 +210,6 @@ class EMOS:
         )
 
 
-        
-
     def initialize_trunc_normal(self, default, parameters = {}):
         """
         Initialize the parameters of the truncated normal distribution and stores them in parameter_dict. We use a linear relationship between the parameters and the features.
@@ -670,7 +668,7 @@ class EMOS:
         return first_part + second_part   
      
 
-    def fit(self, X, y, variance, steps):
+    def fit(self, X, y, variance, steps, printing = True):
         """
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
 
@@ -695,11 +693,12 @@ class EMOS:
                 continue
             hist.append(loss_value)
 
-            if 'weight' in self.parameter_dict:
-                print("Weight: ", self.parameter_dict['weight'].numpy())
+           
 
             self.optimizer.apply_gradients(zip(grads, self.parameter_dict.values()))
-
-            print("Step: {}, Loss: {}".format(step, loss_value))
+            if printing:
+                if 'weight' in self.parameter_dict:
+                    print("Weight: ", self.parameter_dict['weight'].numpy())
+                print("Step: {}, Loss: {}".format(step, loss_value))
         return hist
             
