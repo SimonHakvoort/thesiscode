@@ -10,7 +10,6 @@ from src.models.initial_params import get_gev_initial_params, get_trunc_normal_i
     
 
 def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup):
-    
     data = get_normalized_tensor(neighbourhood_size, parameter_names, folds)
 
     X = data["X"]
@@ -59,7 +58,5 @@ def train_and_save_emos(neighbourhood_size, parameter_names, epochs, folds, setu
     
     print("Model saved")
     
-
-#def train_emos_models(forecast_di)
 
 

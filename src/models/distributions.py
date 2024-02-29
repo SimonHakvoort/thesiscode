@@ -4,7 +4,15 @@ tfpd = tfp.distributions
 
 class ForecastDistribution:
     """
-    Virtual base class for forecast distributions
+    Virtual base class for forecast distributions.
+
+    This class serves as a template for implementing specific EMOS forecast distribution models.
+    Subclasses should override the `get_distribution` method to provide functionality for
+    generating distribution objects based on input data and variance.
+
+    Attributes:
+        num_features (int): Number of features used in the model.
+        parameter_dict (dict): Dictionary containing the parameters of the distribution.
     """
 
     def __init__(self, num_features):
@@ -13,14 +21,20 @@ class ForecastDistribution:
 
     def get_distribution(self, X, variance):
         """
-        Cumulative distribution function
+        Returns a distribution object given the input and variance.
+
+        Args:
+        - X (tf.Tensor): Input data
+        - variance (tf.Tensor): Variance around each gridpoint
+
+        Returns:
+        - tfp.distributions.Distribution/Mixture: The forecast distribution
         """
         pass
 
     def get_parameter_dict(self):
         """
         Returns the parameters of the distribution as tf.Variables in a dictionary.
-
         """
         return self.parameter_dict
     
@@ -37,6 +51,12 @@ class ForecastDistribution:
     def set_parameters(self, parameters):
         """
         Sets the parameters of the distribution to the given values.
+
+        Args:
+        - parameters (dict): Dictionary with parameter names as keys and values as values. 
+
+        Returns:
+        - None
         """
         for key, value in parameters.items():
             if key in self.parameter_dict:
@@ -47,7 +67,31 @@ class ForecastDistribution:
 
     
 class TruncatedNormal(ForecastDistribution):
+    """
+    Forecast distribution representing a truncated normal EMOS distribution.
+
+    This class implements a truncated normal distribution model for forecasting.
+    It inherits from the ForecastDistribution base class and provides functionality
+    for generating truncated normal distribution objects based on input data and variance.
+    It assumes linear relationship between the distribution parameters and the input data.
+
+    Attributes:
+        num_features (int): Number of features used in the model.
+        parameter_dict (dict): Dictionary containing the parameters of the distribution.
+    """
     def __init__(self, num_features, parameters = {}):
+        """
+        Constructor for the TruncatedNormal class. Initializes the parameters of the distribution.
+        In case parameters is provided, it sets the parameters to the given values. Otherwise, it
+        initializes the parameters to default values.
+
+        Args:
+        - num_features (int): Number of features used in the model.
+        - parameters (dict): Dictionary containing the parameters of the distribution.
+
+        Returns:
+        - None
+        """
         super().__init__(num_features)
         if "a_tn" in parameters and "b_tn" in parameters and "c_tn" in parameters and "d_tn" in parameters:
             self.parameter_dict["a_tn"] = tf.Variable(parameters["a_tn"], dtype = tf.float32, name="a_tn")
@@ -77,6 +121,18 @@ class TruncatedNormal(ForecastDistribution):
         return "distr_trunc_normal"
     
 class LogNormal(ForecastDistribution):
+    """
+=    Forecast distribution representing a lognormal EMOS distribution.
+
+    This class implements a truncated normal distribution model for forecasting.
+    It inherits from the ForecastDistribution base class and provides functionality
+    for generating truncated normal distribution objects based on input data and variance.
+    It assumes linear relationship between the distribution parameters and the input data.
+
+    Attributes:
+        num_features (int): Number of features used in the model.
+        parameter_dict (dict): Dictionary containing the parameters of the distribution.
+    """
     def __init__(self, num_features, parameters = {}):
         super().__init__(num_features)
         if "a_ln" in parameters and "b_ln" in parameters and "c_ln" in parameters:
@@ -107,6 +163,19 @@ class LogNormal(ForecastDistribution):
         return "distr_log_normal"
     
 class GEV(ForecastDistribution):
+    """
+    Forecast distribution representing a truncated normal EMOS distribution.
+
+    This class implements a generalized extreme value distribution model for forecasting.
+    It inherits from the ForecastDistribution base class and provides functionality
+    for generating truncated normal distribution objects based on input data and variance.
+    It assumes linear relationship between the distribution parameters and the input data.
+    This class does not use the variance in the distribution parameters.
+
+    Attributes:
+        num_features (int): Number of features used in the model.
+        parameter_dict (dict): Dictionary containing the parameters of the distribution.
+    """
     def __init__(self, num_features, parameters = {}):
         super().__init__(num_features)
         if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
@@ -140,6 +209,18 @@ class GEV(ForecastDistribution):
         return "distr_gev"
     
 class GEV2(ForecastDistribution):
+    """
+    Forecast distribution representing a truncated normal EMOS distribution.
+
+    This class implements a generalized extreme value distribution model for forecasting.
+    It inherits from the ForecastDistribution base class and provides functionality
+    for generating truncated normal distribution objects based on input data and variance.
+    It assumes linear relationship between the distribution parameters and the input data.
+    This class does use the variance in the scale of the distribution.
+    Attributes:
+        num_features (int): Number of features used in the model.
+        parameter_dict (dict): Dictionary containing the parameters of the distribution.
+    """
     def __init__(self, num_features, parameters = {}):
         super().__init__(num_features)
         if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
@@ -177,6 +258,19 @@ class GEV2(ForecastDistribution):
         return "distr_gev2"
     
 class GEV3(ForecastDistribution):
+    """
+    Forecast distribution representing a truncated normal EMOS distribution.
+
+    This class implements a generalized extreme value distribution model for forecasting.
+    It inherits from the ForecastDistribution base class and provides functionality
+    for generating truncated normal distribution objects based on input data and variance.
+    It assumes linear relationship between the distribution parameters and the input data.
+    This class does use the variance in the shape of the distribution.
+
+    Attributes:
+        num_features (int): Number of features used in the model.
+        parameter_dict (dict): Dictionary containing the parameters of the distribution.
+    """
     def __init__(self, num_features, parameters = {}):
         super().__init__(num_features)
         if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
@@ -215,6 +309,14 @@ class GEV3(ForecastDistribution):
 
     
 class DistributionMixture:
+    """
+    A class representing a mixture of two distributions.
+    
+    Attributes:
+        distribution_1 (tfp.distributions.Distribution): The first distribution in the mixture
+        distribution_2 (tfp.distributions.Distribution): The second distribution in the mixture
+        weight (tf.Tensor): The weight of the first distribution in the mixture
+    """
     def __init__(self, distribution_1, distribution_2, weight):
         self.distribution_1 = distribution_1
         self.distribution_2 = distribution_2
@@ -233,6 +335,17 @@ class DistributionMixture:
         return self.weight * self.distribution_1.mean() + (1 - self.weight) * self.distribution_2.mean()
     
 def initialize_distribution(distribution, num_features, parameters):
+    """
+    Initializes the given distribution based on the input.
+
+    Args:
+    - distribution (str): The name of the distribution
+    - num_features (int): The number of features used in the model
+    - parameters (dict): Dictionary containing the parameters of the distribution, which is optional.
+
+    Returns:
+    - ForecastDistribution: The initialized distribution object
+    """
     if distribution_name(distribution) == "distr_trunc_normal":
         return TruncatedNormal(num_features, parameters)
     elif distribution_name(distribution) == "distr_log_normal":
@@ -247,6 +360,16 @@ def initialize_distribution(distribution, num_features, parameters):
         raise ValueError("Unknown distribution")
     
 def distribution_name(distribution):
+    """
+    Function to convert the distribution name to a standard name.
+
+    Args:
+    - distribution (str): The name of the distribution
+
+    Returns:
+    - str: The standard name of the distribution
+    """
+
     if distribution.lower() in ["distr_trunc_normal", "trunc_normal", "truncated_normal", "truncated normal", "truncnormal", "truncatednormal"]:
         return "distr_trunc_normal"
     elif distribution.lower() in ["distr_log_normal", "log_normal", "lognormal", "log normal"]:
@@ -266,9 +389,19 @@ def distribution_name(distribution):
 
     
 class Mixture(ForecastDistribution):
+    """
+    Forecast distribution representing a mixture of two distributions. It contains two distributions and a weight parameter.
+    The weight parameter is independent of the input data.
+
+    Attributes:
+    - num_features (int): Number of features used in the model
+    - distribution_1 (ForecastDistribution): The first distribution in the mixture
+    - distribution_2 (ForecastDistribution): The second distribution in the mixture
+    - parameters (dict): Dictionary containing the parameters of the distribution
+    """
     def __init__(self, num_features, distribution_1, distribution_2, parameters = {}):
         super().__init__(num_features)
-        if distribution_1 == distribution_2:
+        if distribution_name(distribution_1) == distribution_name(distribution_2):
             raise ValueError("The two distributions should be different")
         
         self.distribution_1 = initialize_distribution(distribution_1, num_features, parameters)
@@ -289,18 +422,27 @@ class Mixture(ForecastDistribution):
         return DistributionMixture(distribution_1, distribution_2, self.parameter_dict['weight']) 
     
     def get_parameter_dict(self):
+        """
+        Returns the parameters of distribution_1, distribution_2 and the weight as tf.Variable in a dictionary
+        """
         parameter_dict = self.distribution_1.get_parameter_dict()
         parameter_dict.update(self.distribution_2.get_parameter_dict())
         parameter_dict.update(self.parameter_dict)
         return parameter_dict
     
     def get_parameters(self):
+        """
+        Returns the parameters of distribution_1, distribution_2 and the weight as np.array in a dictionary
+        """
         parameters = self.distribution_1.get_parameters()
         parameters.update(self.distribution_2.get_parameters())
         parameters.update(self.parameter_dict)
         return parameters
     
     def set_parameters(self, parameters):
+        """
+        Sets the parameters of the distribution to the given values.
+        """
         self.distribution_1.set_parameters(parameters)
         self.distribution_2.set_parameters(parameters)
         for key, value in parameters.items():
@@ -326,6 +468,16 @@ class Mixture(ForecastDistribution):
 
     
 class MixtureLinear(ForecastDistribution):
+    """
+    Forecast distribution representing a mixture of two distributions. It contains two distributions and a weight parameter.
+    The weight parameter is dependent on the input data.
+
+    Attributes:
+    - num_features (int): Number of features used in the model
+    - distribution_1 (ForecastDistribution): The first distribution in the mixture
+    - distribution_2 (ForecastDistribution): The second distribution in the mixture
+    - parameters (dict): Dictionary containing the parameters of the distribution
+    """
     def __init__(self, num_features, distribution_1, distribution_2, parameters = {}):
         super().__init__(num_features)
         if distribution_1 == distribution_2:
