@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def brier_plot(emos, X, y, variances, values, thresholds, title = ''):
+def brier_plot(emos, X, y, variances, values, title = ''):
     """
     Makes a plot of the Brier score for the model. We assume that X is already normalized.
 
@@ -19,7 +19,7 @@ def brier_plot(emos, X, y, variances, values, thresholds, title = ''):
     """
     brier_scores = get_brier_scores(emos, X, y, variances, values)
 
-    plt.plot(thresholds, brier_scores)
+    plt.plot(values, brier_scores)
     plt.xlabel('wind speed threshold (m/s)')
     plt.ylabel('Brier score')
     plt.title(title)

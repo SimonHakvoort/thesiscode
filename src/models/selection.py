@@ -53,11 +53,13 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 500
+epochs = 5
 test_folds = 1
 folds = [2,3]
 
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 print(emos)
-
+emos_dict = emos.to_dict()
+new_emos = EMOS(emos_dict)
+print(new_emos)
 
