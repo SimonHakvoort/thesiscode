@@ -28,6 +28,7 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
         probabilities = (cdf(y) - cdf(t)) / (1 - cdf(t))
     
     plt.hist(probabilities, bins = bins, density = True)
+    plt.plot([0, 1], [1, 1], color="black", linestyle="dashed")
     plt.xlabel("Prob")
     plt.ylabel("Obs. freq.")
     plt.title(title)
@@ -121,6 +122,7 @@ def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0):
     for name, emos in emos_dict.items():
         distribution = emos.forecast_distribution(X, variance)
         cdf_dict[name] = distribution.cdf
+
     make_cpit_diagram(cdf_dict, y, title, t)
 
 

@@ -37,10 +37,34 @@ class EMOS:
         - learning_rate: the learning rate used in the optimizer
         - forecast_distribution: the distribution used to model the forecast
         """
+        self.feature_names = setup['features']
+        self.num_features = len(self.feature_names)
+        self.neighbourhood_size = setup['neighbourhood_size']
 
+        self.init_loss(setup)
+        
+        if self.need_chain:
+            self.init_chain_function(setup)
+
+        self.init_optimizer(setup)
+
+        
+        self.init_forecast_distribution(setup)
+
+
+        # Optionally we can initialize the feature mean and standard deviation with the given values. Not sure whether this needs to be included
+        if setup['feature_mean'] is not None and setup['feature_std'] is not None:
+            self.feature_mean = tf.Variable(setup['feature_mean'])
+            self.feature_std = tf.Variable(setup['feature_std'])
+
+        # Optionally we can initialize the amount of steps made with the optimizer
+        if 'steps_made' in setup:
+            self.steps_made = setup['steps_made']
+        else:
+            self.steps_made = 0
+
+    def init_loss(self, setup):
         self.need_chain = False
-
-        # LOSS FUNCTION ( & CHAIN FUNCTION & SAMPLES)
         try:
             self.loss = getattr(self, setup['loss'])
             if self.loss == self.loss_CRPS_sample or self.loss == self.loss_twCRPS_sample:
@@ -51,50 +75,44 @@ class EMOS:
                 if self.loss == self.loss_twCRPS_sample:
                     self.need_chain = True
         except AttributeError:
-            raise ValueError("Invalid loss function: " + setup['loss'])
-        
-        # CHAIN FUNCTION
-        if self.need_chain:
-            try:
-                if setup['chain_function'] == 'chain_function_indicator':
-                    self.chain_function = self.chain_function_indicator
-                    if 'threshold' not in setup:
-                        raise ValueError("Threshold of the chain function not specified")
-                    else:
-                        self.threshold = tf.constant(setup['threshold'], dtype=tf.float32)
-                elif setup['chain_function'] == 'chain_function_normal_cdf':
-                    self.chain_function = self.chain_function_normal_cdf
-                    if 'chain_function_mean' not in setup:
-                        raise ValueError("Mean  of the chain function not specified")
-                    else:
-                        self.chain_function_mean = tf.constant(setup['chain_function_mean'], dtype=tf.float32)
-                    if 'chain_function_std' not in setup:
-                        raise ValueError("Standard deviation of the chain function not specified")
-                    else:
-                        self.chain_function_std = tf.constant(setup['chain_function_std'], dtype=tf.float32)
-                    self.chain_normal_distr = tfpd.Normal(self.chain_function_mean, self.chain_function_std)
-            except AttributeError:
-                raise ValueError("Invalid chain function: " + setup['chain_function'])
+            raise ValueError("Invalid loss function: " + setup['loss'])   
 
-        # OPTIMIZER & LEARNING RATE
+    def init_chain_function(self, setup):
+        try:
+            if setup['chain_function'] == 'chain_function_indicator':
+                self.chain_function = self.chain_function_indicator
+                if 'threshold' not in setup:
+                    raise ValueError("Threshold of the chain function not specified")
+                else:
+                    self.threshold = tf.constant(setup['threshold'], dtype=tf.float32)
+            elif setup['chain_function'] == 'chain_function_normal_cdf':
+                self.chain_function = self.chain_function_normal_cdf
+                if 'chain_function_mean' not in setup:
+                    raise ValueError("Mean  of the chain function not specified")
+                else:
+                    self.chain_function_mean = tf.constant(setup['chain_function_mean'], dtype=tf.float32)
+                if 'chain_function_std' not in setup:
+                    raise ValueError("Standard deviation of the chain function not specified")
+                else:
+                    self.chain_function_std = tf.constant(setup['chain_function_std'], dtype=tf.float32)
+                self.chain_normal_distr = tfpd.Normal(self.chain_function_mean, self.chain_function_std)
+        except AttributeError:
+            raise ValueError("Invalid chain function: " + setup['chain_function'])  
+
+    def init_optimizer(self, setup):
         try:
             if 'learning_rate' not in setup:
                 raise ValueError("Learning rate not specified")
             self.optimizer = getattr(tf.optimizers, setup['optimizer'])(learning_rate=setup['learning_rate'])
         except AttributeError:
-            raise ValueError("Invalid optimizer: " + setup['optimizer'])
+            raise ValueError("Invalid optimizer: " + setup['optimizer']) 
         
+    def init_forecast_distribution(self, setup):
         # The setup of the forecast distribution
         try:
             self.forecast_distribution = getattr(self, setup['forecast_distribution'])
         except AttributeError:
             raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
-
-        
-
-        self.feature_names = setup['features']
-        self.num_features = len(self.feature_names)
-        self.neighbourhood_size = setup['neighbourhood_size']
         
         # PARAMETERS
         self.parameter_dict = {}
@@ -133,19 +151,6 @@ class EMOS:
                 self.initialize_mixture_linear(default = False, setup = setup)
             else:
                 self.initialize_mixture_linear(default = True, setup = setup)
-
-
-        # Optionally we can initialize the feature mean and standard deviation with the given values. Not sure whether this needs to be included
-        if setup['feature_mean'] is not None and setup['feature_std'] is not None:
-            self.feature_mean = tf.Variable(setup['feature_mean'])
-            self.feature_std = tf.Variable(setup['feature_std'])
-
-        # Optionally we can initialize the amount of steps made with the optimizer
-        if 'steps_made' in setup:
-            self.steps_made = setup['steps_made']
-        else:
-            self.steps_made = 0
-            
     
     def __len__(self):
         return len(self.parameter_dict)
@@ -266,7 +271,7 @@ class EMOS:
             self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
             self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
-            self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+            self.parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3)
             print("Using default parameters for Generalized Extreme Value distribution")
         else:
             try:
@@ -285,7 +290,7 @@ class EMOS:
             self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
             self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
-            self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+            self.parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
 
             self.parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             print("Using default parameters for Generalized Extreme Value distribution 2")
@@ -308,7 +313,7 @@ class EMOS:
             self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
             self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32))
-            self.parameter_dict['e_gev'] = tf.Variable(tf.zeros(1, dtype=tf.float32))
+            self.parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
 
             self.parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32))
             print("Using default parameters for Generalized Extreme Value distribution 3")

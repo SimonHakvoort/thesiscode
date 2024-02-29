@@ -31,7 +31,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_trunc_normal"
+forecast_distribution = "distr_mixture"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -50,32 +50,14 @@ setup = {'loss': loss,
          'chain_function_std': chain_function_std
          }
 
-initial_params_gev = get_gev_initial_params()
-initial_params_trunc_normal = get_trunc_normal_initial_params()
-parameters = {}
 
-# for key in initial_params_gev:
-#     parameters[key] = initial_params_gev[key]
-# for key in initial_params_trunc_normal:
-#     parameters[key] = initial_params_trunc_normal[key]
-
-parameters['weight'] = np.array([0.5])
-#setup['parameters'] = parameters
 
 neighbourhood_size = 11
-epochs = 10
+epochs = 500
 test_folds = 1
 folds = [2,3]
 
-# dict = train_and_test_emos(neighbourhood_size, parameter_names, epochs, train_folds, test_folds, setup)
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
-setup['forecast_distribution'] = "distr_log_normal"
-emos2 = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
+print(emos)
 
-X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_folds)
-X_test = (X_test - emos.feature_mean) / emos.feature_std
-
-dict_emos = {'emos1': emos, 'emos2': emos2}
-emos = dict_emos.pop('emos1')
-brier_skill_plot(emos, dict_emos, X_test, y_test, variances_test, np.linspace(0, 20, 2000))
 

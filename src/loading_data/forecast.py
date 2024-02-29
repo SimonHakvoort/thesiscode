@@ -94,5 +94,17 @@ class Forecast:
                 variances.append(variance)
 
         return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32), tf.convert_to_tensor(variances, dtype=tf.float32)
+    
+    def __contains__(self, station_code):
+        """
+        Checks if the forecast contains an observation for the given station code.
+
+        Args: 
+        - station_code: string
+
+        Returns:
+        - boolean
+        """
+        return station_code in self.observations
 
 
