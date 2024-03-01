@@ -53,7 +53,7 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 5
+epochs = 10
 test_folds = 1
 folds = [2,3]
 
