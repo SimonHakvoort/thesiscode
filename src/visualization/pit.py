@@ -55,7 +55,7 @@ def make_cpit_hist_emos(emos, X, y, variance, bins = 20, title = "", t = 0):
     elif t > 0:
         X, y, variance = threshold(X, y, variance, t)
 
-    distribution = emos.forecast_distribution.get_forecast(X, variance)
+    distribution = emos.forecast_distribution.get_distribution(X, variance)
     make_cpit_hist(distribution.cdf, y, bins, title, t)
     
 def make_cpit_diagram(cdf_dict, y, title = "", t = 0):
@@ -118,7 +118,7 @@ def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0):
 
     cdf_dict = {}
     for name, emos in emos_dict.items():
-        distribution = emos.forecast_distribution.get_forecast(X, variance)
+        distribution = emos.forecast_distribution.get_distribution(X, variance)
         cdf_dict[name] = distribution.cdf
 
     make_cpit_diagram(cdf_dict, y, title, t)
