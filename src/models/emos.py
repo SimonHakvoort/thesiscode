@@ -293,8 +293,8 @@ class EMOS:
         """
         forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
-
-    def loss_CRPS_sample(self, X, y, variance):
+    
+    def loss_CRPS_sample_general(self, X, y, variance, samples):
         """
         The loss function for the CRPS, based on the forecast distribution and observations.
         We use a sample based approach to estimate the expected value of the CRPS.
@@ -303,13 +303,14 @@ class EMOS:
         - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
         - y (tf.Tensor): the observations of shape (n,).
         - variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
+        - samples (int): the amount of samples used to estimate the expected value of the CRPS.
 
         Returns:
         - the loss value.
         """
         forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
-        X_1 = forecast_distribution.sample(self.samples)
-        X_2 = forecast_distribution.sample(self.samples)
+        X_1 = forecast_distribution.sample(samples)
+        X_2 = forecast_distribution.sample(samples)
 
         # y will be broadcasted to the shape of X_1 and X_2
         E_1 = tf.reduce_mean(tf.abs(X_1 - y), axis=0)
@@ -320,6 +321,10 @@ class EMOS:
         # E_2 = tf.norm(X_1 - X_2, axis=0)
         
         # return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
+
+    def loss_CRPS_sample(self, X, y, variance):
+        return self.loss_CRPS_sample_general(X, y, variance, self.samples)
+        
     
     def loss_Brier_score(self, X, y, variance, threshold):
         """

@@ -10,6 +10,7 @@ from src.models.initial_params import get_gev_initial_params, get_trunc_normal_i
 from src.models.train_emos import train_and_test_emos
 from src.visualization.brier_score import brier_skill_plot
 from src.visualization.pit import make_cpit_hist_emos
+from src.visualization.scoring_tables import make_table
 
 
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -54,7 +55,7 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 10
+epochs = 200
 test_fold = 1
 folds = [2,3]
 ignore = ['229', '285', '323']
@@ -64,8 +65,14 @@ emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_fold, ignore)
 X_test = (X_test - emos.feature_mean) / emos.feature_std
 
-threshold = 10
+setup['forecast_distribution'] = 'distr_trunc_normal'
+emos_trunc_normal = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-make_cpit_hist_emos(emos, X_test, y_test, variances_test, bins = 20, title = "PIT histogram", t = threshold)
+setup['forecast_distribution'] = 'distr_gev'
+emos_gev = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-x = 3
+
+t_values = [10,11,12]
+table = make_table({'emos': emos, 'emos_trunc_normal': emos_trunc_normal, 'emos_gev': emos_gev}, X_test, y_test, variances_test, t_values, samples)
+
+print(table)
