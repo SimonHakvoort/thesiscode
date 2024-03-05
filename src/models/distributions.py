@@ -333,8 +333,10 @@ class DistributionMixture:
     
     def mean(self):
         return self.weight * self.distribution_1.mean() + (1 - self.weight) * self.distribution_2.mean()
-    
-def initialize_distribution(distribution, num_features, parameters):
+
+
+### In case a new distribution is added, the following functions need to be updated:
+def initialize_distribution(distribution, num_features, parameters, distribution_1 = None, distribution_2 = None):
     """
     Initializes the given distribution based on the input.
 
@@ -355,7 +357,11 @@ def initialize_distribution(distribution, num_features, parameters):
     elif distribution_name(distribution) == "distr_gev2":
         return GEV2(num_features, parameters)
     elif distribution_name(distribution) == "distr_gev3":
-        return GEV3(num_features, parameters)        
+        return GEV3(num_features, parameters)
+    elif distribution_name(distribution) == "distr_mixture":
+        return Mixture(num_features, distribution_1, distribution_2, parameters)
+    elif distribution_name(distribution) == "distr_mixture_linear":
+        return MixtureLinear(num_features, distribution_1, distribution_2, parameters)      
     else:
         raise ValueError("Unknown distribution")
     

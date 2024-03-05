@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from src.models.distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name 
+from src.models.distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name, initialize_distribution 
 tfpd = tfp.distributions
 
 class EMOS:
@@ -115,31 +115,38 @@ class EMOS:
         if "forecast_distribution" not in setup:
             raise ValueError("Forecast distribution not specified")
 
-        if distribution_name(setup["forecast_distribution"]) == "distr_trunc_normal":
-            self.forecast_distribution = TruncatedNormal(self.num_features, parameters)
-        elif distribution_name(setup["forecast_distribution"]) == "distr_log_normal":
-            self.forecast_distribution = LogNormal(self.num_features, parameters)
-        elif distribution_name(setup["forecast_distribution"]) == "distr_gev":
-            self.forecast_distribution = GEV(self.num_features, parameters)
-        elif distribution_name(setup["forecast_distribution"]) == "distr_gev2":
-            self.forecast_distribution = GEV2(self.num_features, parameters)
-        elif distribution_name(setup["forecast_distribution"]) == "distr_gev3":
-            self.forecast_distribution = GEV3(self.num_features, parameters)
-        elif distribution_name(setup["forecast_distribution"]) == "distr_mixture":
-            if "distribution_1" in setup and "distribution_2" in setup:
-                self.forecast_distribution = Mixture(self.num_features, setup["distribution_1"], setup["distribution_2"], parameters)
-            else:
+        # if distribution_name(setup["forecast_distribution"]) == "distr_trunc_normal":
+        #     self.forecast_distribution = TruncatedNormal(self.num_features, parameters)
+        # elif distribution_name(setup["forecast_distribution"]) == "distr_log_normal":
+        #     self.forecast_distribution = LogNormal(self.num_features, parameters)
+        # elif distribution_name(setup["forecast_distribution"]) == "distr_gev":
+        #     self.forecast_distribution = GEV(self.num_features, parameters)
+        # elif distribution_name(setup["forecast_distribution"]) == "distr_gev2":
+        #     self.forecast_distribution = GEV2(self.num_features, parameters)
+        # elif distribution_name(setup["forecast_distribution"]) == "distr_gev3":
+        #     self.forecast_distribution = GEV3(self.num_features, parameters)
+        # elif distribution_name(setup["forecast_distribution"]) == "distr_mixture":
+        #     if "distribution_1" in setup and "distribution_2" in setup:
+        #         self.forecast_distribution = Mixture(self.num_features, setup["distribution_1"], setup["distribution_2"], parameters)
+        #     else:
+        #         raise ValueError("Please specify the distributions for the mixture")
+        # elif distribution_name(setup["forecast_distribution"]) == "distr_mixture_linear":
+        #     if "distribution_1" in setup and "distribution_2" in setup:
+        #         self.forecast_distribution = MixtureLinear(self.num_features, setup["distribution_1"], setup["distribution_2"], parameters)
+        #     else:
+        #         raise ValueError("Please specify the distributions for the mixture")
+
+        distribution_1 = None
+        distribution_2 = None
+
+        if setup['forecast_distribution'] == 'distr_mixture' or setup['forecast_distribution'] == 'distr_mixture_linear':
+            if 'distribution_1' not in setup or 'distribution_2' not in setup:
                 raise ValueError("Please specify the distributions for the mixture")
-        elif distribution_name(setup["forecast_distribution"]) == "distr_mixture_linear":
-            if "distribution_1" in setup and "distribution_2" in setup:
-                self.forecast_distribution = MixtureLinear(self.num_features, setup["distribution_1"], setup["distribution_2"], parameters)
             else:
-                raise ValueError("Please specify the distributions for the mixture")
-            
-        else:
-            raise ValueError("Invalid forecast distribution: " + setup['forecast_distribution'])
+                distribution_1 = setup['distribution_1']
+                distribution_2 = setup['distribution_2']
         
-        
+        self.forecast_distribution = initialize_distribution(setup['forecast_distribution'], self.num_features, parameters, distribution_1, distribution_2)        
         
     
     def __len__(self):
@@ -408,14 +415,18 @@ class EMOS:
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
 
         Arguments:
-        - X: the input data.
-        - y: the output data.
-        - variance: the variance of the forecast around the grid point, with grid size neighbourhood_size.
+        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+        - y (tf.Tensor): the observations of shape (n,).
+        - variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
         - steps: the amount of steps to take with the optimizer.
+        - printing: whether to print the loss value at each step.
 
         Returns:
         - hist: a list containing the loss value at each step.
         """
+        if X.shape[1] != self.num_features:
+            raise ValueError(f"Number of features in X ({X.shape[1]}) does not match the number of features in the model ({self.num_features})")
+
         hist = []
         self.steps_made += steps
         for step in range(steps):

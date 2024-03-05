@@ -26,8 +26,10 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
         probabilities = cdf(y)
     else:
         probabilities = (cdf(y) - cdf(t)) / (1 - cdf(t))
+
+    print("There are", len(probabilities), "values in the PIT histogram")
     
-    plt.hist(probabilities, bins = bins, density = True)
+    plt.hist(probabilities, bins = bins, density = True, rwidth=0.9)
     plt.plot([0, 1], [1, 1], color="black", linestyle="dashed")
     plt.xlabel("Prob")
     plt.ylabel("Obs. freq.")
@@ -85,6 +87,8 @@ def make_cpit_diagram(cdf_dict, y, title = "", t = 0):
             probabilities = (cdf(y) - cdf(t)) / (1 - cdf(t))
             plt.plot(np.sort(probabilities), np.linspace(0, 1, len(probabilities)), label = name)
 
+    print("There are", len(probabilities), "values in the PIT diagram")
+
     plt.plot([0, 1], [0, 1], color="black", linestyle="dashed")
 
     plt.xlabel("Prob")
@@ -139,6 +143,7 @@ def threshold(X, y, variance, t):
     - variance: tensor
     """
     indices = tf.where(y > t)
+    indices = tf.reshape(indices, [-1])
 
     y_greater = tf.gather(y, indices)
     X_greater = tf.gather(X, indices)

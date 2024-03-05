@@ -9,6 +9,7 @@ from src.models.get_data import get_tensors
 from src.models.initial_params import get_gev_initial_params, get_trunc_normal_initial_params
 from src.models.train_emos import train_and_test_emos
 from src.visualization.brier_score import brier_skill_plot
+from src.visualization.pit import make_cpit_hist_emos
 
 
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -54,12 +55,17 @@ setup = {'loss': loss,
 
 neighbourhood_size = 11
 epochs = 10
-test_folds = 1
+test_fold = 1
 folds = [2,3]
+ignore = ['229', '285', '323']
 
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
-print(emos)
-emos_dict = emos.to_dict()
-new_emos = EMOS(emos_dict)
-print(new_emos)
 
+X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_fold, ignore)
+X_test = (X_test - emos.feature_mean) / emos.feature_std
+
+threshold = 10
+
+make_cpit_hist_emos(emos, X_test, y_test, variances_test, bins = 20, title = "PIT histogram", t = threshold)
+
+x = 3
