@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from src.models.distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name, initialize_distribution 
+from src.models.forecast_distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name, initialize_distribution 
 tfpd = tfp.distributions
 
 class EMOS:

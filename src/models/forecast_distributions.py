@@ -1,5 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
+
+from src.models.probability_distributions import DistributionMixture, TruncGEV
 tfpd = tfp.distributions
 
 class ForecastDistribution:
@@ -187,9 +189,9 @@ class GEV(ForecastDistribution):
             print("Using given parameters for Generalized Extreme Value distribution")
         else:
             self.parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_gev"))
-            self.parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="b_gev")
+            self.parameter_dict['b_gev'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="b_gev")
             self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_gev")
-            self.parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="d_gev")
+            self.parameter_dict['d_gev'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="d_gev")
             self.parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_gev")
             print("Using default parameters for Generalized Extreme Value distribution")
 
@@ -306,33 +308,42 @@ class GEV3(ForecastDistribution):
     
     def name(self):
         return "distr_gev3"
-
     
-class DistributionMixture:
-    """
-    A class representing a mixture of two distributions.
+class TruncatedGEV(ForecastDistribution):
+    def __init__(self, num_features, parameters = {}):
+        super().__init__(num_features)
+        if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
+            self.parameter_dict["a_gev"] = tf.Variable(parameters["a_gev"], dtype = tf.float32, name="a_gev")
+            self.parameter_dict["b_gev"] = tf.Variable(parameters["b_gev"], dtype = tf.float32, name="b_gev")
+            self.parameter_dict["c_gev"] = tf.Variable(parameters["c_gev"], dtype = tf.float32, name="c_gev")
+            self.parameter_dict["d_gev"] = tf.Variable(parameters["d_gev"], dtype = tf.float32, name="d_gev")
+            self.parameter_dict["e_gev"] = tf.Variable(parameters["e_gev"], dtype = tf.float32, name="e_gev")
+            print("Using given parameters for Generalized Extreme Value distribution")
+        else:
+            self.parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_gev"))
+            self.parameter_dict['b_gev'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="b_gev")
+            self.parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_gev")
+            self.parameter_dict['d_gev'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="d_gev")
+            self.parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_gev")
+            print("Using default parameters for Generalized Extreme Value distribution")
+
+    def get_distribution(self, X, variance):
+        location = self.parameter_dict['a_gev'] + tf.tensordot(X, self.parameter_dict['b_gev'], axes=1)
+        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)  
+        shape = self.parameter_dict['e_gev'] 
+        return TruncGEV(location, scale, shape)
+
+    def __str__(self):
+        info = "Truncated Generalized Extreme Value distribution with parameters:\n"
+        for key, value in self.parameter_dict.items():
+            info += "{0}: {1}\n".format(key, value)
+        return info
     
-    Attributes:
-        distribution_1 (tfp.distributions.Distribution): The first distribution in the mixture
-        distribution_2 (tfp.distributions.Distribution): The second distribution in the mixture
-        weight (tf.Tensor): The weight of the first distribution in the mixture
-    """
-    def __init__(self, distribution_1, distribution_2, weight):
-        self.distribution_1 = distribution_1
-        self.distribution_2 = distribution_2
-        self.weight = weight
+    def name(self):
+        return "distr_trunc_gev"
 
-    def log_prob(self, x):
-        return self.weight * self.distribution_1.log_prob(x) + (1 - self.weight) * self.distribution_2.log_prob(x)
 
-    def cdf(self, x):
-        return self.weight * self.distribution_1.cdf(x) + (1 - self.weight) * self.distribution_2.cdf(x)
 
-    def sample(self, n):
-        return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
-    
-    def mean(self):
-        return self.weight * self.distribution_1.mean() + (1 - self.weight) * self.distribution_2.mean()
 
 
 ### In case a new distribution is added, the following functions need to be updated:
@@ -358,6 +369,8 @@ def initialize_distribution(distribution, num_features, parameters, distribution
         return GEV2(num_features, parameters)
     elif distribution_name(distribution) == "distr_gev3":
         return GEV3(num_features, parameters)
+    elif distribution_name(distribution) == "distr_trunc_gev":
+        return TruncatedGEV(num_features, parameters)
     elif distribution_name(distribution) == "distr_mixture":
         return Mixture(num_features, distribution_1, distribution_2, parameters)
     elif distribution_name(distribution) == "distr_mixture_linear":
@@ -388,6 +401,8 @@ def distribution_name(distribution):
         return "distr_gev3"
     elif distribution.lower() in ["distr_mixture", "mixture"]:
         return "distr_mixture"
+    elif distribution.lower() in ["distr_trunc_gev", "trunc_gev", "truncgev"]:
+        return "distr_trunc_gev"
     elif distribution.lower() in ["distr_mixture_linear", "mixture_linear", "mixturelinear"]:
         return "distr_mixture_linear"
     else:
@@ -430,35 +445,6 @@ class Mixture(ForecastDistribution):
         distribution_1 = self.distribution_1.get_distribution(X, variance)
         distribution_2 = self.distribution_2.get_distribution(X, variance)
         return DistributionMixture(distribution_1, distribution_2, self.parameter_dict['weight']) 
-    
-    # def get_parameter_dict(self):
-    #     """
-    #     Returns the parameters of distribution_1, distribution_2 and the weight as tf.Variable in a dictionary
-    #     """
-    #     parameter_dict = self.distribution_1.get_parameter_dict()
-    #     parameter_dict.update(self.distribution_2.get_parameter_dict())
-    #     parameter_dict.update(self.parameter_dict)
-    #     return parameter_dict
-    
-    # def get_parameters(self):
-    #     """
-    #     Returns the parameters of distribution_1, distribution_2 and the weight as np.array in a dictionary
-    #     """
-    #     parameters = self.distribution_1.get_parameters()
-    #     parameters.update(self.distribution_2.get_parameters())
-    #     parameters.update(self.parameter_dict)
-    #     return parameters
-    
-    # def set_parameters(self, parameters):
-    #     """
-    #     Sets the parameters of the distribution to the given values.
-    #     """
-    #     self.distribution_1.set_parameters(parameters)
-    #     self.distribution_2.set_parameters(parameters)
-    #     for key, value in parameters.items():
-    #         if key in self.parameter_dict:
-    #             self.parameter_dict[key].assign(value)
-    #             print("Parameter {0} set to {1}".format(key, value))
 
     def __str__(self):
         info = "Mixture distribution with parameters:\n"
@@ -500,12 +486,12 @@ class MixtureLinear(ForecastDistribution):
         if "weight_a" in parameters and "weight_b" in parameters and "weight_c" in parameters:
             self.parameter_dict['weight_a'] = tf.Variable(parameters['weight_a'], dtype = tf.float32, name="weight_a")
             self.parameter_dict['weight_b'] = tf.Variable(parameters['weight_b'], dtype = tf.float32, name="weight_b")
-            self.parameter_dict['weight_c'] = tf.Variable(parameters['weight_c'], dtype = tf.float32, name="weight_c")
+            #self.parameter_dict['weight_c'] = tf.Variable(parameters['weight_c'], dtype = tf.float32, name="weight_c")
             print("Using given weight parameters")
         else:
             self.parameter_dict['weight_a'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="weight_a"))
-            self.parameter_dict['weight_b'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="weight_b")
-            self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_c")
+            self.parameter_dict['weight_b'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_b")
+            #self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_c")
             print("Using default weight parameters")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict
@@ -513,30 +499,12 @@ class MixtureLinear(ForecastDistribution):
         self.parameter_dict.update(self.distribution_2.get_parameter_dict())
 
     def get_distribution(self, X, variance):
-        weight = tf.math.sigmoid(self.parameter_dict['weight_a'] + tf.tensordot(X, self.parameter_dict['weight_b'], axes=1) + self.parameter_dict['weight_c'] * variance)
+        # multiply weight_b with the first feature and add weight_a
+        weight = tf.math.sigmoid(self.parameter_dict['weight_a'] + tf.multiply(X[:,0], self.parameter_dict['weight_b']))
+        distribution_1 = self.distribution_1.get_distribution(X, variance)
+        distribution_2 = self.distribution_2.get_distribution(X, variance)
         
-        mixture_distr = self.DistributionMixture(self.distribution_1(X, variance), self.distribution_2(X, variance), weight)
-        return mixture_distr
-        
-    # def get_parameter_dict(self):
-    #     parameter_dict = self.distribution_1.get_parameter_dict()
-    #     parameter_dict.update(self.distribution_2.get_parameter_dict())
-    #     parameter_dict.update(self.parameter_dict)
-    #     return parameter_dict
-    
-    # def get_parameters(self):
-    #     parameters = self.distribution_1.get_parameters()
-    #     parameters.update(self.distribution_2.get_parameters())
-    #     parameters.update(self.parameter_dict)
-    #     return parameters
-    
-    # def set_parameters(self, parameters):
-    #     self.distribution_1.set_parameters(parameters)
-    #     self.distribution_2.set_parameters(parameters)
-    #     for key, value in parameters.items():
-    #         if key in self.parameter_dict:
-    #             self.parameter_dict[key].assign(value)
-    #             print("Parameter {0} set to {1}".format(key, value))
+        return DistributionMixture(distribution_1, distribution_2, weight)
 
     def __str__(self):
         info = "Mixture Linear distribution with parameters:\n"

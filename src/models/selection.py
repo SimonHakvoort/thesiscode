@@ -11,20 +11,21 @@ from src.models.train_emos import train_and_test_emos
 from src.visualization.brier_score import brier_skill_plot
 from src.visualization.pit import make_cpit_hist_emos
 from src.visualization.scoring_tables import make_table
+from src.models.probability_distributions import TruncGEV
 
 
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_CRPS_sample"
-samples = 400
+loss = "loss_twCRPS_sample"
+samples = 300
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
 # if chain_function_normal_cdf is chosen, threshold is necessary
 chain_function = "chain_function_normal_cdf"
 threshold = 8
-chain_function_mean = 14
+chain_function_mean = 12
 chain_function_std = 2.5
 
 
@@ -33,7 +34,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture"
+forecast_distribution = "distr_mixture_linear"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -55,24 +56,14 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 200
+epochs = 400
 test_fold = 1
 folds = [2,3]
 ignore = ['229', '285', '323']
 
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_fold, ignore)
-X_test = (X_test - emos.feature_mean) / emos.feature_std
-
-setup['forecast_distribution'] = 'distr_trunc_normal'
-emos_trunc_normal = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
-
-setup['forecast_distribution'] = 'distr_gev'
-emos_gev = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
+print(emos)
 
 
-t_values = [10,11,12]
-table = make_table({'emos': emos, 'emos_trunc_normal': emos_trunc_normal, 'emos_gev': emos_gev}, X_test, y_test, variances_test, t_values, samples)
 
-print(table)
