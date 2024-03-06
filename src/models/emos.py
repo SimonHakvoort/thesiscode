@@ -188,14 +188,15 @@ class EMOS:
         if type(self.forecast_distribution) == Mixture:
             distribution_info = f"Distribution 1: {self.forecast_distribution.distribution_1.name()}\n"
             distribution_info += f"Distribution 2: {self.forecast_distribution.distribution_2.name()}\n"
-            distribution_info += f"Mixture weight: {self.forecast_distribution.get_weight()}"
+            distribution_info += f"Mixture weight: {self.forecast_distribution.get_weight()}\n"
         elif type(self.forecast_distribution) == MixtureLinear:
             distribution_info = f"Distribution 1: {self.forecast_distribution.distribution_1.name()}\n"
             distribution_info += f"Distribution 2: {self.forecast_distribution.distribution_2.name()}\n"
-            weight_a, weight_b, weight_c = self.forecast_distribution.get_weights()
+            #weight_a, weight_b, weight_c = self.forecast_distribution.get_weights()
+            weight_a, weight_b = self.forecast_distribution.get_weights()
             distribution_info += f"Mixture weight a: {weight_a}\n"
             distribution_info += f"Mixture weight b: {weight_b}\n"
-            distribution_info += f"Mixture weight c: {weight_c}"
+            #distribution_info += f"Mixture weight c: {weight_c}\n"
 
 
         return (
@@ -316,6 +317,14 @@ class EMOS:
         E_1 = tf.reduce_mean(tf.abs(X_1 - y), axis=0)
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
 
+        # ## some debugging for the gev distribution:
+        # loc = forecast_distribution.loc
+        # scale = forecast_distribution.scale
+        # shape = forecast_distribution.concentration
+        # support = (loc - scale) / shape
+
+
+
         return tf.reduce_mean(E_1 - 0.5 * E_2)
         # E_1 = tf.norm(X_1 - y, axis=0)
         # E_2 = tf.norm(X_1 - X_2, axis=0)
@@ -343,6 +352,9 @@ class EMOS:
         threshold = tf.constant(threshold, dtype=tf.float32)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - forecast_distribution.cdf(threshold)))
 
+    def loss_twCRPS_indicator_sample(self, X, y, variance, threshold, samples):
+        chain_function = lambda x: self.chain_function_indicator(x, threshold)
+        return self.loss_twCRPS_sample_general(X, y, variance, chain_function, samples)
     
     def loss_twCRPS_sample(self, X, y, variance):
         return self.loss_twCRPS_sample_general(X, y, variance, self.chain_function, self.samples)
@@ -378,7 +390,10 @@ class EMOS:
         Returns:
         - the maximum of y and the threshold.
         """
-        return tf.maximum(y, self.threshold)
+        return self.chain_function_indicator_general(y, self.threshold)
+    
+    def chain_function_indicator_general(self, y, threshold):
+        return tf.maximum(y, threshold)
     
     def chain_function_normal_cdf(self, y):
         """

@@ -56,7 +56,7 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 400
+epochs = 500
 test_fold = 1
 folds = [2,3]
 ignore = ['229', '285', '323']

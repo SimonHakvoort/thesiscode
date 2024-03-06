@@ -560,7 +560,7 @@ class MixtureLinear(ForecastDistribution):
         return "distr_mixture_linear"
 
     def get_weights(self):
-        return self.parameter_dict['weight_a'].numpy(), self.parameter_dict['weight_b'].numpy(), self.parameter_dict['weight_c'].numpy()
+        return self.parameter_dict['weight_a'].numpy(), self.parameter_dict['weight_b'].numpy()# , self.parameter_dict['weight_c'].numpy()
 
         
             
