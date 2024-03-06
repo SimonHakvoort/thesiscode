@@ -4,6 +4,73 @@ import tensorflow_probability as tfp
 from src.models.probability_distributions import DistributionMixture, TruncGEV
 tfpd = tfp.distributions
 
+### In case a new distribution is added, the following functions need to be updated:
+def initialize_distribution(distribution, num_features, parameters, distribution_1 = None, distribution_2 = None):
+    """
+    Initializes the given distribution based on the input.
+
+    Args:
+    - distribution (str): The name of the distribution
+    - num_features (int): The number of features used in the model
+    - parameters (dict): Dictionary containing the parameters of the distribution, which is optional.
+
+    Returns:
+    - ForecastDistribution: The initialized distribution object
+    """
+    if distribution_name(distribution) == "distr_trunc_normal":
+        return TruncatedNormal(num_features, parameters)
+    elif distribution_name(distribution) == "distr_log_normal":
+        return LogNormal(num_features, parameters)
+    elif distribution_name(distribution) == "distr_gev":
+        return GEV(num_features, parameters)
+    elif distribution_name(distribution) == "distr_gev2":
+        return GEV2(num_features, parameters)
+    elif distribution_name(distribution) == "distr_gev3":
+        return GEV3(num_features, parameters)
+    elif distribution_name(distribution) == "distr_trunc_gev":
+        return TruncatedGEV(num_features, parameters)
+    elif distribution_name(distribution) == "distr_frechet":
+        return Frechet(num_features, parameters)
+    elif distribution_name(distribution) == "distr_mixture":
+        return Mixture(num_features, distribution_1, distribution_2, parameters)
+    elif distribution_name(distribution) == "distr_mixture_linear":
+        return MixtureLinear(num_features, distribution_1, distribution_2, parameters)      
+    else:
+        raise ValueError("Unknown distribution")
+    
+def distribution_name(distribution):
+    """
+    Function to convert the distribution name to a standard name.
+
+    Args:
+    - distribution (str): The name of the distribution
+
+    Returns:
+    - str: The standard name of the distribution
+    """
+
+    if distribution.lower() in ["distr_trunc_normal", "trunc_normal", "truncated_normal", "truncated normal", "truncnormal", "truncatednormal"]:
+        return "distr_trunc_normal"
+    elif distribution.lower() in ["distr_log_normal", "log_normal", "lognormal", "log normal"]:
+        return "distr_log_normal"
+    elif distribution.lower() in ["distr_gev", "gev", "generalized extreme value"]:
+        return "distr_gev"
+    elif distribution.lower() in ["distr_gev2", "gev2"]:
+        return "distr_gev2"
+    elif distribution.lower() in ["distr_gev3", "gev3"]:
+        return "distr_gev3"
+    elif distribution.lower() in ["distr_mixture", "mixture"]:
+        return "distr_mixture"
+    elif distribution.lower() in ["distr_frechet", "frechet"]:
+        return "distr_frechet"
+    elif distribution.lower() in ["distr_trunc_gev", "trunc_gev", "truncgev"]:
+        return "distr_trunc_gev"
+    elif distribution.lower() in ["distr_mixture_linear", "mixture_linear", "mixturelinear"]:
+        return "distr_mixture_linear"
+    else:
+        raise ValueError("Unknown distribution")
+    
+
 class ForecastDistribution:
     """
     Virtual base class for forecast distributions.
@@ -210,6 +277,45 @@ class GEV(ForecastDistribution):
     def name(self):
         return "distr_gev"
     
+class Frechet(ForecastDistribution):
+    def __init__(self, num_features, parameters = {}):
+        super().__init__(num_features)
+
+        constraint = tf.keras.constraints.NonNeg()
+
+        if "a_fr" in parameters and "b_fr" in parameters and "c_fr" in parameters and "d_fr" in parameters and "e_fr" in parameters:
+            self.parameter_dict["a_fr"] = tf.Variable(parameters["a_fr"], dtype = tf.float32, name="a_fr")
+            self.parameter_dict["b_fr"] = tf.Variable(parameters["b_fr"], dtype = tf.float32, name="b_fr")
+            self.parameter_dict["c_fr"] = tf.Variable(parameters["c_fr"], dtype = tf.float32, name="c_fr")
+            self.parameter_dict["d_fr"] = tf.Variable(parameters["d_fr"], dtype = tf.float32, name="d_fr")
+
+            self.parameter_dict["e_fr"] = tf.Variable(parameters["e_fr"], dtype = tf.float32, name="e_fr", constraint=constraint)
+            print("Using given parameters for Frechet distribution")
+        else:
+            self.parameter_dict['a_fr'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_fr"))
+            self.parameter_dict['b_fr'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="b_fr")
+            self.parameter_dict['c_fr'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_fr")
+            self.parameter_dict['d_fr'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="d_fr")
+
+            self.parameter_dict['e_fr'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_fr", constraint=constraint)
+            print("Using default parameters for Frechet distribution")
+
+    def get_distribution(self, X, variance):
+        location = self.parameter_dict['a_fr'] + tf.tensordot(X, self.parameter_dict['b_fr'], axes=1)
+        scale = self.parameter_dict['c_fr'] + tf.tensordot(X, self.parameter_dict['d_fr'], axes=1)  
+        shape = self.parameter_dict['e_fr'] 
+        return tfpd.GeneralizedExtremeValue(location, scale, shape)
+
+    def __str__(self):
+        info = "Frechet distribution with parameters:\n"
+        for key, value in self.parameter_dict.items():
+            info += "{0}: {1}\n".format(key, value)
+        return info
+    
+    def name(self):
+        return "distr_frechet"    
+
+    
 class GEV2(ForecastDistribution):
     """
     Forecast distribution representing a truncated normal EMOS distribution.
@@ -341,72 +447,6 @@ class TruncatedGEV(ForecastDistribution):
     
     def name(self):
         return "distr_trunc_gev"
-
-
-
-
-
-### In case a new distribution is added, the following functions need to be updated:
-def initialize_distribution(distribution, num_features, parameters, distribution_1 = None, distribution_2 = None):
-    """
-    Initializes the given distribution based on the input.
-
-    Args:
-    - distribution (str): The name of the distribution
-    - num_features (int): The number of features used in the model
-    - parameters (dict): Dictionary containing the parameters of the distribution, which is optional.
-
-    Returns:
-    - ForecastDistribution: The initialized distribution object
-    """
-    if distribution_name(distribution) == "distr_trunc_normal":
-        return TruncatedNormal(num_features, parameters)
-    elif distribution_name(distribution) == "distr_log_normal":
-        return LogNormal(num_features, parameters)
-    elif distribution_name(distribution) == "distr_gev":
-        return GEV(num_features, parameters)
-    elif distribution_name(distribution) == "distr_gev2":
-        return GEV2(num_features, parameters)
-    elif distribution_name(distribution) == "distr_gev3":
-        return GEV3(num_features, parameters)
-    elif distribution_name(distribution) == "distr_trunc_gev":
-        return TruncatedGEV(num_features, parameters)
-    elif distribution_name(distribution) == "distr_mixture":
-        return Mixture(num_features, distribution_1, distribution_2, parameters)
-    elif distribution_name(distribution) == "distr_mixture_linear":
-        return MixtureLinear(num_features, distribution_1, distribution_2, parameters)      
-    else:
-        raise ValueError("Unknown distribution")
-    
-def distribution_name(distribution):
-    """
-    Function to convert the distribution name to a standard name.
-
-    Args:
-    - distribution (str): The name of the distribution
-
-    Returns:
-    - str: The standard name of the distribution
-    """
-
-    if distribution.lower() in ["distr_trunc_normal", "trunc_normal", "truncated_normal", "truncated normal", "truncnormal", "truncatednormal"]:
-        return "distr_trunc_normal"
-    elif distribution.lower() in ["distr_log_normal", "log_normal", "lognormal", "log normal"]:
-        return "distr_log_normal"
-    elif distribution.lower() in ["distr_gev", "gev", "generalized extreme value"]:
-        return "distr_gev"
-    elif distribution.lower() in ["distr_gev2", "gev2"]:
-        return "distr_gev2"
-    elif distribution.lower() in ["distr_gev3", "gev3"]:
-        return "distr_gev3"
-    elif distribution.lower() in ["distr_mixture", "mixture"]:
-        return "distr_mixture"
-    elif distribution.lower() in ["distr_trunc_gev", "trunc_gev", "truncgev"]:
-        return "distr_trunc_gev"
-    elif distribution.lower() in ["distr_mixture_linear", "mixture_linear", "mixturelinear"]:
-        return "distr_mixture_linear"
-    else:
-        raise ValueError("Unknown distribution")
 
     
 class Mixture(ForecastDistribution):

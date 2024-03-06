@@ -17,7 +17,7 @@ from src.models.probability_distributions import TruncGEV
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_twCRPS_sample"
+loss = "loss_CRPS_sample"
 samples = 300
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
@@ -34,7 +34,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture_linear"
+forecast_distribution = "distr_gev"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"

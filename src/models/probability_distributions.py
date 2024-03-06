@@ -36,11 +36,12 @@ class TruncGEV(tfp.distributions.Distribution):
             validate_args=False,  # When True distribution parameters are checked for validity despite possibly degrading runtime performance
             allow_nan_stats=True  # When True, statistics (e.g., mean, mode, variance) use the value NaN to indicate the result is undefined.
         )
+        
         self._loc = loc
         self._scale = scale
         self._shape = shape
-        self._low = tf.constant(0, dtype=tf.float32)
-        self._high = tf.constant(10000, dtype=tf.float32)
+        self._low = tf.zeros_like(loc, dtype=tf.float32)
+        self._high = tf.ones_like(loc, dtype=tf.float32) * 1000
         self._gev = tfp.distributions.GeneralizedExtremeValue(loc, scale, shape)
 
         self.cdf_low = self._gev.cdf(self._low)
@@ -53,13 +54,23 @@ class TruncGEV(tfp.distributions.Distribution):
         return (self._gev.cdf(x) - self.cdf_low) / (self.cdf_high - self.cdf_low)
     
     def _sample_n(self, n, seed=None):
-        samples = []
-        while len(samples) < n:
-            sample = self._gev.sample(n - len(samples), seed)
-            # remove all the samples that are less than 0
-            sample = sample[sample > 0]
-            samples.extend(sample.numpy().tolist())
-        return tf.convert_to_tensor(samples[:n], dtype=tf.float32)
+        # samples = []
+        # while len(samples) < n:
+        #     sample = self._gev.sample(n - len(samples), seed)
+        #     # remove all the samples that are less than 0
+        #     sample = sample[sample > 0]
+        #     samples.extend(sample.numpy().tolist())
+        # return tf.convert_to_tensor(samples[:n], dtype=tf.float32)
+        samples = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
+        sample_count = 0
+        while tf.less(sample_count, n):
+            sample = self._gev.sample(n - sample_count, seed)
+            mask = tf.greater(sample, 0)
+            sample = tf.boolean_mask(sample, mask)
+            samples = samples.write(sample_count, sample)
+            sample_count += tf.reduce_sum(tf.cast(mask, tf.int32))
+        samples = samples.stack()
+        return samples[:n]
 
 
     

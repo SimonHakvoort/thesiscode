@@ -449,5 +449,6 @@ class EMOS:
                 if "weight" in self.forecast_distribution.get_parameter_dict():
                     print("Weight: ", self.forecast_distribution.get_parameter_dict()['weight'].numpy())
                 print("Step: {}, Loss: {}".format(step, loss_value))
+        print("Final loss: ", loss_value.numpy())	
         return hist
             
