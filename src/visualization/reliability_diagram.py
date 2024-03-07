@@ -1,35 +1,34 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def make_reliability_diagram(emos_dict, X, y, variances, t, n_subset = 10):
+def make_reliability_and_refinement_diagram(emos_dict, X, y, variances, t, n_subset = 11):
     subset_values = np.linspace(0, 1, n_subset)
     fig, axs = plt.subplots(2, 1, figsize=(10, 10))  # Create a figure with two subplots
 
     for name, model in emos_dict.items():
         distributions = model.forecast_distribution.get_distribution(X, variances)
         cdf = distributions.cdf
-        cdf_values = cdf(t)
+        cdf_values = cdf(t).numpy()
 
-        #find the indices of cdf_values (which is a tf.tensor) that lie in between the subset_values
-        indices = []
-        for value in subset_values:
-            indices.append(np.where(cdf_values < value)[0][-1])
-        indices = np.array(indices)
+        empirical_probabilities = np.zeros(n_subset - 1)
+        average_cdf_values = np.zeros(n_subset - 1)
+        counts = np.zeros(n_subset - 1)
+        for i in range(0, len(cdf_values)):
+            for j in range(0, n_subset - 1):
+                if cdf_values[i] >= subset_values[j] and cdf_values[i] < subset_values[j + 1]:
+                    counts[j] += 1
+                    average_cdf_values[j] += cdf_values[i]
+                    if y[i] < t:
+                        empirical_probabilities[j] += 1
 
-        #compute the empirical probabilities based on y and the indices
-        empirical_probabilities = np.zeros(n_subset)
-        for i in range(n_subset - 1):
-            empirical_probabilities[i] = np.mean(y[indices[i]:indices[i + 1]] < t)
+        axs[0].plot(average_cdf_values / counts, empirical_probabilities / counts, 'o-', label = name)
         
-        #compute the average cdf values for each subset
-        average_cdf_values = np.zeros(n_subset)
-        for i in range(n_subset - 1):
-            average_cdf_values[i] = np.mean(cdf_values[indices[i]:indices[i + 1]])
+        # #in ax[1] we will plot the refinement diagram, which contains the counts for each bin
+        axs[1].plot(subset_values[0:-1], counts / len(cdf_values), label = name)
 
-        #plot the reliability diagram
-        axs[0].plot(average_cdf_values, empirical_probabilities, label = name)
-        #plot the refinement diagram
-        axs[1].plot(average_cdf_values, np.diff(indices), label = name)  # Assuming refinement is the difference between indices
+        
+
+
 
     axs[0].plot([0, 1], [0, 1], color="black", linestyle="dashed")
     axs[0].set_xlabel("Forecast probability")
@@ -39,10 +38,39 @@ def make_reliability_diagram(emos_dict, X, y, variances, t, n_subset = 10):
     axs[0].legend()
 
     axs[1].set_xlabel("Forecast probability")
-    axs[1].set_ylabel("Refinement")
+    axs[1].set_ylabel("Count")
     axs[1].set_xlim(0, 1)
     axs[1].set_ylim(0, 1)
     axs[1].legend()
 
     plt.tight_layout()
+    plt.show()
+
+def make_reliability_diagram(emos_dict, X, y, variances, t, n_subset = 11):
+    subset_values = np.linspace(0, 1, n_subset)
+
+    for name, model in emos_dict.items():
+        distributions = model.forecast_distribution.get_distribution(X, variances)
+        cdf = distributions.cdf
+        cdf_values = cdf(t).numpy()
+
+        empirical_probabilities = np.zeros(n_subset - 1)
+        average_cdf_values = np.zeros(n_subset - 1)
+        counts = np.zeros(n_subset - 1)
+        for i in range(0, len(cdf_values)):
+            for j in range(0, n_subset - 1):
+                if cdf_values[i] >= subset_values[j] and cdf_values[i] < subset_values[j + 1]:
+                    counts[j] += 1
+                    average_cdf_values[j] += cdf_values[i]
+                    if y[i] < t:
+                        empirical_probabilities[j] += 1
+
+        plt.plot(average_cdf_values / counts, empirical_probabilities / counts, 'o-', label = name)
+
+    plt.plot([0, 1], [0, 1], color="black", linestyle="dashed")
+    plt.xlabel("Forecast probability")
+    plt.ylabel("Empirical probability")
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.legend()
     plt.show()

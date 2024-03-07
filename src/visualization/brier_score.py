@@ -63,7 +63,7 @@ def get_brier_skill_scores(emos1, emos2, X, y, variances, values):
     brier_scores2 = get_brier_scores(emos2, X, y, variances, values)
     return 1 - brier_scores1 / brier_scores2
 
-def brier_skill_plot(basemodel, models, X, y, variances, values, title = 'Brier skill score'):
+def brier_skill_plot(basemodel, models, X, y, variances, values, ylim = None, title = 'Brier skill score'):
     """
     Makes a plot of the Brier skill score for the models. We assume that X is already normalized. basemodel is the model to compare to. 
     Includes a legend with the names of the models.
@@ -75,12 +75,21 @@ def brier_skill_plot(basemodel, models, X, y, variances, values, title = 'Brier 
     - y: tensor
     - variances: tensor
     - values: list of floats on which to compute the Brier score
+    - ylim: tuple of floats
+    - title: string
     """
     for model in models:
         brier_skill_scores = get_brier_skill_scores(models[model], basemodel, X, y, variances, values)
         plt.plot(values, brier_skill_scores, label = model)
+
+    # print a striped black horizontal line at y=0
+    plt.axhline(0, color='black', linestyle='--')
+
     plt.xlabel('wind speed threshold (m/s)')
     plt.ylabel('Brier skill score')
     plt.xlim(values[0], values[-1])
+    if ylim != None:
+        plt.ylim(ylim[0], ylim[1])
+    plt.title(title)
     plt.legend()
     plt.show()

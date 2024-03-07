@@ -162,22 +162,25 @@ class TruncatedNormal(ForecastDistribution):
         - None
         """
         super().__init__(num_features)
+
+        constraint = tf.keras.constraints.NonNeg()
+
         if "a_tn" in parameters and "b_tn" in parameters and "c_tn" in parameters and "d_tn" in parameters:
             self.parameter_dict["a_tn"] = tf.Variable(parameters["a_tn"], dtype = tf.float32, name="a_tn")
             self.parameter_dict["b_tn"] = tf.Variable(parameters["b_tn"], dtype = tf.float32, name="b_tn")
-            self.parameter_dict["c_tn"] = tf.Variable(parameters["c_tn"], dtype = tf.float32, name="c_tn")
-            self.parameter_dict["d_tn"] = tf.Variable(parameters["d_tn"], dtype = tf.float32, name="d_tn")
+            self.parameter_dict["c_tn"] = tf.Variable(parameters["c_tn"], dtype = tf.float32, name="c_tn", constraint=constraint)
+            self.parameter_dict["d_tn"] = tf.Variable(parameters["d_tn"], dtype = tf.float32, name="d_tn", constraint=constraint)
             print("Using given parameters for Truncated Normal distribution")
         else:
             self.parameter_dict['a_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_tn"))
             self.parameter_dict['b_tn'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="b_tn")
-            self.parameter_dict['c_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_tn")
-            self.parameter_dict['d_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="d_tn")
+            self.parameter_dict['c_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_tn", constraint=constraint)
+            self.parameter_dict['d_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="d_tn", constraint=constraint)
             print("Using default parameters for truncated normal distribution")
 
     def get_distribution(self, X, variance):
         mu = self.parameter_dict['a_tn'] + tf.tensordot(X, self.parameter_dict['b_tn'], axes=1)
-        sigma = tf.sqrt(tf.abs(self.parameter_dict['c_tn'] + self.parameter_dict['d_tn'] * variance))
+        sigma = tf.sqrt(self.parameter_dict['c_tn'] + self.parameter_dict['d_tn'] * variance)
         return tfpd.TruncatedNormal(mu, sigma, 0, 1000)
     
     def __str__(self):
@@ -204,17 +207,20 @@ class LogNormal(ForecastDistribution):
     """
     def __init__(self, num_features, parameters = {}):
         super().__init__(num_features)
+
+        constraint = tf.keras.constraints.NonNeg()
+
         if "a_ln" in parameters and "b_ln" in parameters and "c_ln" in parameters:
             self.parameter_dict["a_ln"] = tf.Variable(parameters["a_ln"], dtype = tf.float32, name="a_ln")
             self.parameter_dict["b_ln"] = tf.Variable(parameters["b_ln"], dtype = tf.float32, name="b_ln")
-            self.parameter_dict["c_ln"] = tf.Variable(parameters["c_ln"], dtype = tf.float32, name="c_ln")
-            self.parameter_dict["d_ln"] = tf.Variable(parameters["d_ln"], dtype = tf.float32, name="d_ln")
+            self.parameter_dict["c_ln"] = tf.Variable(parameters["c_ln"], dtype = tf.float32, name="c_ln", constraint=constraint)
+            self.parameter_dict["d_ln"] = tf.Variable(parameters["d_ln"], dtype = tf.float32, name="d_ln", constraint=constraint)
             print("Using given parameters for Log Normal distribution")
         else:
             self.parameter_dict['a_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32, name="a_ln"))
             self.parameter_dict['b_ln'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="b_ln")
-            self.parameter_dict['c_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_ln")
-            self.parameter_dict['d_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="d_ln")
+            self.parameter_dict['c_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_ln", constraint=constraint)
+            self.parameter_dict['d_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="d_ln", constraint=constraint)
             print("Using default parameters for Log Normal distribution")
 
     def get_distribution(self, X, variance):
@@ -473,8 +479,10 @@ class Mixture(ForecastDistribution):
 
         if 'weight' in parameters:
             self.parameter_dict['weight'] = tf.Variable(parameters['weight'], dtype = tf.float32, name="weight", trainable=True, constraint=constraint)
+            print("Using given weight parameter for Mixture distribution")
         else:
             self.parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+            print("Using default weight parameter for Mixture distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict
         self.parameter_dict.update(self.distribution_1.get_parameter_dict())
@@ -523,16 +531,16 @@ class MixtureLinear(ForecastDistribution):
         
         self.distribution_2 = initialize_distribution(distribution_2, num_features, parameters)
         
-        if "weight_a" in parameters and "weight_b" in parameters and "weight_c" in parameters:
+        if "weight_a" in parameters and "weight_b" in parameters: # and "weight_c" in parameters:
             self.parameter_dict['weight_a'] = tf.Variable(parameters['weight_a'], dtype = tf.float32, name="weight_a")
             self.parameter_dict['weight_b'] = tf.Variable(parameters['weight_b'], dtype = tf.float32, name="weight_b")
             #self.parameter_dict['weight_c'] = tf.Variable(parameters['weight_c'], dtype = tf.float32, name="weight_c")
-            print("Using given weight parameters")
+            print("Using given weight parameters for weights in Mixture Linear distribution")
         else:
             self.parameter_dict['weight_a'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="weight_a"))
             self.parameter_dict['weight_b'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_b")
             #self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_c")
-            print("Using default weight parameters")
+            print("Using default weight parameters for weights in Mixture Linear distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict
         self.parameter_dict.update(self.distribution_1.get_parameter_dict())

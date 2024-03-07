@@ -350,10 +350,32 @@ class EMOS:
         """
         forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
         threshold = tf.constant(threshold, dtype=tf.float32)
-        return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - forecast_distribution.cdf(threshold)))
+        cdf_values = forecast_distribution.cdf(threshold)
+
+        #in case we have a distr_gev or a distr_mixture(linear) with a gev distribution, we need to check if cdf_values contains nan. 
+        # if this is the case, we replace it with 1 if concentration < 0 and 0 if concentration > 0
+        if type(self.forecast_distribution) == GEV:
+            if self.forecast_distribution.parameter_dict["e_gev"].numpy() < 0:
+                cdf_values = tf.where(tf.math.is_nan(cdf_values), 1, cdf_values)
+            else:
+                cdf_values = tf.where(tf.math.is_nan(cdf_values), 0, cdf_values)
+
+        if type(self.forecast_distribution) == Mixture or type(self.forecast_distribution) == MixtureLinear:
+            if type(self.forecast_distribution.distribution_1) == GEV:
+                if self.forecast_distribution.distribution_1.parameter_dict["e_gev"].numpy() < 0:
+                    cdf_values = tf.where(tf.math.is_nan(cdf_values), 1, cdf_values)
+                else:
+                    cdf_values = tf.where(tf.math.is_nan(cdf_values), 0, cdf_values)
+            if type(self.forecast_distribution.distribution_2) == GEV:
+                if self.forecast_distribution.distribution_2.parameter_dict["e_gev"].numpy() < 0:
+                    cdf_values = tf.where(tf.math.is_nan(cdf_values), 1, cdf_values)
+                else:
+                    cdf_values = tf.where(tf.math.is_nan(cdf_values), 0, cdf_values)
+
+        return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
 
     def loss_twCRPS_indicator_sample(self, X, y, variance, threshold, samples):
-        chain_function = lambda x: self.chain_function_indicator(x, threshold)
+        chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
         return self.loss_twCRPS_sample_general(X, y, variance, chain_function, samples)
     
     def loss_twCRPS_sample(self, X, y, variance):

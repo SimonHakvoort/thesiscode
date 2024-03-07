@@ -12,6 +12,7 @@ from src.visualization.brier_score import brier_skill_plot
 from src.visualization.pit import make_cpit_hist_emos
 from src.visualization.scoring_tables import make_table
 from src.models.probability_distributions import TruncGEV
+import pickle as pkl
 
 
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -34,7 +35,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_gev"
+forecast_distribution = "distr_trunc_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -55,15 +56,21 @@ setup = {'loss': loss,
 
 
 
-neighbourhood_size = 11
+neighbourhood_size = 7
 epochs = 500
 test_fold = 1
 folds = [2,3]
 ignore = ['229', '285', '323']
 
-emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
+# emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 
-print(emos)
+# print(emos)
+
+with open('/net/pc200239/nobackup/users/hakvoort/models/emos_crps.pkl', 'rb') as f:
+    models_crps = pkl.load(f)
+
+myemos = EMOS(models_crps['crps_mixlinear_tn_gev'])
+print(myemos)
 
 
 
