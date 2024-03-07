@@ -47,6 +47,17 @@ def make_reliability_and_refinement_diagram(emos_dict, X, y, variances, t, n_sub
     plt.show()
 
 def make_reliability_diagram(emos_dict, X, y, variances, t, n_subset = 11):
+    """
+    Makes a reliability diagram for each EMOS model in the dictionary, for the given data and threshold t.
+
+    Args:
+    - emos_dict: dictionary of EMOS models
+    - X: tensor with shape (n, m), where n is the number of samples and m is the number of features
+    - y: array with shape (n,) with the true values
+    - variances: array with shape (n,) with the variances in the neighborhood of the true values
+    - t: real valued number greater than 0
+    - n_subset: integer, number of subsets to divide the forecast probabilities in
+    """
     subset_values = np.linspace(0, 1, n_subset)
 
     for name, model in emos_dict.items():

@@ -16,11 +16,15 @@ def make_twcrpss_plot(base_model, model_dict, X, y, variances, thresholds, ylim 
     - y: the output data
     - variances: the variances of the output data
     - thresholds: the thresholds to compare the models at
+    - ylim: the limits of the y-axis
     - sample_size: the number of samples to use for the twCRPSS calculation
     """
     for model_name, model in model_dict.items():
         scores = [comp_twcrpss(base_model, model, X, y, variances, threshold, sample_size) for threshold in thresholds]
         plt.plot(thresholds, scores, label = model_name)
+
+    # plot horizontal black striped line at y=0
+    plt.plot([thresholds[0], thresholds[-1]], [0, 0], color="black", linestyle="dashed")
 
     plt.xlabel('Threshold (m/s)')
     plt.ylabel('twCRPSS')
