@@ -79,10 +79,10 @@ class EMOS:
         try:
             if setup['chain_function'] == 'chain_function_indicator':
                 self.chain_function = self.chain_function_indicator
-                if 'threshold' not in setup:
+                if 'chain_function_threshold' not in setup:
                     raise ValueError("Threshold of the chain function not specified")
                 else:
-                    self.threshold = tf.constant(setup['threshold'], dtype=tf.float32)
+                    self.chain_function_threshold = tf.constant(setup['chain_function_threshold'], dtype=tf.float32)
             elif setup['chain_function'] == 'chain_function_normal_cdf':
                 self.chain_function = self.chain_function_normal_cdf
                 if 'chain_function_mean' not in setup:
@@ -114,27 +114,6 @@ class EMOS:
 
         if "forecast_distribution" not in setup:
             raise ValueError("Forecast distribution not specified")
-
-        # if distribution_name(setup["forecast_distribution"]) == "distr_trunc_normal":
-        #     self.forecast_distribution = TruncatedNormal(self.num_features, parameters)
-        # elif distribution_name(setup["forecast_distribution"]) == "distr_log_normal":
-        #     self.forecast_distribution = LogNormal(self.num_features, parameters)
-        # elif distribution_name(setup["forecast_distribution"]) == "distr_gev":
-        #     self.forecast_distribution = GEV(self.num_features, parameters)
-        # elif distribution_name(setup["forecast_distribution"]) == "distr_gev2":
-        #     self.forecast_distribution = GEV2(self.num_features, parameters)
-        # elif distribution_name(setup["forecast_distribution"]) == "distr_gev3":
-        #     self.forecast_distribution = GEV3(self.num_features, parameters)
-        # elif distribution_name(setup["forecast_distribution"]) == "distr_mixture":
-        #     if "distribution_1" in setup and "distribution_2" in setup:
-        #         self.forecast_distribution = Mixture(self.num_features, setup["distribution_1"], setup["distribution_2"], parameters)
-        #     else:
-        #         raise ValueError("Please specify the distributions for the mixture")
-        # elif distribution_name(setup["forecast_distribution"]) == "distr_mixture_linear":
-        #     if "distribution_1" in setup and "distribution_2" in setup:
-        #         self.forecast_distribution = MixtureLinear(self.num_features, setup["distribution_1"], setup["distribution_2"], parameters)
-        #     else:
-        #         raise ValueError("Please specify the distributions for the mixture")
 
         distribution_1 = None
         distribution_2 = None
@@ -179,8 +158,8 @@ class EMOS:
         chaining_function_info = ""
         if hasattr(self, 'chain_function'):
             chaining_function_info = f"Chaining function: {self.chain_function.__name__}"
-            if hasattr(self, 'threshold'):
-                chaining_function_info += f" (Threshold: {self.threshold.numpy()})"
+            if hasattr(self, 'chain_function_threshold'):
+                chaining_function_info += f" (Threshold: {self.chain_function_threshold.numpy()})"
             elif hasattr(self, 'chain_function_mean') and hasattr(self, 'chain_function_std'):
                 chaining_function_info += f" (Mean: {self.chain_function_mean.numpy()}, Std: {self.chain_function_std.numpy()})"
 
@@ -239,7 +218,6 @@ class EMOS:
         """
         model_dict = {
             'loss' : self.loss.__name__,
-            'samples': self.samples,
             'optimizer': self.optimizer.__class__.__name__,
             'learning_rate': self.optimizer.learning_rate.numpy(),
             'forecast_distribution': self.forecast_distribution.name(),
@@ -251,10 +229,13 @@ class EMOS:
         }
         model_dict['parameters'] = self.get_parameters()
 
+        if hasattr(self, 'samples'):
+            model_dict['samples'] = self.samples
+
         if self.need_chain:
             if self.chain_function == self.chain_function_indicator:
                 model_dict['chain_function'] = 'chain_function_indicator'
-                model_dict['threshold'] = self.threshold.numpy()
+                model_dict['threshold'] = self.chain_function_threshold.numpy()
             elif self.chain_function == self.chain_function_normal_cdf:
                 model_dict['chain_function'] = 'chain_function_normal_cdf'
                 model_dict['chain_function_mean'] = self.chain_function_mean.numpy()
@@ -310,6 +291,7 @@ class EMOS:
         - the loss value.
         """
         forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
+        #X_1 has shape (samples, n), where n is the number of observations
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
 
@@ -412,7 +394,7 @@ class EMOS:
         Returns:
         - the maximum of y and the threshold.
         """
-        return self.chain_function_indicator_general(y, self.threshold)
+        return self.chain_function_indicator_general(y, self.chain_function_threshold)
     
     def chain_function_indicator_general(self, y, threshold):
         return tf.maximum(y, threshold)
