@@ -63,7 +63,7 @@ def distribution_name(distribution):
         return "distr_mixture"
     elif distribution.lower() in ["distr_frechet", "frechet"]:
         return "distr_frechet"
-    elif distribution.lower() in ["distr_trunc_gev", "trunc_gev", "truncgev"]:
+    elif distribution.lower() in ["distr_trunc_gev", "trunc_gev", "truncgev", "truncated_gev"]:
         return "distr_trunc_gev"
     elif distribution.lower() in ["distr_mixture_linear", "mixture_linear", "mixturelinear"]:
         return "distr_mixture_linear"

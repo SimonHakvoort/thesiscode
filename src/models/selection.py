@@ -3,6 +3,7 @@
 # possible parameters: 'wind_speed', 'press', 'kinetic', 'humid', 'geopot'
 # IMPORTANT: the first parameter should be 'wind_speed', this is assumed in the normalization process
 import numpy as np
+import tensorflow as tf
 from src.models.train_emos import train_emos
 from src.models.emos import EMOS
 from src.models.get_data import get_tensors
@@ -18,16 +19,16 @@ import pickle as pkl
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_CRPS_sample"
-samples = 300
+loss = "loss_twCRPS_sample"
+samples = 200
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
 # if chain_function_normal_cdf is chosen, threshold is necessary
 chain_function = "chain_function_normal_cdf"
 threshold = 8
-chain_function_mean = 12
-chain_function_std = 2.5
+chain_function_mean = 14
+chain_function_std = 1
 
 
 # possible optimizers: 'SGD', 'Adam'
@@ -35,7 +36,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_trunc_normal"
+forecast_distribution = "distr_trunc_gev"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -57,20 +58,18 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 7
-epochs = 500
-test_fold = 1
-folds = [2,3]
+epochs = 400
+test_fold = 3
+folds = [1,2]
 ignore = ['229', '285', '323']
 
-# emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
+tf.debugging.enable_check_numerics()
 
+emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
+print(emos)
 # print(emos)
 
-with open('/net/pc200239/nobackup/users/hakvoort/models/emos_crps.pkl', 'rb') as f:
-    models_crps = pkl.load(f)
 
-myemos = EMOS(models_crps['crps_mixlinear_tn_gev'])
-print(myemos)
 
 
 

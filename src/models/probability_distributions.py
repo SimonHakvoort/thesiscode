@@ -45,32 +45,26 @@ class TruncGEV(tfp.distributions.Distribution):
         self._gev = tfp.distributions.GeneralizedExtremeValue(loc, scale, shape)
 
         self.cdf_low = self._gev.cdf(self._low)
-        self.cdf_high = self._gev.cdf(self._high)
+        # self.cdf_high = self._gev.cdf(self._high)
 
     def _log_prob(self, x):
         return self._gev.log_prob(x) - (tf.math.log(self.cdf_high - self.cdf_low))
     
     def _cdf(self, x):
-        return (self._gev.cdf(x) - self.cdf_low) / (self.cdf_high - self.cdf_low)
+        return (self._gev.cdf(x) - self.cdf_low) / (1 - self.cdf_low)
     
-    def _sample_n(self, n, seed=None):
-        # samples = []
-        # while len(samples) < n:
-        #     sample = self._gev.sample(n - len(samples), seed)
-        #     # remove all the samples that are less than 0
-        #     sample = sample[sample > 0]
-        #     samples.extend(sample.numpy().tolist())
-        # return tf.convert_to_tensor(samples[:n], dtype=tf.float32)
-        samples = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
-        sample_count = 0
-        while tf.less(sample_count, n):
-            sample = self._gev.sample(n - sample_count, seed)
-            mask = tf.greater(sample, 0)
-            sample = tf.boolean_mask(sample, mask)
-            samples = samples.write(sample_count, sample)
-            sample_count += tf.reduce_sum(tf.cast(mask, tf.int32))
-        samples = samples.stack()
-        return samples[:n]
+    def _sample_n(self, n, seed):
+        cdf_0 = self._gev.cdf(self._low)
+
+        # check if cdf_0 contains nan. If it contains nan, replace it with 0 in case self._shape > 0 and with 1 in case self._shape < 0
+        cdf_0 = tf.where(tf.math.is_nan(cdf_0), tf.where(self._shape > 0, 0.0, 1.0), cdf_0)
+
+        # generate uniform randomnumbers between cdf_0 and 1
+        u = tf.random.uniform([n, self._gev.batch_shape[0]], minval=cdf_0, maxval=1, seed=seed)
+        # inverse cdf
+        return self._gev.quantile(u)
+
+
 
 
     
