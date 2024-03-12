@@ -177,6 +177,10 @@ class EMOS:
             distribution_info += f"Mixture weight b: {weight_b}\n"
             #distribution_info += f"Mixture weight c: {weight_c}\n"
 
+        steps_info = ""
+        if self.steps_made > 0:
+            steps_info = f"Steps made: {self.steps_made}"
+        
 
         return (
             f"EMOS Model Information:\n"
@@ -235,7 +239,7 @@ class EMOS:
         if self.need_chain:
             if self.chain_function == self.chain_function_indicator:
                 model_dict['chain_function'] = 'chain_function_indicator'
-                model_dict['threshold'] = self.chain_function_threshold.numpy()
+                model_dict['chain_function_threshold'] = self.chain_function_threshold.numpy()
             elif self.chain_function == self.chain_function_normal_cdf:
                 model_dict['chain_function'] = 'chain_function_normal_cdf'
                 model_dict['chain_function_mean'] = self.chain_function_mean.numpy()

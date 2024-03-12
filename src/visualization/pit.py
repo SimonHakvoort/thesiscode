@@ -100,7 +100,7 @@ def make_cpit_diagram(cdf_dict, y, title = "", t = 0):
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
 
-def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0):
+def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0, base_model = None):
     """
     Function to make a PIT diagram for a dictionary of EMOS models and data.
 
@@ -111,6 +111,7 @@ def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0):
     - variances: array with shape (n,) with the variances in the neighborhood of the true values
     - title: title of the diagram
     - t: real valued number greater than 0
+    - base_model: EMOS model, optional
 
     Returns:
     - None
@@ -124,6 +125,11 @@ def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0):
     for name, emos in emos_dict.items():
         distribution = emos.forecast_distribution.get_distribution(X, variance)
         cdf_dict[name] = distribution.cdf
+
+    if base_model is not None:
+        distribution = base_model.forecast_distribution.get_distribution(X, variance)
+        cdf_dict["Base Model"] = distribution.cdf
+
 
     make_cpit_diagram(cdf_dict, y, title, t)
 

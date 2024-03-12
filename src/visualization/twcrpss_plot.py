@@ -30,5 +30,6 @@ def make_twcrpss_plot(base_model, model_dict, X, y, variances, thresholds, ylim 
     plt.ylabel('twCRPSS')
     if ylim is not None:
         plt.ylim(ylim[0], ylim[1])
+    plt.xlim(thresholds[0], thresholds[-1])
     plt.legend()
     plt.show()

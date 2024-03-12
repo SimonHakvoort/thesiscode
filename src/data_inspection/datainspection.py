@@ -54,19 +54,19 @@ for forecast in fold3:
 
 
 
-data_test = np.array(list(chain.from_iterable(data_test)))
+#data_test = np.array(list(chain.from_iterable(data_test)))
 data_1 = np.array(list(chain.from_iterable(data_1)))
 data_2 = np.array(list(chain.from_iterable(data_2)))
 data_3 = np.array(list(chain.from_iterable(data_3)))
 
 percentiles = [90, 95, 99, 99.5]
 #consider between 95 and 99
-percentiles_test = np.percentile(data_test, percentiles)
+#percentiles_test = np.percentile(data_test, percentiles)
 percentiles_1 = np.percentile(data_1, percentiles)
 percentiles_2 = np.percentile(data_2, percentiles)
 percentiles_3 = np.percentile(data_3, percentiles)
 
-print("Test: ", percentiles_test)
+#print("Test: ", percentiles_test)
 print("1: ", percentiles_1)
 print("2: ", percentiles_2)
 print("3: ", percentiles_3)
@@ -76,9 +76,9 @@ gust_factor = 1.5
 
 threshold = yellow_warning / gust_factor
 
-print("Test: ", np.sum(data_test > threshold))
+#print("Test: ", np.sum(data_test > threshold))
 print("1: ", np.sum(data_1 > threshold))
 print("2: ", np.sum(data_2 > threshold))
 print("3: ", np.sum(data_3 > threshold))
 
-print("top 20 values in test: " , np.sort(data_test)[-20:])
+print("Top 40 values in 3: ", np.sort(data_3)[-40:])
