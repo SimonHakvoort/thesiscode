@@ -501,7 +501,7 @@ class Mixture(ForecastDistribution):
             self.parameter_dict['weight'] = tf.Variable(initial_value=parameters['weight'], dtype = tf.float32, name="weight", trainable=True, constraint=constraint)
             print("Using given weight parameter for Mixture distribution")
         else:
-            self.parameter_dict['weight'] = tf.Variable(initial_value=0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+            self.parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
             print("Using default weight parameter for Mixture distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict

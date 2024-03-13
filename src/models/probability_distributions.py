@@ -15,14 +15,16 @@ class DistributionMixture(tf.Module):
         self.distribution_2 = distribution_2
         self.weight = weight
 
-        probs = tf.stack([self.weight, 1 - self.weight])
-        probs_broadcast = tf.broadcast_to(probs, [self.distribution_1.batch_shape[0], 2])
-        
-        cat = tfp.distributions.Categorical(probs=probs_broadcast)
-        self.mixture = tfp.distributions.Mixture(
-            cat=cat,
-            components=[distribution_1, distribution_2]
-        )
+
+        ### for this code to work, the self.weight parameter should not be an array, but a single value
+        # probs = tf.stack([self.weight, 1 - self.weight])
+        # probs_broadcast = tf.broadcast_to(probs, [self.distribution_1.batch_shape[0], 2])
+
+        # cat = tfp.distributions.Categorical(probs=probs_broadcast)
+        # self.mixture = tfp.distributions.Mixture(
+        #     cat=cat,
+        #     components=[distribution_1, distribution_2]
+        # )
 
 
     def log_prob(self, x):
@@ -32,10 +34,33 @@ class DistributionMixture(tf.Module):
         return self.weight * self.distribution_1.cdf(x) + (1 - self.weight) * self.distribution_2.cdf(x)
 
     def sample(self, n):
-        return self.mixture.sample(n)
+        # samples_1 = self.distribution_1.sample(n)
+        # samples_2 = self.distribution_2.sample(n)
+        # # Create a Categorical distribution with mixing proportions given by self.weight and 1 - self.weight
+        # cat = tfp.distributions.Categorical(probs=[self.weight, 1 - self.weight])
+        # # Sample from the Categorical distribution
+        # samples_cat = cat.sample([n, self.distribution_1.batch_shape[0]])
+        # # Use the samples from the Categorical distribution to create a mixture of samples_1 and samples_2
+        # return tf.where(samples_cat == 0, samples_1, samples_2)
+
+        samples_1 = self.distribution_1.sample(n)
+        samples_2 = self.distribution_2.sample(n)
+
+        uniform_samples = tf.random.uniform([n, self.distribution_1.batch_shape[0]])
+
+        # Create a soft mask using a sigmoid function
+        mask = tf.sigmoid((uniform_samples - self.weight) * 100000)
+
+        return mask * samples_1 + (1 - mask) * samples_2
+    
+
+        # samples_1 = self.distribution_1.sample(n)
+        # samples_2 = self.distribution_2.sample(n)
+        # mask = tf.random.uniform([n, self.distribution_1.batch_shape[0]]) < self.weight
+        # return tf.where(mask, samples_1, samples_2)
 
         
-
+        # return self.mixture.sample(n)
         # return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
     
     def mean(self):

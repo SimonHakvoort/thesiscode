@@ -36,7 +36,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture"
+forecast_distribution = "distr_trunc_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -62,7 +62,7 @@ test_fold = 3
 folds = [1]
 ignore = ['229', '285', '323']
 
-tf.debugging.enable_check_numerics()
+#tf.debugging.enable_check_numerics()
 
 emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
 print(emos)
