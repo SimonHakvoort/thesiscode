@@ -15,6 +15,16 @@ class DistributionMixture(tf.Module):
         self.distribution_2 = distribution_2
         self.weight = weight
 
+        probs = tf.stack([self.weight, 1 - self.weight])
+        probs_broadcast = tf.broadcast_to(probs, [self.distribution_1.batch_shape[0], 2])
+        
+        cat = tfp.distributions.Categorical(probs=probs_broadcast)
+        self.mixture = tfp.distributions.Mixture(
+            cat=cat,
+            components=[distribution_1, distribution_2]
+        )
+
+
     def log_prob(self, x):
         return self.weight * self.distribution_1.log_prob(x) + (1 - self.weight) * self.distribution_2.log_prob(x)
 
@@ -22,7 +32,11 @@ class DistributionMixture(tf.Module):
         return self.weight * self.distribution_1.cdf(x) + (1 - self.weight) * self.distribution_2.cdf(x)
 
     def sample(self, n):
-        return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
+        return self.mixture.sample(n)
+
+        
+
+        # return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
     
     def mean(self):
         return self.weight * self.distribution_1.mean() + (1 - self.weight) * self.distribution_2.mean()

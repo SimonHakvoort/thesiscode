@@ -223,15 +223,17 @@ class LogNormal(ForecastDistribution):
             self.parameter_dict["d_ln"] = tf.Variable(parameters["d_ln"], dtype = tf.float32, name="d_ln", constraint=constraint)
             print("Using given parameters for Log Normal distribution")
         else:
-            self.parameter_dict['a_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32, name="a_ln"))
+            self.parameter_dict['a_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_ln"))
             self.parameter_dict['b_ln'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="b_ln")
             self.parameter_dict['c_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_ln", constraint=constraint)
             self.parameter_dict['d_ln'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="d_ln", constraint=constraint)
             print("Using default parameters for Log Normal distribution")
 
     def get_distribution(self, X, variance):
-        mu = self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1)
-        sigma = tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance))
+        # mu = self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1)
+        # sigma = tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance))
+        mu = tf.math.log(self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1))
+        sigma = tf.math.log(tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance)))
         return tfpd.LogNormal(mu, sigma)
     
     def __str__(self):
@@ -496,10 +498,10 @@ class Mixture(ForecastDistribution):
         constraint = tf.keras.constraints.MinMaxNorm(min_value=0.0, max_value=1.0)
 
         if 'weight' in parameters:
-            self.parameter_dict['weight'] = tf.Variable(parameters['weight'], dtype = tf.float32, name="weight", trainable=True, constraint=constraint)
+            self.parameter_dict['weight'] = tf.Variable(initial_value=parameters['weight'], dtype = tf.float32, name="weight", trainable=True, constraint=constraint)
             print("Using given weight parameter for Mixture distribution")
         else:
-            self.parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
+            self.parameter_dict['weight'] = tf.Variable(initial_value=0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
             print("Using default weight parameter for Mixture distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict

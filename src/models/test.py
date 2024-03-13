@@ -1,5 +1,7 @@
 import pickle as pkl
 import numpy as np
+import tensorflow as tf
+import tensorflow_probability as tfp
 
 from src.models.train_emos import train_emos, train_and_test_emos
 from src.training.training import load_model
@@ -41,31 +43,42 @@ from src.models.emos import EMOS
 
 # value = 5
 # make_reliability_diagram(emos_crps, X_test, y_test, variances_test, value, n_subset = 11)
+tfd = tfp.distributions
+
+mix = tf.Variable(0.5, dtype=tf.float32)
+cat = tfd.Categorical(probs=[mix, 1.-mix])
+bimix_gauss = tfd.Mixture(
+    cat=cat,
+    components=[
+      tfd.Normal(loc=-10., scale=1),
+      tfd.Normal(loc=+10., scale=1),
+  ])
+
+samples = bimix_gauss.sample(1000)
+for i in range(1000):
+    print(samples[i].numpy())
 
 
 
+# folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/trunc_normal/'
 
+# mean12_std4 = load_model(folder + 'tn_twcrps_mean12.0_std4.0.pkl')
+# mean12_std1 = load_model(folder + 'tn_twcrps_mean12.0_std1.0.pkl')
+# mean15_std1 = load_model(folder + 'tn_twcrps_mean15.0_std1.0.pkl')
+# mean16_std5 = load_model(folder + 'tn_twcrps_mean16.0_std5.0.pkl')
 
+# model_dict = {'mean12_std4': mean12_std4, 'mean12_std1': mean12_std1, 'mean15_std1': mean15_std1, 'mean16_std5': mean16_std5}
 
-folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/trunc_normal/'
+# tn_models = {'mean12_std4': mean12_std4, 'mean12_std1': mean12_std1, 'mean15_std1': mean15_std1, 'mean16_std5': mean16_std5}
 
-mean12_std4 = load_model(folder + 'tn_twcrps_mean12.0_std4.0.pkl')
-mean12_std1 = load_model(folder + 'tn_twcrps_mean12.0_std1.0.pkl')
-mean15_std1 = load_model(folder + 'tn_twcrps_mean15.0_std1.0.pkl')
-mean16_std5 = load_model(folder + 'tn_twcrps_mean16.0_std5.0.pkl')
+# folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
 
-model_dict = {'mean12_std4': mean12_std4, 'mean12_std1': mean12_std1, 'mean15_std1': mean15_std1, 'mean16_std5': mean16_std5}
+# base_model = load_model(folder + 'trunc_normal/tn_crps_.pkl')
 
-tn_models = {'mean12_std4': mean12_std4, 'mean12_std1': mean12_std1, 'mean15_std1': mean15_std1, 'mean16_std5': mean16_std5}
+# test_fold = 3
+# ignore = ['229', '285', '323']
+# X_test, y_test, variances_test = get_tensors(mean12_std4.neighbourhood_size, mean12_std4.feature_names, test_fold, ignore)
+# X_test = (X_test - mean12_std4.feature_mean) / mean12_std4.feature_std
 
-folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
-
-base_model = load_model(folder + 'trunc_normal/tn_crps_.pkl')
-
-test_fold = 3
-ignore = ['229', '285', '323']
-X_test, y_test, variances_test = get_tensors(mean12_std4.neighbourhood_size, mean12_std4.feature_names, test_fold, ignore)
-X_test = (X_test - mean12_std4.feature_mean) / mean12_std4.feature_std
-
-t=15
-make_cpit_diagram_emos(model_dict, X_test, y_test, variances_test, t=t, base_model=base_model)
+# t=15
+# make_cpit_diagram_emos(model_dict, X_test, y_test, variances_test, t=t, base_model=base_model)
