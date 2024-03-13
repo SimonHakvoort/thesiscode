@@ -21,6 +21,9 @@ def make_twcrpss_plot(base_model, model_dict, X, y, variances, thresholds, ylim 
     """
     for model_name, model in model_dict.items():
         scores = [comp_twcrpss(base_model, model, X, y, variances, threshold, sample_size) for threshold in thresholds]
+        #check if scores contains nan
+        if np.isnan(scores).any():
+            print("scores contain nan")
         plt.plot(thresholds, scores, label = model_name)
 
     # plot horizontal black striped line at y=0

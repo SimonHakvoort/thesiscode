@@ -132,6 +132,12 @@ class ForecastDistribution:
                 self.parameter_dict[key].assign(value)
                 print("Parameter {0} set to {1}".format(key, value))
 
+    def contains_gev(self):
+        return False
+    
+    def get_gev_shape(self):
+        return None
+
 
 
     
@@ -282,6 +288,12 @@ class GEV(ForecastDistribution):
     
     def name(self):
         return "distr_gev"
+    
+    def contains_gev(self):
+        return True
+    
+    def get_gev_shape(self):
+        return self.parameter_dict['e_gev'].numpy()
     
 class Frechet(ForecastDistribution):
     def __init__(self, num_features, parameters = {}):
@@ -453,6 +465,12 @@ class TruncatedGEV(ForecastDistribution):
     
     def name(self):
         return "distr_trunc_gev"
+    
+    def contains_gev(self):
+        return True
+    
+    def get_gev_shape(self):
+        return self.parameter_dict['e_gev'].numpy()
 
     
 class Mixture(ForecastDistribution):
@@ -509,6 +527,17 @@ class Mixture(ForecastDistribution):
 
     def get_weight(self):
         return self.parameter_dict['weight'].numpy()
+    
+    def contains_gev(self):
+        return self.distribution_1.contains_gev() or self.distribution_2.contains_gev()
+    
+    def get_gev_shape(self):
+        if self.distribution_1.contains_gev():
+            return self.distribution_1.get_shape()
+        elif self.distribution_2.contains_gev():
+            return self.distribution_2.get_shape()
+        else:
+            return None
 
     
 class MixtureLinear(ForecastDistribution):
@@ -569,6 +598,17 @@ class MixtureLinear(ForecastDistribution):
 
     def get_weights(self):
         return self.parameter_dict['weight_a'].numpy(), self.parameter_dict['weight_b'].numpy()# , self.parameter_dict['weight_c'].numpy()
+    
+    def contains_gev(self):
+        return self.distribution_1.contains_gev() or self.distribution_2.contains_gev()
+    
+    def get_gev_shape(self):
+        if self.distribution_1.contains_gev():
+            return self.distribution_1.get_shape()
+        elif self.distribution_2.contains_gev():
+            return self.distribution_2.get_shape()
+        else:
+            return None
 
         
             

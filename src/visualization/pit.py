@@ -60,7 +60,7 @@ def make_cpit_hist_emos(emos, X, y, variance, bins = 20, title = "", t = 0):
     distribution = emos.forecast_distribution.get_distribution(X, variance)
     make_cpit_hist(distribution.cdf, y, bins, title, t)
     
-def make_cpit_diagram(cdf_dict, y, title = "", t = 0):
+def make_cpit_diagram(cdf_dict, y, title = "", t = 0, gev_shape = None):
     """
     Function to make a PIT diagram for a given cdf and data. The cdf needs to have the same shape as y, they are stored in cdf_dict
     It is also possible to make a conditional PIT diagram, by setting t to a value different from 0.
@@ -81,10 +81,31 @@ def make_cpit_diagram(cdf_dict, y, title = "", t = 0):
     elif t == 0:
         for name, cdf in cdf_dict.items():
             probabilities = cdf(y)
+            if gev_shape is not None:
+                # change the probabilities such that nan becomes 1 if gev_shape < 0 and 0 if gev_shape > 0
+                shape = gev_shape[name]
+                if shape is not None:
+                    probabilities = np.where(np.isnan(probabilities), 1 if shape < 0 else 0, probabilities)
+            
+            # print contain nan if probabilities contains nan
+            if np.isnan(probabilities).any():
+                print("probabilities contain nan")
+
             plt.plot(np.sort(probabilities), np.linspace(0, 1, len(probabilities)), label = name)
+            
     else:
         for name, cdf in cdf_dict.items():
             probabilities = (cdf(y) - cdf(t)) / (1 - cdf(t))
+            if gev_shape is not None:
+                # change the probabilities such that nan becomes 1 if gev_shape < 0 and 0 if gev_shape > 0
+                shape = gev_shape[name]
+                if shape is not None:
+                    probabilities = np.where(np.isnan(probabilities), 1 if shape < 0 else 0, probabilities)
+
+            # print contain nan if probabilities contains nan
+            if np.isnan(probabilities).any():
+                print("probabilities contain nan")
+
             plt.plot(np.sort(probabilities), np.linspace(0, 1, len(probabilities)), label = name)
 
     print("There are", len(probabilities), "values in the PIT diagram")
@@ -126,12 +147,20 @@ def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0, base_mo
         distribution = emos.forecast_distribution.get_distribution(X, variance)
         cdf_dict[name] = distribution.cdf
 
+    gev_shape = {}
+
     if base_model is not None:
         distribution = base_model.forecast_distribution.get_distribution(X, variance)
         cdf_dict["Base Model"] = distribution.cdf
+        gev_shape["Base Model"] = base_model.forecast_distribution.get_gev_shape()
 
 
-    make_cpit_diagram(cdf_dict, y, title, t)
+    for name, emos in emos_dict.items():
+        gev_shape[name] = emos.forecast_distribution.get_gev_shape()
+
+    make_cpit_diagram(cdf_dict, y, title, t, gev_shape)
+
+
 
 
 def threshold(X, y, variance, t):
