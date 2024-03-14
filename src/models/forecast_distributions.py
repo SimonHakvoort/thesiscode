@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
+from abc import ABC, abstractmethod
 
 from src.models.probability_distributions import DistributionMixture, TruncGEV
 tfpd = tfp.distributions
@@ -293,6 +294,7 @@ class GEV(ForecastDistribution):
     
     def contains_gev(self):
         return True
+    
     
     def get_gev_shape(self):
         return self.parameter_dict['e_gev'].numpy()

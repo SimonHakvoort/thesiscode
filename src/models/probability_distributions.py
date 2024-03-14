@@ -15,16 +15,18 @@ class DistributionMixture(tf.Module):
         self.distribution_2 = distribution_2
         self.weight = weight
 
-
-        ### for this code to work, the self.weight parameter should not be an array, but a single value
-        # probs = tf.stack([self.weight, 1 - self.weight])
+        # dummy = tf.reduce_sum(self.weight)
+        # ### for this code to work, the self.weight parameter should not be an array, but a single value
+        # probs = tf.stack([dummy, 1 - dummy])
         # probs_broadcast = tf.broadcast_to(probs, [self.distribution_1.batch_shape[0], 2])
 
         # cat = tfp.distributions.Categorical(probs=probs_broadcast)
+        # cat2 = tfp.distributions.Categorical(probs=[dummy, 1 - dummy])
         # self.mixture = tfp.distributions.Mixture(
-        #     cat=cat,
+        #     cat=cat2,
         #     components=[distribution_1, distribution_2]
         # )
+        # x = 1
 
 
     def log_prob(self, x):
@@ -43,6 +45,8 @@ class DistributionMixture(tf.Module):
         # # Use the samples from the Categorical distribution to create a mixture of samples_1 and samples_2
         # return tf.where(samples_cat == 0, samples_1, samples_2)
 
+        # return self.mixture.sample(n)
+
         samples_1 = self.distribution_1.sample(n)
         samples_2 = self.distribution_2.sample(n)
 
@@ -52,12 +56,6 @@ class DistributionMixture(tf.Module):
         mask = tf.sigmoid((uniform_samples - self.weight) * 10000)
 
         return mask * samples_1 + (1 - mask) * samples_2
-    
-
-        # samples_1 = self.distribution_1.sample(n)
-        # samples_2 = self.distribution_2.sample(n)
-        # mask = tf.random.uniform([n, self.distribution_1.batch_shape[0]]) < self.weight
-        # return tf.where(mask, samples_1, samples_2)
 
         
         # return self.mixture.sample(n)
@@ -65,6 +63,8 @@ class DistributionMixture(tf.Module):
     
     def mean(self):
         return self.weight * self.distribution_1.mean() + (1 - self.weight) * self.distribution_2.mean()
+    
+    
 
 
 class TruncGEV(tfp.distributions.Distribution):
@@ -87,8 +87,11 @@ class TruncGEV(tfp.distributions.Distribution):
         # self.cdf_high = self._gev.cdf(self._high)
 
     def _log_prob(self, x):
-        return self._gev.log_prob(x) - (tf.math.log(self.cdf_high - self.cdf_low))
+        return self._gev.log_prob(x) - (tf.math.log(1 - self.cdf_low))
     
+    def _prob(self, x):
+        return self._gev.prob(x) / (1 - self.cdf_low)
+
     def _cdf(self, x):
         return (self._gev.cdf(x) - self.cdf_low) / (1 - self.cdf_low)
     
@@ -103,7 +106,10 @@ class TruncGEV(tfp.distributions.Distribution):
         # inverse cdf
         return self._gev.quantile(u)
 
-
-
+    def _event_shape(self):
+        return tf.TensorShape([])
+    
+    def _batch_shape(self):
+        return tf.broadcast_static_shape(self._loc.shape, self._scale.shape)
 
     
