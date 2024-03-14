@@ -49,7 +49,7 @@ class DistributionMixture(tf.Module):
         uniform_samples = tf.random.uniform([n, self.distribution_1.batch_shape[0]])
 
         # Create a soft mask using a sigmoid function
-        mask = tf.sigmoid((uniform_samples - self.weight) * 100000)
+        mask = tf.sigmoid((uniform_samples - self.weight) * 10000)
 
         return mask * samples_1 + (1 - mask) * samples_2
     

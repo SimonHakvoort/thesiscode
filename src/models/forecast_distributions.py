@@ -535,9 +535,9 @@ class Mixture(ForecastDistribution):
     
     def get_gev_shape(self):
         if self.distribution_1.contains_gev():
-            return self.distribution_1.get_shape()
+            return self.distribution_1.get_gev_shape()
         elif self.distribution_2.contains_gev():
-            return self.distribution_2.get_shape()
+            return self.distribution_2.get_gev_shape()
         else:
             return None
 

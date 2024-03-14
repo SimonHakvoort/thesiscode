@@ -36,7 +36,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_trunc_normal"
+forecast_distribution = "distr_mixture"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -56,10 +56,10 @@ setup = {'loss': loss,
          }
 
 
-neighbourhood_size = 7
+neighbourhood_size = 11
 epochs = 1000
 test_fold = 3
-folds = [1]
+folds = [1,2]
 ignore = ['229', '285', '323']
 
 #tf.debugging.enable_check_numerics()
