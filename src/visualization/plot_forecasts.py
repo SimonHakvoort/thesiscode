@@ -46,7 +46,7 @@ def plot_forecast_cdf(emos_dict, X, y, variances, observation_value = 0, base_mo
     plt.legend()
     plt.show()
 
-def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, base_model = None, seed = None):
+def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_size = 3, base_model = None, seed = None):
     """
     Plot the forecast distributions for each model in the dictionary, for a single random observation value that is greater than a specified value.
 
@@ -69,7 +69,11 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, base_mo
     candidates = y > observation_value
     indices = np.where(candidates)[0]
     i = np.random.choice(indices, 1)[0]
-    x = np.linspace(y[i] - 3, y[i] + 3, 100)
+
+    min_value = min(y[i] - plot_size, X[i,0] - plot_size)
+    max_value = max(y[i] + plot_size, X[i,0] + plot_size)
+
+    x = np.linspace(min_value, max_value, 500)
 
     #plot the forecast distributions for each model
     for name, model in emos_dict.items():
@@ -81,10 +85,13 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, base_mo
     if base_model is not None:
         distributions = base_model.forecast_distribution.get_distribution(X[i, :], variances[i])
         pdf = distributions.prob
-        plt.plot(x, pdf(x).numpy(), label = 'base model', color = 'black', linestyle = 'dashed')
+        plt.plot(x, pdf(x).numpy(), label = 'base model', color = 'black')
     
     #plot the observation
     plt.axvline(y[i], color = 'red', label = 'observation')
+
+    #plot the forecast of the observation
+    plt.axvline(X[i,0], color = 'black', label = 'forecast', linestyle = 'dashed')
 
     plt.xlabel('Value')
     plt.ylabel('Probability density')

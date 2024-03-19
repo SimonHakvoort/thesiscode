@@ -570,8 +570,8 @@ class MixtureLinear(ForecastDistribution):
             #self.parameter_dict['weight_c'] = tf.Variable(parameters['weight_c'], dtype = tf.float32, name="weight_c")
             print("Using given weight parameters for weights in Mixture Linear distribution")
         else:
-            self.parameter_dict['weight_a'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="weight_a"))
-            self.parameter_dict['weight_b'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_b")
+            self.parameter_dict['weight_a'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="weight_a", trainable=True)
+            self.parameter_dict['weight_b'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="weight_b", trainable=True)
             #self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_c")
             print("Using default weight parameters for weights in Mixture Linear distribution")
 
@@ -584,8 +584,19 @@ class MixtureLinear(ForecastDistribution):
         weight = tf.math.sigmoid(self.parameter_dict['weight_a'] + tf.multiply(X[:,0], self.parameter_dict['weight_b']))
         distribution_1 = self.distribution_1.get_distribution(X, variance)
         distribution_2 = self.distribution_2.get_distribution(X, variance)
-        
+
         return DistributionMixture(distribution_1, distribution_2, weight)
+
+        # For this code, tensorflow cannot find the gradient of weight_a and weight_b
+    
+        # # weight.shape = distribution_1.batch_shape
+        # probs = tf.stack([weight, 1 - weight], axis=-1)
+        # cat = tfp.distributions.Categorical(probs=probs)
+        
+        # mixture = tfp.distributions.Mixture(cat=cat, components=[distribution_1, distribution_2])
+        
+        
+        
 
     def __str__(self):
         info = "Mixture Linear distribution with parameters:\n"
@@ -608,9 +619,9 @@ class MixtureLinear(ForecastDistribution):
     
     def get_gev_shape(self):
         if self.distribution_1.contains_gev():
-            return self.distribution_1.get_shape()
+            return self.distribution_1.get_gev_shape()
         elif self.distribution_2.contains_gev():
-            return self.distribution_2.get_shape()
+            return self.distribution_2.get_gev_shape()
         else:
             return None
 
