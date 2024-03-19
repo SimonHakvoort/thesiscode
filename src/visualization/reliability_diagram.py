@@ -107,33 +107,50 @@ def make_reliability_diagram(emos_dict, X, y, variances, t, n_subset = 11, base_
     plt.legend()
     plt.show()
 
-def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset):
+def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset = 10, base_model = None):
     y_true = y > t
     cdfs = {}
     for name, model in emos_dict.items():
         distributions = model.forecast_distribution.get_distribution(X, variances)
         cdf = distributions.cdf
-        cdfs[name] = cdf(t).numpy()
+        cdfs[name] = 1 - cdf(t).numpy()
 
-    y_probs = {}
 
-    for name, cdf in cdfs.items():
-        y_probs[name] = cdf
-
-    for name, y_prob in y_probs.items():
+    for name, y_prob in cdfs.items():
         prob_true, prob_pred = calibration_curve(y_true, y_prob, n_bins=n_subset)
-        
-        # sort prob_pred and then sort prob_true in the same order
-        sorted_indices = np.argsort(prob_pred)
-        prob_pred = prob_pred[sorted_indices]
-        prob_true = prob_true[sorted_indices]
         plt.plot(prob_pred, prob_true, 'o-', label = name)
+
+    if base_model is not None:
+        distributions = base_model.forecast_distribution.get_distribution(X, variances)
+        cdf = distributions.cdf
+        cdf_values = cdf(t).numpy()
+        prob_true, prob_pred = calibration_curve(y_true, 1 - cdf_values, n_bins=n_subset)
+        plt.plot(prob_pred, prob_true, 'o-', label = "Base model")
     
     plt.plot([0, 1], [0, 1], color="black", linestyle="dashed")
-    plt.xlabel("Forecast probability")
-    plt.ylabel("Empirical probability")
+    plt.xlabel("Mean predicted probability")
+    plt.ylabel("Fraction of positives")
     plt.xlim(0, 1)
     plt.ylim(0, 1)
+    plt.legend()
+    plt.show()
+
+def make_sharpness_diagram(emos_dict, X, y, variances, t, n_subset = 10):
+    subset_values = np.linspace(0, 1, n_subset)
+    cdfs = {}
+    for name, model in emos_dict.items():
+        distributions = model.forecast_distribution.get_distribution(X, variances)
+        cdf = distributions.cdf
+        cdfs[name] = 1 - cdf(t).numpy()
+
+    for name, y_prob in cdfs.items():
+        counts, bin_edges = np.histogram(y_prob, bins = subset_values)
+        counts = np.append(counts, 0)
+        plt.step(subset_values, counts / len(y) * 100, where='post', label = name)
+
+    plt.xlabel("Forecast probability")
+    plt.ylabel("Count (%)")
+    plt.xlim(0, 1)
     plt.legend()
     plt.show()
 
