@@ -27,7 +27,7 @@ samples = 100
 # if chain_function_normal_cdf is chosen, threshold is necessary
 chain_function = "chain_function_normal_cdf"
 threshold = 8
-chain_function_mean = 12
+chain_function_mean = 14
 chain_function_std = 1
 
 
@@ -36,7 +36,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture_linear"
+forecast_distribution = "distr_log_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"

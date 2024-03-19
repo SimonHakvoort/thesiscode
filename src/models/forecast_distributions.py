@@ -233,9 +233,14 @@ class LogNormal(ForecastDistribution):
     def get_distribution(self, X, variance):
         # mu = self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1)
         # sigma = tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance))
-        mu = tf.math.log(self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1))
-        sigma = tf.math.log(tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance)))
-        return tfpd.LogNormal(mu, sigma)
+        # mu = tf.math.log(self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1))
+        # sigma = tf.math.log(tf.sqrt(tf.abs(self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance)))
+        # return tfpd.LogNormal(mu, sigma)
+        m = self.parameter_dict['a_ln'] + tf.tensordot(X, self.parameter_dict['b_ln'], axes=1)
+        v = self.parameter_dict['c_ln'] + self.parameter_dict['d_ln'] * variance
+        mean = tf.math.log(m ** 2) - 0.5 * tf.math.log(v + m ** 2)
+        sigma = tf.sqrt(tf.math.log(1 + v / m ** 2))
+        return tfpd.LogNormal(mean, sigma)
     
     def __str__(self):
         info = "Log Normal distribution with parameters:\n"

@@ -460,11 +460,11 @@ class EMOS:
         for step in range(steps):
             loss_value, grads = self.compute_loss_and_gradient(X, y, variance)
 
-            # # check if gradient contains nan
-            # if tf.math.reduce_any(tf.math.is_nan(grads[0])):
-            #     print("Gradient contains NaN")
-            #     continue
-            # hist.append(loss_value)
+            # check if gradient contains nan
+            if tf.math.reduce_any(tf.math.is_nan(grads[0])):
+                print("Gradient contains NaN")
+                continue
+            hist.append(loss_value)
 
             self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.get_parameter_dict().values()))
 
