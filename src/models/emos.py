@@ -325,19 +325,8 @@ class EMOS:
         E_1 = tf.reduce_mean(tf.abs(X_1 - y), axis=0)
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
 
-        # ## some debugging for the gev distribution:
-        # loc = forecast_distribution.loc
-        # scale = forecast_distribution.scale
-        # shape = forecast_distribution.concentration
-        # support = (loc - scale) / shape
-
-
-
         return tf.reduce_mean(E_1 - 0.5 * E_2)
-        # E_1 = tf.norm(X_1 - y, axis=0)
-        # E_2 = tf.norm(X_1 - X_2, axis=0)
-        
-        # return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
+
 
     def loss_CRPS_sample(self, X, y, variance):
         return self.loss_CRPS_sample_general(X, y, variance, self.samples)
