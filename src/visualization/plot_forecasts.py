@@ -79,10 +79,16 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
 
     #plot the forecast distributions for each model
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X[i, :], variances[i])
-        pdf = distributions.prob
+        distributions = model.forecast_distribution.get_distribution(X, variances)
 
-        plt.plot(x, pdf(x).numpy(), label = name)
+        pdf = distributions.prob
+        y_values = np.zeros((len(x), distributions.batch_shape[0]))
+        for p,j in enumerate(x):
+            y_values[p,:] = pdf(j).numpy()
+
+        pdf_val_i = y_values[:,i]
+
+        plt.plot(x, pdf_val_i, label = name)
 
     if base_model is not None:
         distributions = base_model.forecast_distribution.get_distribution(X[i, :], variances[i])

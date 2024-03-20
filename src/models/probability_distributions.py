@@ -34,6 +34,9 @@ class DistributionMixture(tf.Module):
 
     def cdf(self, x):
         return self.weight * self.distribution_1.cdf(x) + (1 - self.weight) * self.distribution_2.cdf(x)
+    
+    def prob(self, x):
+        return self.weight * self.distribution_1.prob(x) + (1 - self.weight) * self.distribution_2.prob(x)
 
     def sample(self, n):
         # samples_1 = self.distribution_1.sample(n)
@@ -54,6 +57,12 @@ class DistributionMixture(tf.Module):
 
         # Create a soft mask using a sigmoid function
         mask = tf.sigmoid((self.weight - uniform_samples) * 10000)
+
+        # lesser = tf.reduce_sum(tf.cast(mask < 0.01, tf.int32)).numpy()
+        # greater = tf.reduce_sum(tf.cast(mask > 0.99, tf.int32)).numpy()
+        # num_not_in_between = lesser + greater
+        # total = n * self.distribution_1.batch_shape[0]
+        # ratio = lesser / total
 
         return mask * samples_1 + (1 - mask) * samples_2
 
