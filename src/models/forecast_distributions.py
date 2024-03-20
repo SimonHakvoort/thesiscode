@@ -495,8 +495,6 @@ class Mixture(ForecastDistribution):
     """
     def __init__(self, num_features, distribution_1, distribution_2, parameters = {}):
         super().__init__(num_features)
-        if distribution_name(distribution_1) == distribution_name(distribution_2):
-            raise ValueError("The two distributions should be different")
         
         self.distribution_1 = initialize_distribution(distribution_1, num_features, parameters)
         
@@ -562,8 +560,6 @@ class MixtureLinear(ForecastDistribution):
     """
     def __init__(self, num_features, distribution_1, distribution_2, parameters = {}):
         super().__init__(num_features)
-        if distribution_1 == distribution_2:
-            raise ValueError("The two distributions should be different")
         
         self.distribution_1 = initialize_distribution(distribution_1, num_features, parameters)
         

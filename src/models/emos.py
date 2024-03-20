@@ -94,6 +94,21 @@ class EMOS:
                 else:
                     self.chain_function_std = tf.constant(setup['chain_function_std'], dtype=tf.float32)
                 self.chain_normal_distr = tfpd.Normal(self.chain_function_mean, self.chain_function_std)
+            elif setup['chain_function'] == 'chain_function_normal_cdf_plus_constant':
+                self.chain_function = self.chain_function_normal_cdf_plus_constant
+                if 'chain_function_mean' not in setup:
+                    raise ValueError("Mean  of the chain function not specified")
+                else:
+                    self.chain_function_mean = tf.constant(setup['chain_function_mean'], dtype=tf.float32)
+                if 'chain_function_std' not in setup:
+                    raise ValueError("Standard deviation of the chain function not specified")
+                else:
+                    self.chain_function_std = tf.constant(setup['chain_function_std'], dtype=tf.float32)
+                self.chain_normal_distr = tfpd.Normal(self.chain_function_mean, self.chain_function_std)
+                if 'chain_function_constant' not in setup:
+                    raise ValueError("Constant of the chain function not specified")
+                else:
+                    self.chain_function_constant = tf.constant(setup['chain_function_constant'], dtype=tf.float32)
         except AttributeError:
             raise ValueError("Invalid chain function: " + setup['chain_function'])  
 
@@ -162,6 +177,8 @@ class EMOS:
                 chaining_function_info += f" (Threshold: {self.chain_function_threshold.numpy()})"
             elif hasattr(self, 'chain_function_mean') and hasattr(self, 'chain_function_std'):
                 chaining_function_info += f" (Mean: {self.chain_function_mean.numpy()}, Std: {self.chain_function_std.numpy()})"
+                if hasattr(self, 'chain_function_constant'):
+                    chaining_function_info += f", Constant: {self.chain_function_constant.numpy()}"
 
         distribution_info = ""
         if type(self.forecast_distribution) == Mixture:
@@ -244,6 +261,11 @@ class EMOS:
                 model_dict['chain_function'] = 'chain_function_normal_cdf'
                 model_dict['chain_function_mean'] = self.chain_function_mean.numpy()
                 model_dict['chain_function_std'] = self.chain_function_std.numpy()
+            elif self.chain_function == self.chain_function_normal_cdf_plus_constant:
+                model_dict['chain_function'] = 'chain_function_normal_cdf_plus_constant'
+                model_dict['chain_function_mean'] = self.chain_function_mean.numpy()
+                model_dict['chain_function_std'] = self.chain_function_std.numpy()
+                model_dict['chain_function_constant'] = self.chain_function_constant.numpy()
 
         if type(self.forecast_distribution) == Mixture or type(self.forecast_distribution) == MixtureLinear:
             model_dict['distribution_1'] = self.forecast_distribution.distribution_1.name()
@@ -416,6 +438,20 @@ class EMOS:
         first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
         return first_part + second_part  
+    
+    def chain_function_normal_cdf_plus_constant(self, y):
+        """
+        Implements the chain function in case the weight function is the normal cumulative distribution, with mean and standard deviation in the setup, and a constant.
+
+        Arguments:
+        - y: the input value.
+
+        Returns:
+        - (y - mean) * cdf(y) + std^2 * pdf(y) + constant
+        """
+        first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
+        second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
+        return first_part + second_part + self.chain_function_constant * y
 
     def compute_loss_and_gradient(self, X, y, variance):
         """

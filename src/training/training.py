@@ -43,6 +43,8 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
             setup['chain_function_std'] = kwargs['chain_function_std']
         if 'chain_function_threshold' in kwargs:
             setup['chain_function_threshold'] = kwargs['chain_function_threshold']
+        if 'chain_function_constant' in kwargs:
+            setup['chain_function_constant'] = kwargs['chain_function_constant']
     
 
     model = EMOS(setup)
@@ -147,6 +149,12 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
             threshold = model.chain_function_threshold.numpy()
             chain_specs = f'threshold{threshold}'
 
+        if model.chain_function.__name__ == 'chain_function_normal_cdf_plus_constant':
+            mean = model.chain_function_mean.numpy()
+            std = model.chain_function_std.numpy()
+            constant = model.chain_function_constant.numpy()
+            chain_specs = f'mean{mean}_std{std}_constant{constant}'
+
     if model.loss.__name__ == 'loss_log_likelihood':
         loss = 'loglik'
 
@@ -174,6 +182,57 @@ def train_and_save(forecast_distribution, loss, optimizer, learning_rate, folds,
     model = train_model(forecast_distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, **kwargs)
     save_model(model)
     return model
+
+def train_and_save_multiple_models_twCRPS(forecast_distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, thresholds, mean_and_stds, include_mixture, include_mixture_linear, **kwargs):
+    for distr in forecast_distribution:
+        for mean_std in mean_and_stds:
+            chain_function = 'chain_function_normal_cdf'
+            chain_function_mean = mean_std[0]
+            chain_function_std = mean_std[1]
+            model = train_model(distr, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, chain_function = chain_function, chain_function_mean = chain_function_mean, chain_function_std = chain_function_std, **kwargs)
+            save_model(model)
+        
+        for threshold in thresholds:
+            chain_function = 'chain_function_indicator'
+            model = train_model(distr, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, chain_function = chain_function, chain_function_threshold = threshold, **kwargs)
+            save_model(model)
+
+
+    if include_mixture:
+        for distr in forecast_distribution:
+            distribution_1 = 'distr_trunc_normal'
+            distribution_2 = distr
+            distribution = 'distr_mixture'
+            for mean_std in mean_and_stds:
+                chain_function = 'chain_function_normal_cdf'
+                chain_function_mean = mean_std[0]
+                chain_function_std = mean_std[1]
+                model = train_model(distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, chain_function = chain_function, chain_function_mean = chain_function_mean, chain_function_std = chain_function_std, distribution_1 = distribution_1, distribution_2 = distribution_2, **kwargs)
+                save_model(model)
+            
+            for threshold in thresholds:
+                chain_function = 'chain_function_indicator'
+                model = train_model(distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, chain_function = chain_function, chain_function_threshold = threshold, distribution_1 = distribution_1, distribution_2 = distribution_2, **kwargs)
+                save_model(model)
+    
+    if include_mixture_linear:
+        for distr in forecast_distribution:
+            distribution_1 = 'distr_trunc_normal'
+            distribution_2 = distr
+            distribution = 'distr_mixture_linear'
+            for mean_std in mean_and_stds:
+                chain_function = 'chain_function_normal_cdf'
+                chain_function_mean = mean_std[0]
+                chain_function_std = mean_std[1]
+                model = train_model(distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, chain_function = chain_function, chain_function_mean = chain_function_mean, chain_function_std = chain_function_std, distribution_1 = distribution_1, distribution_2 = distribution_2, **kwargs)
+                save_model(model)
+            
+            for threshold in thresholds:
+                chain_function = 'chain_function_indicator'
+                model = train_model(distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, chain_function = chain_function, chain_function_threshold = threshold, distribution_1 = distribution_1, distribution_2 = distribution_2, **kwargs)
+                save_model(model)
+
+
 
 def load_model(path):
     with open(path, 'rb') as f:
