@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-class DistributionMixture(tf.Module):
+class DistributionMixture(tfp.distributions.Distribution):
     """
     A class representing a mixture of two distributions.
     
@@ -11,6 +11,15 @@ class DistributionMixture(tf.Module):
         weight (tf.Tensor): The weight of the first distribution in the mixture
     """
     def __init__(self, distribution_1, distribution_2, weight):
+        parameters = dict(locals())
+        super(DistributionMixture, self).__init__(
+            dtype=distribution_1.dtype,  # The type of the event samples.
+            reparameterization_type=tfp.distributions.FULLY_REPARAMETERIZED,  # Indicates that samples can be reparameterized.
+            validate_args=False,  # When True distribution parameters are checked for validity despite possibly degrading runtime performance
+            allow_nan_stats=True,  # When True, statistics (e.g., mean, mode, variance) use the value NaN to indicate the result is undefined.
+            parameters=parameters,
+            name="DistributionMixture"
+        )
         self.distribution_1 = distribution_1
         self.distribution_2 = distribution_2
         self.weight = weight
@@ -28,17 +37,28 @@ class DistributionMixture(tf.Module):
         # )
         # x = 1
 
+    def _batch_shape(self):
+        return tf.broadcast_static_shape(self.distribution_1.batch_shape, self.distribution_2.batch_shape)
+    
+    def _event_shape(self):
+        return tf.broadcast_static_shape(self.distribution_1.event_shape, self.distribution_2.event_shape)
+    
+    def _batch_shape_tensor(self):
+        return tf.broadcast_dynamic_shape(self.distribution_1.batch_shape_tensor(), self.distribution_2.batch_shape_tensor())
+    
+    def _event_shape_tensor(self):
+        return tf.broadcast_dynamic_shape(self.distribution_1.event_shape_tensor(), self.distribution_2.event_shape_tensor())
 
-    def log_prob(self, x):
-        return self.weight * self.distribution_1.log_prob(x) + (1 - self.weight) * self.distribution_2.log_prob(x)
+    def _log_prob(self, x):
+        return tf.math.log(self._prob(x))
 
-    def cdf(self, x):
+    def _cdf(self, x):
         return self.weight * self.distribution_1.cdf(x) + (1 - self.weight) * self.distribution_2.cdf(x)
     
-    def prob(self, x):
+    def _prob(self, x):
         return self.weight * self.distribution_1.prob(x) + (1 - self.weight) * self.distribution_2.prob(x)
 
-    def sample(self, n):
+    def _sample_n(self, n, seed=None):
         # samples_1 = self.distribution_1.sample(n)
         # samples_2 = self.distribution_2.sample(n)
         # # Create a Categorical distribution with mixing proportions given by self.weight and 1 - self.weight
@@ -50,10 +70,10 @@ class DistributionMixture(tf.Module):
 
         # return self.mixture.sample(n)
 
-        samples_1 = self.distribution_1.sample(n)
-        samples_2 = self.distribution_2.sample(n)
+        samples_1 = self.distribution_1.sample(n, seed=seed)
+        samples_2 = self.distribution_2.sample(n, seed=seed)
 
-        uniform_samples = tf.random.uniform([n, self.distribution_1.batch_shape[0]])
+        uniform_samples = tf.random.uniform([n, self.distribution_1.batch_shape[0]], seed=seed)
 
         # Create a soft mask using a sigmoid function
         mask = tf.sigmoid((self.weight - uniform_samples) * 10000)
@@ -70,7 +90,7 @@ class DistributionMixture(tf.Module):
         # return self.mixture.sample(n)
         # return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
     
-    def mean(self):
+    def _mean(self):
         return self.weight * self.distribution_1.mean() + (1 - self.weight) * self.distribution_2.mean()
     
     

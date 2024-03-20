@@ -58,6 +58,7 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
     - y: tensor
     - variances: tensor
     - observation_value: float (default 0)
+    - plot_size: float (default 3)
     - base_model: EMOS object (optional)
     - seed: int (optional)
     """
