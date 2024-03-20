@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.models.forecast_distributions import Mixture, MixtureLinear
+
 def plot_forecast_cdf(emos_dict, X, y, variances, observation_value = 0, base_model = None, seed = None):
     """
     Plot the forecast distributions for each model in the dictionary, for a single random observation value that is greater than a specified value.
@@ -97,3 +99,32 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
     plt.ylabel('Probability density')
     plt.legend()
     plt.show()
+
+def plot_weight_mixture(model_dict, values):
+    """
+    Plot the weight for the distributions for each model as a function of the values.
+
+    Args:
+    - model_dict: dictionary of EMOS models
+    - values: array
+
+    Returns:
+    - None
+    """
+    for name, model in model_dict.items():
+        if type(model.forecast_distribution) == Mixture:
+            weight = model.forecast_distribution.get_weight()
+            y = weight * np.ones_like(values)
+            plt.plot(values, y, label = name)
+        if type(model.forecast_distribution) == MixtureLinear:
+            weight_a, weight_b = model.forecast_distribution.get_weights()
+            # compute f(a + b * x) for x in values and f a sigmoid function
+            y = 1 / (1 + np.exp(- (weight_a + weight_b * values)))
+            plt.plot(values, y, label = name)
+
+    plt.xlabel('Value')
+    plt.ylabel('Weight for first distribution')
+    plt.xlim(values[0], values[-1])
+    plt.ylim(0, 1)
+    plt.legend()
+    plt.show()    
