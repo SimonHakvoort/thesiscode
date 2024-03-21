@@ -138,6 +138,9 @@ class ForecastDistribution:
     
     def get_gev_shape(self):
         return None
+    
+    def has_negative_scale(self, X, variance):
+        return False
 
 
 
@@ -284,7 +287,7 @@ class GEV(ForecastDistribution):
 
     def get_distribution(self, X, variance):
         location = self.parameter_dict['a_gev'] + tf.tensordot(X, self.parameter_dict['b_gev'], axes=1)
-        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)  
+        scale = tf.abs(self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1))  # maybe remove abs(scale) for interprability?
         shape = self.parameter_dict['e_gev'] 
         return tfpd.GeneralizedExtremeValue(location, scale, shape)
 
@@ -303,6 +306,10 @@ class GEV(ForecastDistribution):
     
     def get_gev_shape(self):
         return self.parameter_dict['e_gev'].numpy()
+    
+    def has_negative_scale(self, X, variance):
+        scale = self.parameter_dict['c_gev'] + tf.tensordot(X, self.parameter_dict['d_gev'], axes=1)  
+        return tf.reduce_sum(tf.cast(scale < 0, tf.int32)).numpy() > 0
     
 class Frechet(ForecastDistribution):
     def __init__(self, num_features, parameters = {}):
@@ -341,6 +348,16 @@ class Frechet(ForecastDistribution):
     
     def name(self):
         return "distr_frechet"    
+    
+    def contains_gev(self):
+        return True
+    
+    def get_gev_shape(self):
+        return self.parameter_dict['e_fr'].numpy()
+    
+    def has_negative_scale(self, X, variance):
+        scale = self.parameter_dict['c_fr'] + tf.tensordot(X, self.parameter_dict['d_fr'], axes=1)  
+        return tf.reduce_sum(tf.cast(scale < 0, tf.int32)).numpy() > 0
 
     
 class GEV2(ForecastDistribution):
@@ -545,6 +562,17 @@ class Mixture(ForecastDistribution):
             return self.distribution_2.get_gev_shape()
         else:
             return None
+        
+    def calc_weights(self, X):
+        return self.parameter_dict['weight']
+    
+    def has_negative_scale(self, X, variance):
+        if self.distribution_1.contains_gev():
+            return self.distribution_1.has_negative_scale(X, variance)
+        elif self.distribution_2.contains_gev():
+            return self.distribution_2.has_negative_scale(X, variance)
+        else:
+            return False
 
     
 class MixtureLinear(ForecastDistribution):
@@ -625,6 +653,17 @@ class MixtureLinear(ForecastDistribution):
             return self.distribution_2.get_gev_shape()
         else:
             return None
+        
+    def calc_weights(self, X):
+        return tf.math.sigmoid(self.parameter_dict['weight_a'] + tf.multiply(X[:,0], self.parameter_dict['weight_b']))
+    
+    def has_negative_scale(self, X, variance):
+        if self.distribution_1.contains_gev():
+            return self.distribution_1.has_negative_scale(X, variance)
+        elif self.distribution_2.contains_gev():
+            return self.distribution_2.has_negative_scale(X, variance)
+        else:
+            return False
 
         
             
