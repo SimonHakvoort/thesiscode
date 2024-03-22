@@ -5,7 +5,7 @@ import tensorflow_probability as tfp
 
 from src.models.train_emos import train_emos, train_and_test_emos
 from src.training.training import load_model
-from src.visualization.brier_score import brier_skill_plot, brier_plot
+from src.visualization.brier_score import make_brier_skill_plot, brier_plot
 from src.visualization.pit import make_cpit_diagram_emos
 from src.visualization.plot_forecasts import plot_forecast_pdf
 from src.visualization.reliability_diagram import make_reliability_diagram

@@ -9,7 +9,7 @@ from src.models.emos import EMOS
 from src.models.get_data import get_tensors
 from src.models.initial_params import get_gev_initial_params, get_trunc_normal_initial_params
 from src.models.train_emos import train_and_test_emos
-from src.visualization.brier_score import brier_skill_plot
+from src.visualization.brier_score import make_brier_skill_plot
 from src.visualization.pit import make_cpit_hist_emos
 from src.visualization.scoring_tables import make_table
 from src.models.probability_distributions import TruncGEV

@@ -41,7 +41,7 @@ def get_brier_scores(emos, X, y, variances, values):
     """
     brier_scores = np.zeros(len(values))
     for i, threshold in enumerate(values):
-        brier_scores[i] = emos.loss_Brier_score(X, y, variances, threshold)
+        brier_scores[i] = emos.Brier_Score(X, y, variances, threshold)
     return brier_scores
 
 def get_brier_skill_scores(emos1, emos2, X, y, variances, values):
@@ -63,7 +63,7 @@ def get_brier_skill_scores(emos1, emos2, X, y, variances, values):
     brier_scores2 = get_brier_scores(emos2, X, y, variances, values)
     return 1 - brier_scores1 / brier_scores2
 
-def brier_skill_plot(basemodel, models, X, y, variances, values, ylim = None, title = 'Brier skill score'):
+def make_brier_skill_plot(basemodel, models, X, y, variances, values, ylim = None, title = 'Brier skill score'):
     """
     Makes a plot of the Brier skill score for the models. We assume that X is already normalized. basemodel is the model to compare to. 
     Includes a legend with the names of the models.

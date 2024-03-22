@@ -23,6 +23,7 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
         setup['distribution_2'] = distribution_name(kwargs['distribution_2'])
         if 'pretrained' in kwargs:
             pretrained = kwargs['pretrained']
+            original_distribution = setup['forecast_distribution']
 
     data = get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore)
     X = data['X']
@@ -47,19 +48,20 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
             setup['chain_function_constant'] = kwargs['chain_function_constant']
     
 
-    model = EMOS(setup)
-
     if pretrained:
-        setup['forecast_distribution'] == setup['distribution_1']
+        setup['forecast_distribution'] = setup['distribution_1']
         model_1 = EMOS(setup)
 
-        setup['forecast_distribution'] == setup['distribution_2']
+        setup['forecast_distribution'] = setup['distribution_2']
         model_2 = EMOS(setup)
 
         model_1.fit(X, y, variances, 50, False)
         model_2.fit(X, y, variances, 50, False)
-        model.set_parameters(model_1.get_parameters())
-        model.set_parameters(model_2.get_parameters())
+        setup['parameters'] = {**model_1.get_parameters(), **model_2.get_parameters()}
+        setup['forecast_distribution'] = original_distribution
+
+    model = EMOS(setup)
+
     
     if 'parameters' in kwargs:
         model.set_parameters(kwargs['parameters'])

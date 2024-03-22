@@ -39,21 +39,23 @@ class EMOS:
         self.num_features = len(self.feature_names)
         self.neighbourhood_size = setup['neighbourhood_size']
 
-        self.init_loss(setup)
+        self._init_loss(setup)
         
         if self.need_chain:
-            self.init_chain_function(setup)
+            self._init_chain_function(setup)
 
-        self.init_optimizer(setup)
-
+        self._init_optimizer(setup)
         
-        self.init_forecast_distribution(setup)
+        self._init_forecast_distribution(setup)
 
 
         # Optionally we can initialize the feature mean and standard deviation with the given values. Not sure whether this needs to be included
         if setup['feature_mean'] is not None and setup['feature_std'] is not None:
             self.feature_mean = tf.Variable(setup['feature_mean'])
             self.feature_std = tf.Variable(setup['feature_std'])
+        else:
+            self.feature_mean = None
+            self.feature_std = None
 
         # Optionally we can initialize the amount of steps made with the optimizer
         if 'steps_made' in setup:
@@ -61,7 +63,17 @@ class EMOS:
         else:
             self.steps_made = 0
 
-    def init_loss(self, setup):
+    def _init_loss(self, setup):
+        """
+        Setup the loss function of the model.
+
+        Arguments:
+        - setup: a dictionary containing the setup for the model.
+
+        The setup should contain the following keys:
+        - loss: the loss function used to fit the model
+        - samples: the amount of samples used in the loss function in case we use a sample based loss function
+        """
         self.need_chain = False
         try:
             self.loss = getattr(self, setup['loss'])
@@ -75,7 +87,7 @@ class EMOS:
         except AttributeError:
             raise ValueError("Invalid loss function: " + setup['loss'])   
 
-    def init_chain_function(self, setup):
+    def _init_chain_function(self, setup):
         try:
             if setup['chain_function'] == 'chain_function_indicator':
                 self.chain_function = self.chain_function_indicator
@@ -112,7 +124,7 @@ class EMOS:
         except AttributeError:
             raise ValueError("Invalid chain function: " + setup['chain_function'])  
 
-    def init_optimizer(self, setup):
+    def _init_optimizer(self, setup):
         try:
             if 'learning_rate' not in setup:
                 raise ValueError("Learning rate not specified")
@@ -120,7 +132,7 @@ class EMOS:
         except AttributeError:
             raise ValueError("Invalid optimizer: " + setup['optimizer']) 
         
-    def init_forecast_distribution(self, setup):
+    def _init_forecast_distribution(self, setup):
         # The setup of the forecast distribution
         if "parameters" in setup:
             parameters = setup["parameters"]
@@ -166,7 +178,7 @@ class EMOS:
 
         # Parameters info
         parameters_info = "Parameters:"
-        for parameter, value in self.forecast_distribution.get_parameters().items():
+        for parameter, value in self.forecast_distribution.parameters.items():
             parameters_info += f"\n  {parameter}: {value}"
 
         # Chaining function info
@@ -221,7 +233,7 @@ class EMOS:
         """
         Return the parameters as np.arrays of the model in a dictionary.
         """
-        return self.forecast_distribution.get_parameters()
+        return self.forecast_distribution.parameters
     
     def set_parameters(self, parameters):
         """
@@ -230,7 +242,7 @@ class EMOS:
         Arguments:
         - parameters: a dictionary containing the parameters of the model.
         """
-        self.forecast_distribution.set_parameters(parameters)
+        self.forecast_distribution.parameters = parameters
     
     def to_dict(self):
         """
@@ -272,6 +284,20 @@ class EMOS:
             model_dict['distribution_2'] = self.forecast_distribution.distribution_2.name()
 
         return model_dict
+    
+    def normalize_features(self, X):
+        """
+        Normalize the features of the model.
+
+        Arguments:
+        - X: the input data of shape (n, m), where n is the number of samples and m is the number of features.
+
+        Returns:
+        - the normalized input data.
+        """
+        if self.feature_mean is None or self.feature_std is None:
+            raise ValueError("Feature mean and standard deviation not set")
+        return (X - self.feature_mean) / self.feature_std
 
     
     def indicator_function(self, y, t):
@@ -302,7 +328,7 @@ class EMOS:
         forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
     
-    def loss_CRPS_sample_general(self, X, y, variance, samples):
+    def CRPS(self, X, y, variance, samples):
         """
         The loss function for the CRPS, based on the forecast distribution and observations.
         We use a sample based approach to estimate the expected value of the CRPS.
@@ -329,10 +355,10 @@ class EMOS:
 
 
     def loss_CRPS_sample(self, X, y, variance):
-        return self.loss_CRPS_sample_general(X, y, variance, self.samples)
+        return self.CRPS(X, y, variance, self.samples)
         
     
-    def loss_Brier_score(self, X, y, variance, threshold):
+    def Brier_Score(self, X, y, variance, threshold):
         """
         The loss function for the Brier score, based on the forecast distribution and observations.
 
@@ -345,53 +371,45 @@ class EMOS:
         Returns:
         - the Brier score at the given threshold.
         """
-        forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
         threshold = tf.constant(threshold, dtype=tf.float32)
-        cdf_values = forecast_distribution.cdf(threshold)
+
 
         #in case we have a distr_gev or a distr_mixture(linear) with a gev distribution, we need to check if cdf_values contains nan. 
         # if this is the case, we replace it with 1 if concentration < 0 and 0 if concentration > 0
         if type(self.forecast_distribution) == GEV:
-            if self.forecast_distribution.parameter_dict["e_gev"].numpy() < 0:
+            if self.forecast_distribution._parameter_dict["e_gev"].numpy() < 0:
                 cdf_values = tf.where(tf.math.is_nan(cdf_values), 1, cdf_values)
             else:
                 cdf_values = tf.where(tf.math.is_nan(cdf_values), 0, cdf_values)
+            return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
 
 
 
         if type(self.forecast_distribution) == Mixture or type(self.forecast_distribution) == MixtureLinear:
+            cdf_values_distr_1 = self.forecast_distribution.distribution_1.get_distribution(X, variance).cdf(threshold)
+            weights = self.forecast_distribution.calc_weights(X)
+            cdf_values_distr_2 = self.forecast_distribution.distribution_2.get_distribution(X, variance).cdf(threshold)
             if type(self.forecast_distribution.distribution_1) == GEV:
-                if self.forecast_distribution.distribution_1.parameter_dict["e_gev"].numpy() < 0:
-                    cdf_values_distr_2 = self.forecast_distribution.distribution_2.get_distribution(X, variance).cdf(threshold)
-                    weights = self.forecast_distribution.calc_weights(X)
-                    cdf_values_distr_1 = self.forecast_distribution.distribution_1.get_distribution(X, variance).cdf(threshold)
+                if self.forecast_distribution.distribution_1._parameter_dict["e_gev"].numpy() < 0:
                     cdf_values_distr_1 = tf.where(tf.math.is_nan(cdf_values_distr_1), 1, cdf_values_distr_1)
-                    cdf_values = weights * cdf_values_distr_1 + (1 - weights) * cdf_values_distr_2
                 else:
-                    cdf_values_distr_1 = self.forecast_distribution.distribution_1.get_distribution(X, variance).cdf(threshold)
-                    weights = self.forecast_distribution.calc_weights(X)
-                    cdf_values_distr_2 = self.forecast_distribution.distribution_2.get_distribution(X, variance).cdf(threshold)
                     cdf_values_distr_1 = tf.where(tf.math.is_nan(cdf_values_distr_2), 0, cdf_values_distr_2)
-                    cdf_values = weights * cdf_values_distr_1 + (1 - weights) * cdf_values_distr_2
-
             if type(self.forecast_distribution.distribution_2) == GEV:
-                if self.forecast_distribution.distribution_2.parameter_dict["e_gev"].numpy() < 0:
-                    cdf_values_distr_1 = self.forecast_distribution.distribution_1.get_distribution(X, variance).cdf(threshold)
-                    weights = self.forecast_distribution.calc_weights(X)
-                    cdf_values_distr_2 = self.forecast_distribution.distribution_2.get_distribution(X, variance).cdf(threshold)
+                if self.forecast_distribution.distribution_2._parameter_dict["e_gev"].numpy() < 0:
                     cdf_values_distr_2 = tf.where(tf.math.is_nan(cdf_values_distr_2), 1, cdf_values_distr_2)
-                    cdf_values = weights * cdf_values_distr_1 + (1 - weights) * cdf_values_distr_2
                 else:
-                    cdf_values_distr_2 = self.forecast_distribution.distribution_2.get_distribution(X, variance).cdf(threshold)
-                    weights = self.forecast_distribution.calc_weights(X)
-                    cdf_values_distr_1 = self.forecast_distribution.distribution_1.get_distribution(X, variance).cdf(threshold)
-                    cdf_values_distr_2 = tf.where(tf.math.is_nan(cdf_values_distr_1), 0, cdf_values_distr_1)
-                    cdf_values = weights * cdf_values_distr_1 + (1 - weights) * cdf_values_distr_2
-                    
+                    cdf_values_distr_2 = tf.where(tf.math.is_nan(cdf_values_distr_2), 0, cdf_values_distr_2)
+            cdf_values = weights * cdf_values_distr_1 + (1 - weights) * cdf_values_distr_2
+
+            return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
+        
+        cdf_values = forecast_distribution.cdf(threshold)
+        forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
+
 
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
 
-    def loss_twCRPS_indicator_sample(self, X, y, variance, threshold, samples):
+    def twCRPS(self, X, y, variance, threshold, samples):
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
         return self.loss_twCRPS_sample_general(X, y, variance, chain_function, samples)
     
@@ -462,7 +480,7 @@ class EMOS:
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
         return first_part + second_part + self.chain_function_constant * y
 
-    def compute_loss_and_gradient(self, X, y, variance):
+    def _compute_loss_and_gradient(self, X, y, variance):
         """
         Compute the loss and the gradient of the loss with respect to the parameters of the model, 
         which are the parameters of the forecast distribution.
@@ -478,7 +496,7 @@ class EMOS:
         """
         with tf.GradientTape() as tape:
             loss_value = self.loss(X, y, variance)
-        grads = tape.gradient(loss_value, [*self.forecast_distribution.get_parameter_dict().values()])
+        grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
 
      
@@ -503,7 +521,7 @@ class EMOS:
         hist = []
         self.steps_made += steps
         for step in range(steps):
-            loss_value, grads = self.compute_loss_and_gradient(X, y, variance)
+            loss_value, grads = self._compute_loss_and_gradient(X, y, variance)
 
             # check if gradient contains nan
             if tf.math.reduce_any(tf.math.is_nan(grads[0])):
@@ -511,11 +529,11 @@ class EMOS:
                 continue
             hist.append(loss_value)
 
-            self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.get_parameter_dict().values()))
+            self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.parameter_dict.values()))
 
             if printing:
-                if "weight" in self.forecast_distribution.get_parameter_dict():
-                    print("Weight: ", self.forecast_distribution.get_parameter_dict()['weight'].numpy())
+                if "weight" in self.forecast_distribution.parameter_dict:
+                    print("Weight: ", self.forecast_distribution.parameter_dict['weight'].numpy())
                 print("Step: {}, Loss: {}".format(step, loss_value))
         print("Final loss: ", loss_value.numpy())	
         return hist

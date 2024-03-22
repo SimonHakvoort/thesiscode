@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def comp_twcrpss(model_ref, model, X, y, variances, threshold, sample_size = 1000):
-    return 1 - model.loss_twCRPS_indicator_sample(X, y, variances, threshold, sample_size).numpy() / model_ref.loss_twCRPS_indicator_sample(X, y, variances, threshold, sample_size).numpy()
+    return 1 - model.twCRPS(X, y, variances, threshold, sample_size).numpy() / model_ref.twCRPS(X, y, variances, threshold, sample_size).numpy()
 
 
 def make_twcrpss_plot(base_model, model_dict, X, y, variances, thresholds, ylim = None, sample_size = 1000):
