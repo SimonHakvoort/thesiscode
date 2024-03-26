@@ -371,42 +371,8 @@ class EMOS:
         Returns:
         - the Brier score at the given threshold.
         """
-        threshold = tf.constant(threshold, dtype=tf.float32)
-
-
-        #in case we have a distr_gev or a distr_mixture(linear) with a gev distribution, we need to check if cdf_values contains nan. 
-        # if this is the case, we replace it with 1 if concentration < 0 and 0 if concentration > 0
-        if type(self.forecast_distribution) == GEV:
-            if self.forecast_distribution._parameter_dict["e_gev"].numpy() < 0:
-                cdf_values = tf.where(tf.math.is_nan(cdf_values), 1, cdf_values)
-            else:
-                cdf_values = tf.where(tf.math.is_nan(cdf_values), 0, cdf_values)
-            return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
-
-
-
-        if type(self.forecast_distribution) == Mixture or type(self.forecast_distribution) == MixtureLinear:
-            cdf_values_distr_1 = self.forecast_distribution.distribution_1.get_distribution(X, variance).cdf(threshold)
-            weights = self.forecast_distribution.calc_weights(X)
-            cdf_values_distr_2 = self.forecast_distribution.distribution_2.get_distribution(X, variance).cdf(threshold)
-            if type(self.forecast_distribution.distribution_1) == GEV:
-                if self.forecast_distribution.distribution_1._parameter_dict["e_gev"].numpy() < 0:
-                    cdf_values_distr_1 = tf.where(tf.math.is_nan(cdf_values_distr_1), 1, cdf_values_distr_1)
-                else:
-                    cdf_values_distr_1 = tf.where(tf.math.is_nan(cdf_values_distr_2), 0, cdf_values_distr_2)
-            if type(self.forecast_distribution.distribution_2) == GEV:
-                if self.forecast_distribution.distribution_2._parameter_dict["e_gev"].numpy() < 0:
-                    cdf_values_distr_2 = tf.where(tf.math.is_nan(cdf_values_distr_2), 1, cdf_values_distr_2)
-                else:
-                    cdf_values_distr_2 = tf.where(tf.math.is_nan(cdf_values_distr_2), 0, cdf_values_distr_2)
-            cdf_values = weights * cdf_values_distr_1 + (1 - weights) * cdf_values_distr_2
-
-            return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
         
-        cdf_values = forecast_distribution.cdf(threshold)
-        forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
-
-
+        cdf_values = self.forecast_distribution.comp_cdf(X, variance, threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
 
     def twCRPS(self, X, y, variance, threshold, samples):

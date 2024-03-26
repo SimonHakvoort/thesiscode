@@ -12,6 +12,15 @@ def get_folds():
     return fold0, fold1, fold2, fold3
 
 def get_fold_i(i):
+    """
+    Load the forecasts from fold i from the pickle files and return them as a list.
+
+    Args:
+    - i: int
+
+    Returns:
+    - list: list of Forecast objects
+    """
     foldi = []
 
     for file in os.listdir(f'/net/pc200239/nobackup/users/hakvoort/fold{i}data/'):
@@ -23,6 +32,10 @@ def get_fold_i(i):
     return foldi
 
 def get_station_info():
+    """
+    Returns:
+    - dict: dictionary with keys the station numbers and values dictionaries with keys 'lat' and 'lon' and values the latitude and longitude of the station.
+    """
     with open('/net/pc200239/nobackup/users/hakvoort/station_info.pkl', 'rb') as f:
         station_info = pkl.load(f)
     return station_info

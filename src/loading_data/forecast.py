@@ -44,9 +44,18 @@ class Forecast:
         return np.var(wind_speeds)
 
     def generate_sample(self, station, neighbourhood_size, variables_names):
-        # generate a sample for the given station, which includes the wind speed, the wind speed variance in the neighbourhood and the other variables
-        # station is an instance of the Station class
-        # neighbourhood_size is an odd number
+        """
+        Method to generate a sample for a station. The sample consists of the values of the variables at the gridcell of the station and the observation at the station.
+        The features are ordered in the same order as the variables_names list.
+
+        Arguments:
+        - station: Station instance
+        - neighbourhood_size: int
+        - variables_names: list of strings
+
+        Returns:
+        - tuple of numpy arrays
+        """
         i, j = station.gridcell
 
         X = []

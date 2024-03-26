@@ -9,8 +9,10 @@ from src.models.emos import EMOS
 from src.models.get_data import get_tensors
 from src.models.initial_params import get_gev_initial_params, get_trunc_normal_initial_params
 from src.models.train_emos import train_and_test_emos
+from src.training.training import load_model
 from src.visualization.brier_score import make_brier_skill_plot
 from src.visualization.pit import make_cpit_hist_emos
+from src.visualization.reliability_diagram import make_reliability_and_sharpness
 from src.visualization.scoring_tables import make_table
 from src.models.probability_distributions import TruncGEV
 import pickle as pkl
@@ -19,7 +21,7 @@ import pickle as pkl
 parameter_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_twCRPS_sample"
+loss = "loss_CRPS_sample"
 samples = 100
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
@@ -57,18 +59,31 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 1000
+epochs = 200
 test_fold = 3
 folds = [1,2]
 ignore = ['229', '285', '323']
 
 #tf.debugging.enable_check_numerics()
+folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
 
-emos = train_emos(neighbourhood_size, parameter_names, epochs, folds, setup)
-print(emos)
-# print(emos)
+test_fold = 3
+ignore = ['229', '285', '323']
+X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_fold, ignore)
 
 
+test = load_model(folder + "mixture_linear/mixturelinear_tn_gev_twcrps_mean13.0_std1.0_constant0.009999999776482582_epochs600.pkl")
 
+test_2 = load_model(folder + 'mixture_linear/mixturelinear_tn_gev_twcrps_mean13.0_std1.0_constant0.029999999329447746_epochs600.pkl')
+
+test_3 = load_model(folder + 'mixture_linear/mixturelinear_tn_gev_twcrps_mean13.0_std1.5_constant0.029999999329447746_epochs600.pkl')
+
+base_model = load_model(folder + 'trunc_normal/tn_crps_.pkl')
+
+X_test = test.normalize_features(X_test)
+
+test_dict = {'test_2': test_2, 'base_model': base_model}
+
+make_reliability_and_sharpness(test_dict, X_test, y_test, variances_test, 2)
 
 

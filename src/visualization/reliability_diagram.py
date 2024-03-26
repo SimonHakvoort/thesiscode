@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.calibration import calibration_curve
+import matplotlib.gridspec as gridspec
 
 
 def make_reliability_and_refinement_diagram(emos_dict, X, y, variances, t, n_subset = 11):
@@ -111,9 +112,10 @@ def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset = 1
     y_true = y > t
     cdfs = {}
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X, variances)
-        cdf = distributions.cdf
-        cdfs[name] = 1 - cdf(t).numpy()
+        probs = 1.0 - model.forecast_distribution.comp_cdf(X, variances, t)
+        # if probs is greater than 1, set it to 1 or if it is less than 0, set it to 0
+        probs = np.clip(probs, 0, 1)
+        cdfs[name] = probs.squeeze()
 
 
     for name, y_prob in cdfs.items():
@@ -121,9 +123,10 @@ def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset = 1
         plt.plot(prob_pred, prob_true, 'o-', label = name)
 
     if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X, variances)
-        cdf = distributions.cdf
-        cdf_values = cdf(t).numpy()
+        # distributions = base_model.forecast_distribution.get_distribution(X, variances)
+        # cdf = distributions.cdf
+        # cdf_values = cdf(t).numpy()
+        cdf_values = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, variances, t), 0, 1).squeeze()
         prob_true, prob_pred = calibration_curve(y_true, 1 - cdf_values, n_bins=n_subset)
         plt.plot(prob_pred, prob_true, 'o-', label = "Base model")
     
@@ -135,13 +138,18 @@ def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset = 1
     plt.legend()
     plt.show()
 
-def make_sharpness_diagram(emos_dict, X, y, variances, t, n_subset = 10):
+def make_sharpness_diagram(emos_dict, X, y, variances, t, n_subset = 10, base_model = None):
     subset_values = np.linspace(0, 1, n_subset)
     cdfs = {}
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X, variances)
-        cdf = distributions.cdf
-        cdfs[name] = 1 - cdf(t).numpy()
+        probs = 1.0 - model.forecast_distribution.comp_cdf(X, variances, t)
+        # if probs is greater than 1, set it to 1 or if it is less than 0, set it to 0
+        probs = np.clip(probs, 0, 1)
+        cdfs[name] = probs.squeeze()
+
+    if base_model is not None:
+        cdfs["Base model"] = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, variances, t), 0, 1).squeeze()
+
 
     for name, y_prob in cdfs.items():
         counts, bin_edges = np.histogram(y_prob, bins = subset_values)
@@ -155,3 +163,51 @@ def make_sharpness_diagram(emos_dict, X, y, variances, t, n_subset = 10):
     plt.show()
 
 
+def make_reliability_and_sharpness(emos_dict, X, y, variances, t, n_subset = 10, base_model = None):
+    fig = plt.figure(figsize=(8, 8))  # Create a figure
+    gs = gridspec.GridSpec(4, 1)  # Create a GridSpec with 3 rows and 1 column
+
+    # Create the subplots with different heights
+    axs = [plt.subplot(gs[:3]), plt.subplot(gs[3])]
+
+    y_true = y > t
+    cdfs = {}
+
+    for name, model in emos_dict.items():
+        probs = 1.0 - model.forecast_distribution.comp_cdf(X, variances, t)
+        # if probs is greater than 1, set it to 1 or if it is less than 0, set it to 0
+        # This is necessary because sometimes the forecast distribution can be slightly off due to numerical errors
+        probs = np.clip(probs, 0, 1)
+        cdfs[name] = probs.squeeze()
+
+    for name, y_prob in cdfs.items():
+        prob_true, prob_pred = calibration_curve(y_true, y_prob, n_bins=n_subset)
+        axs[0].plot(prob_pred, prob_true, 'o-', label = name)
+    
+    if base_model is not None:
+        cdf_values = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, variances, t), 0, 1).squeeze()
+        prob_true, prob_pred = calibration_curve(y_true, cdf_values, n_bins=n_subset)
+        axs[0].plot(prob_pred, prob_true, 'o-', label = "Base model")
+        cdfs["Base model"] = cdf_values
+
+    axs[0].plot([0, 1], [0, 1], color="black", linestyle="dashed")
+    axs[0].set_xlabel("Mean predicted probability")
+    axs[0].set_ylabel("Fraction of positives")
+    axs[0].set_xlim(0, 1)
+    axs[0].set_ylim(0, 1)
+    axs[0].legend()
+
+    subset_values = np.linspace(0, 1, n_subset)
+    for name, y_prob in cdfs.items():
+        counts, bin_edges = np.histogram(y_prob, bins = subset_values)
+        counts = np.append(counts, 0)
+        axs[1].step(subset_values, counts / len(y) * 100, where='post', label = name)
+
+    axs[1].set_xlabel("Forecast probability")
+    axs[1].set_ylabel("Count (%)")
+    axs[1].set_xlim(0, 1)
+    axs[1].legend()
+
+    plt.tight_layout()
+    plt.show()
+    

@@ -1,7 +1,10 @@
+import collections
 from typing import Dict
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from abc import ABC, abstractmethod
+
 
 from src.models.probability_distributions import DistributionMixture, TruncGEV
 tfpd = tfp.distributions
@@ -146,6 +149,28 @@ class ForecastDistribution(ABC):
     
     def has_negative_scale(self, X, variance):
         return False
+    
+    def comp_cdf(self, X, variance, values):
+        """
+        Computes the cumulative distribution function of the forecast distribution for a range of values.
+
+        Args:
+        - X (tf.Tensor): Input data
+        - variance (tf.Tensor): Variance around each gridpoint
+        - values (np.array): Values for which to compute the cdf
+
+        Returns:
+        - np.array: The cdf values for each value in the input array
+        """
+        if not isinstance(values, collections.abc.Iterable):
+            values = [values]
+            
+        output = np.zeros((len(values), X.shape[0]))
+        distr = self.get_distribution(X, variance)
+        for i, value in enumerate(values):
+            output[i] = distr.cdf(value).numpy()
+
+        return output
 
 
 
@@ -163,7 +188,7 @@ class TruncatedNormal(ForecastDistribution):
         num_features (int): Number of features used in the model.
         parameter_dict (dict): Dictionary containing the parameters of the distribution.
     """
-    def __init__(self, num_features: int, parameters: Dict[str, float] = {}):
+    def __init__(self, num_features: int, parameters: Dict[str, float] = {}, use_neural_network = True):
         """
         Constructor for the TruncatedNormal class. Initializes the parameters of the distribution.
         In case parameters is provided, it sets the parameters to the given values. Otherwise, it
@@ -206,6 +231,9 @@ class TruncatedNormal(ForecastDistribution):
     
     def name(self):
         return "distr_trunc_normal"
+    
+
+
     
 class LogNormal(ForecastDistribution):
     """
@@ -310,6 +338,30 @@ class GEV(ForecastDistribution):
     def has_negative_scale(self, X, variance):
         scale = self._parameter_dict['c_gev'] + tf.tensordot(X, self._parameter_dict['d_gev'], axes=1)  
         return tf.reduce_sum(tf.cast(scale < 0, tf.int32)).numpy() > 0
+    
+    def comp_cdf(self, X, variance, values):
+        if not isinstance(values, collections.abc.Iterable):
+            values = [values]
+            
+        output = np.zeros((len(values), X.shape[0]))
+        distr = self.get_distribution(X, variance)
+        shape = distr.concentration.numpy()
+
+        if np.isscalar(shape) or shape.size == 1:
+            shape = np.full(X.shape[0], shape)  # Convert scalar to array
+
+        for i, value in enumerate(values):
+            cdf_value = distr.cdf(value).numpy()
+            nan_indices = np.isnan(cdf_value)  # Find NaN indices
+            shape_less_than_zero = shape < 0  # Find shape < 0 indices
+            output[i] = cdf_value
+
+            # Update NaN values based on the condition
+            output[i, nan_indices & shape_less_than_zero] = 1
+            output[i, nan_indices & ~shape_less_than_zero] = 0
+
+        return output
+            
     
 class Frechet(ForecastDistribution):
     def __init__(self, num_features, parameters = {}):
@@ -573,6 +625,11 @@ class Mixture(ForecastDistribution):
             return self.distribution_2.has_negative_scale(X, variance)
         else:
             return False
+        
+    def comp_cdf(self, X, variance, values):
+        cdf_1 = self.distribution_1.comp_cdf(X, variance, values)
+        cdf_2 = self.distribution_2.comp_cdf(X, variance, values)
+        return self._parameter_dict['weight'].numpy() * cdf_1 + (1 - self._parameter_dict['weight'].numpy()) * cdf_2
 
     
 class MixtureLinear(ForecastDistribution):
@@ -674,6 +731,13 @@ class MixtureLinear(ForecastDistribution):
             return self.distribution_2.has_negative_scale(X, variance)
         else:
             return False
+        
+    def comp_cdf(self, X, variance, values):
+        weight = self.calc_weights(X)
+        cdf_1 = self.distribution_1.comp_cdf(X, variance, values)
+        cdf_2 = self.distribution_2.comp_cdf(X, variance, values)
+        return weight.numpy() * cdf_1 + (1 - weight.numpy()) * cdf_2
+
 
         
             
