@@ -63,6 +63,9 @@ class EMOS:
         else:
             self.steps_made = 0
 
+        if 'folds' in setup:
+            self.folds = setup['folds']
+
     def _init_loss(self, setup):
         """
         Setup the loss function of the model.

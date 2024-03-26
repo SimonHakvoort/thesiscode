@@ -75,10 +75,10 @@ yellow_warning = 20.83
 gust_factor = 1.5
 
 threshold = yellow_warning / gust_factor
-
+threshold = 17
 #print("Test: ", np.sum(data_test > threshold))
 print("1: ", np.sum(data_1 > threshold))
 print("2: ", np.sum(data_2 > threshold))
 print("3: ", np.sum(data_3 > threshold))
 
-print("Top 40 values in 3: ", np.sort(data_3)[-40:])
+# print("Top 40 values in 3: ", np.sort(data_3)[-40:])

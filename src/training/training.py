@@ -32,6 +32,8 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
     setup['feature_mean'] = data['mean']
     setup['feature_std'] = data['std']
 
+    setup['folds'] = folds
+
     setup['features'] = parameter_names
     setup["neighbourhood_size"] = neighbourhood_size
 
@@ -155,6 +157,8 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
             mean = model.chain_function_mean.numpy()
             std = model.chain_function_std.numpy()
             constant = model.chain_function_constant.numpy()
+            # round the constant to 5 decimals
+            constant = round(constant, 5)
             chain_specs = f'mean{mean}_std{std}_constant{constant}'
 
     if model.loss.__name__ == 'loss_log_likelihood':
@@ -168,10 +172,16 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
 
 
     epochs = model.steps_made
-    if epochs != 400:
-        name = f'{distr_name}_{loss}_{chain_specs}_epochs{epochs}'
-    else:
-        name = f'{distr_name}_{loss}_{chain_specs}'
+    name = f'{distr_name}_{loss}_{chain_specs}_epochs{epochs}'
+
+
+    folds = model.folds
+    fold_info = "_folds"
+    for fold in folds:
+        fold_info += f'_{fold}'
+    
+    name += fold_info
+
 
     model_dict = model.to_dict()
     with open(f'{path}{folder}{name}.pkl', 'wb') as f:
