@@ -36,3 +36,37 @@ def make_twcrpss_plot(base_model, model_dict, X, y, variances, thresholds, ylim 
     plt.xlim(thresholds[0], thresholds[-1])
     plt.legend()
     plt.show()
+
+
+def make_twcrps_plot(model_dict, X, y, variances, threshold, ylim = None, sample_size = 1000, base_model = None):
+    """
+    Makes a plot of the twCRPS for different models
+
+    Arguments:
+    - model_dict: a dictionary of models
+    - X: the input data
+    - y: the output data
+    - variances: the variances of the output data
+    - threshold: the threshold to compare the models at
+    - ylim: the limits of the y-axis
+    - sample_size: the number of samples to use for the twCRPS calculation
+    - base_model: the base model
+    """
+    for model_name, model in model_dict.items():
+        scores = []
+        for value in threshold:
+            scores.append(model.twCRPS(X, y, variances, value, sample_size).numpy())
+        plt.plot(threshold, scores, label = model_name)
+
+    if base_model is not None:
+        scores = []
+        for value in threshold:
+            scores.append(base_model.twCRPS(X, y, variances, value, sample_size).numpy())
+        plt.plot(threshold, scores, label = "Base model", color = "black")
+    plt.xlabel('Threshold (m/s)')
+    plt.ylabel('twCRPS')
+    if ylim is not None:
+        plt.ylim(ylim[0], ylim[1])
+    plt.xlim(threshold[0], threshold[-1])
+    plt.legend()
+    plt.show()

@@ -1,7 +1,7 @@
 import pickle as pkl
 
 from src.models.emos import EMOS
-from src.models.forecast_distributions import Mixture, TruncatedGEV, TruncatedNormal, LogNormal, GEV, Frechet, DistributionMixture, MixtureLinear, distribution_name
+from src.models.forecast_distributions import GEVSpatialVariance, Mixture, TruncatedGEV, TruncatedNormal, LogNormal, GEV, Frechet, DistributionMixture, MixtureLinear, TruncatedNormalFeatures, distribution_name
 from src.models.get_data import get_normalized_tensor
 
 
@@ -86,6 +86,10 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
         folder = 'trunc_normal/'
         distr_name = 'tn'
 
+    if type(model.forecast_distribution) == TruncatedNormalFeatures:
+        folder = 'trunc_normal_features/'
+        distr_name = 'tnf'
+
     if type(model.forecast_distribution) == LogNormal:
         folder = 'log_normal/'
         distr_name = 'ln'
@@ -110,12 +114,18 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
         folder = 'trunc_gev/'
         distr_name = 'trunc_gev'
 
+    if type(model.forecast_distribution) == GEVSpatialVariance:
+        folder = 'gev_spatial_variance/'
+        distr_name = 'gev_spatial_variance'
+
     extra_name = False
 
     if type(model.forecast_distribution) == Mixture or type(model.forecast_distribution) == MixtureLinear:
         extra_name = True
         if type(model.forecast_distribution.distribution_1) == TruncatedNormal:
             distr1_name = 'tn'
+        if type(model.forecast_distribution.distribution_1) == TruncatedNormalFeatures:
+            distr1_name = 'tnf'
         if type(model.forecast_distribution.distribution_1) == LogNormal:
             distr1_name = 'ln'
         if type(model.forecast_distribution.distribution_1) == GEV:
@@ -124,9 +134,13 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
             distr1_name = 'frechet'
         if type(model.forecast_distribution.distribution_1) == TruncatedGEV:
             distr1_name = 'trunc_gev'
+        if type(model.forecast_distribution.distribution_1) == GEVSpatialVariance:
+            distr1_name = 'gev_sv'
 
         if type(model.forecast_distribution.distribution_2) == TruncatedNormal:
             distr2_name = 'tn'
+        if type(model.forecast_distribution.distribution_2) == TruncatedNormalFeatures:
+            distr2_name = 'tnf'
         if type(model.forecast_distribution.distribution_2) == LogNormal:
             distr2_name = 'ln'
         if type(model.forecast_distribution.distribution_2) == GEV:
@@ -134,7 +148,9 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
         if type(model.forecast_distribution.distribution_2) == Frechet:
             distr2_name = 'frechet'
         if type(model.forecast_distribution.distribution_2) == TruncatedGEV:
-            distr2_name = 'trunc_gev'            
+            distr2_name = 'trunc_gev' 
+        if type(model.forecast_distribution.distribution_2) == GEVSpatialVariance:
+            distr2_name = 'gev_sv'           
 
     if model.loss.__name__ == 'loss_CRPS_sample':
         loss = 'crps'

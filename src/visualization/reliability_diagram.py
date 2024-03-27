@@ -206,7 +206,6 @@ def make_reliability_and_sharpness(emos_dict, X, y, variances, t, n_subset = 10,
     axs[1].set_xlabel("Forecast probability")
     axs[1].set_ylabel("Count (%)")
     axs[1].set_xlim(0, 1)
-    axs[1].legend()
 
     plt.tight_layout()
     plt.show()
