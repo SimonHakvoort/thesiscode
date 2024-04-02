@@ -1,7 +1,9 @@
 import pickle as pkl
 
+import numpy as np
+
 from src.models.emos import EMOS
-from src.models.forecast_distributions import GEVSpatialVariance, Mixture, TruncatedGEV, TruncatedNormal, LogNormal, GEV, Frechet, DistributionMixture, MixtureLinear, TruncatedNormalFeatures, distribution_name
+from src.models.forecast_distributions import Mixture, TruncatedGEV, TruncatedNormal, LogNormal, GEV, Frechet, DistributionMixture, MixtureLinear, distribution_name
 from src.models.get_data import get_normalized_tensor
 
 
@@ -82,75 +84,10 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
 
     
 def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/'):
-    if type(model.forecast_distribution) == TruncatedNormal:
-        folder = 'trunc_normal/'
-        distr_name = 'tn'
+    folder = model.forecast_distribution.folder_name() + '/'
 
-    if type(model.forecast_distribution) == TruncatedNormalFeatures:
-        folder = 'trunc_normal_features/'
-        distr_name = 'tnf'
-
-    if type(model.forecast_distribution) == LogNormal:
-        folder = 'log_normal/'
-        distr_name = 'ln'
-    
-    if type(model.forecast_distribution) == GEV:
-        folder = 'gev/'
-        distr_name = 'gev'
-    
-    if type(model.forecast_distribution) == Frechet:
-        folder = 'frechet/'
-        distr_name = 'frechet'
-
-    if type(model.forecast_distribution) == Mixture:
-        folder = 'mixture/'
-        distr_name = 'mixture'
-
-    if type(model.forecast_distribution) == MixtureLinear:
-        folder = 'mixture_linear/'
-        distr_name = 'mixturelinear'
-
-    if type(model.forecast_distribution) == TruncatedGEV:
-        folder = 'trunc_gev/'
-        distr_name = 'trunc_gev'
-
-    if type(model.forecast_distribution) == GEVSpatialVariance:
-        folder = 'gev_spatial_variance/'
-        distr_name = 'gev_spatial_variance'
-
-    extra_name = False
-
-    if type(model.forecast_distribution) == Mixture or type(model.forecast_distribution) == MixtureLinear:
-        extra_name = True
-        if type(model.forecast_distribution.distribution_1) == TruncatedNormal:
-            distr1_name = 'tn'
-        if type(model.forecast_distribution.distribution_1) == TruncatedNormalFeatures:
-            distr1_name = 'tnf'
-        if type(model.forecast_distribution.distribution_1) == LogNormal:
-            distr1_name = 'ln'
-        if type(model.forecast_distribution.distribution_1) == GEV:
-            distr1_name = 'gev'
-        if type(model.forecast_distribution.distribution_1) == Frechet:
-            distr1_name = 'frechet'
-        if type(model.forecast_distribution.distribution_1) == TruncatedGEV:
-            distr1_name = 'trunc_gev'
-        if type(model.forecast_distribution.distribution_1) == GEVSpatialVariance:
-            distr1_name = 'gev_sv'
-
-        if type(model.forecast_distribution.distribution_2) == TruncatedNormal:
-            distr2_name = 'tn'
-        if type(model.forecast_distribution.distribution_2) == TruncatedNormalFeatures:
-            distr2_name = 'tnf'
-        if type(model.forecast_distribution.distribution_2) == LogNormal:
-            distr2_name = 'ln'
-        if type(model.forecast_distribution.distribution_2) == GEV:
-            distr2_name = 'gev'
-        if type(model.forecast_distribution.distribution_2) == Frechet:
-            distr2_name = 'frechet'
-        if type(model.forecast_distribution.distribution_2) == TruncatedGEV:
-            distr2_name = 'trunc_gev' 
-        if type(model.forecast_distribution.distribution_2) == GEVSpatialVariance:
-            distr2_name = 'gev_sv'           
+    distribution_name = model.forecast_distribution.distribution_name()
+              
 
     if model.loss.__name__ == 'loss_CRPS_sample':
         loss = 'crps'
@@ -174,21 +111,14 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
             std = model.chain_function_std.numpy()
             constant = model.chain_function_constant.numpy()
             # round the constant to 5 decimals
-            constant = round(constant, 5)
+            constant = np.around(constant, 3)
             chain_specs = f'mean{mean}_std{std}_constant{constant}'
 
     if model.loss.__name__ == 'loss_log_likelihood':
         loss = 'loglik'
 
-
-
-    if extra_name:
-        distr_name += f'_{distr1_name}_{distr2_name}'
-
-
-
     epochs = model.steps_made
-    name = f'{distr_name}_{loss}_{chain_specs}_epochs{epochs}'
+    name = f'{distribution_name}_{loss}_{chain_specs}_epochs{epochs}'
 
 
     folds = model.folds

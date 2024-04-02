@@ -145,6 +145,17 @@ class EMOS:
         if "forecast_distribution" not in setup:
             raise ValueError("Forecast distribution not specified")
 
+        if "location_features" not in setup:
+            raise ValueError("Location features not specified")
+        
+        if "scale_features" not in setup:
+            raise ValueError("Scale features not specified")
+
+        if "all_features" not in setup:
+            raise ValueError("All features not specified")
+
+        
+
         distribution_1 = None
         distribution_2 = None
 
@@ -155,7 +166,14 @@ class EMOS:
                 distribution_1 = setup['distribution_1']
                 distribution_2 = setup['distribution_2']
         
-        self.forecast_distribution = initialize_distribution(setup['forecast_distribution'], self.num_features, parameters, distribution_1, distribution_2)        
+        self.forecast_distribution = initialize_distribution(
+            setup['forecast_distribution'], 
+            setup["all_features"], 
+            setup["location_features"],
+            setup["scale_features"],
+            parameters, 
+            distribution_1,
+            distribution_2)        
         
     
     def __len__(self):
@@ -316,7 +334,7 @@ class EMOS:
         """
         return tf.cast(y <= t, tf.float32)
  
-    def loss_log_likelihood(self, X, y, variance):
+    def loss_log_likelihood(self, X, y):
         """
         The loss fuction for the log likelihood, based on the forecast distribution and observations.
 
@@ -328,10 +346,10 @@ class EMOS:
         Returns:
         - the loss value.
         """
-        forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
+        forecast_distribution = self.forecast_distribution.get_distribution(X)
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
     
-    def CRPS(self, X, y, variance, samples):
+    def CRPS(self, X, y, samples):
         """
         The loss function for the CRPS, based on the forecast distribution and observations.
         We use a sample based approach to estimate the expected value of the CRPS.
@@ -345,7 +363,7 @@ class EMOS:
         Returns:
         - the loss value.
         """
-        forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
+        forecast_distribution = self.forecast_distribution.get_distribution(X)
         #X_1 has shape (samples, n), where n is the number of observations
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
@@ -357,11 +375,11 @@ class EMOS:
         return tf.reduce_mean(E_1 - 0.5 * E_2)
 
 
-    def loss_CRPS_sample(self, X, y, variance):
-        return self.CRPS(X, y, variance, self.samples)
+    def loss_CRPS_sample(self, X, y):
+        return self.CRPS(X, y, self.samples)
         
     
-    def Brier_Score(self, X, y, variance, threshold):
+    def Brier_Score(self, X, y, threshold):
         """
         The loss function for the Brier score, based on the forecast distribution and observations.
 
@@ -375,18 +393,18 @@ class EMOS:
         - the Brier score at the given threshold.
         """
         
-        cdf_values = self.forecast_distribution.comp_cdf(X, variance, threshold)
+        cdf_values = self.forecast_distribution.comp_cdf(X, threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
 
-    def twCRPS(self, X, y, variance, threshold, samples):
+    def twCRPS(self, X, y, threshold, samples):
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
-        return self.loss_twCRPS_sample_general(X, y, variance, chain_function, samples)
+        return self.loss_twCRPS_sample_general(X, y, chain_function, samples)
     
-    def loss_twCRPS_sample(self, X, y, variance):
-        return self.loss_twCRPS_sample_general(X, y, variance, self.chain_function, self.samples)
+    def loss_twCRPS_sample(self, X, y):
+        return self.loss_twCRPS_sample_general(X, y, self.chain_function, self.samples)
         
     def loss_twCRPS_sample_general(self, X, y, variance, chain_function, samples):
-        forecast_distribution = self.forecast_distribution.get_distribution(X, variance)
+        forecast_distribution = self.forecast_distribution.get_distribution(X)
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
         vX_1 = chain_function(X_1)
@@ -449,7 +467,7 @@ class EMOS:
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
         return first_part + second_part + self.chain_function_constant * y
 
-    def _compute_loss_and_gradient(self, X, y, variance):
+    def _compute_loss_and_gradient(self, X, y):
         """
         Compute the loss and the gradient of the loss with respect to the parameters of the model, 
         which are the parameters of the forecast distribution.
@@ -464,33 +482,29 @@ class EMOS:
         - grads: the gradients of the loss with respect to the parameters of the model.
         """
         with tf.GradientTape() as tape:
-            loss_value = self.loss(X, y, variance)
+            loss_value = self.loss(X, y)
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
 
      
 
-    def fit(self, X, y, variance, steps, printing = True):
+    def fit(self, X, y, steps, printing = True):
         """
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
 
         Arguments:
         - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
         - y (tf.Tensor): the observations of shape (n,).
-        - variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
         - steps: the amount of steps to take with the optimizer.
         - printing: whether to print the loss value at each step.
 
         Returns:
         - hist: a list containing the loss value at each step.
         """
-        if X.shape[1] != self.num_features:
-            raise ValueError(f"Number of features in X ({X.shape[1]}) does not match the number of features in the model ({self.num_features})")
-
         hist = []
         self.steps_made += steps
         for step in range(steps):
-            loss_value, grads = self._compute_loss_and_gradient(X, y, variance)
+            loss_value, grads = self._compute_loss_and_gradient(X, y)
 
             # check if gradient contains nan
             if tf.math.reduce_any(tf.math.is_nan(grads[0])):

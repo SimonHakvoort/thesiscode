@@ -58,7 +58,7 @@ def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
     variances = tf.concat(variances_list, axis=0)
     return X, y, variances
 
-def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = []):
+def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = [], normalize_wind = False, add_variances = True):
     """
     Returns a dictionary containing the normalized X (except the first row), y and variances of the neighberhoods in the folds, except for the stations from ignore.
     In the dictionary this can be accessed with the keys 'X', 'y' and 'variances'. The mean and standard deviation of the features are also included in the dictionary, 
@@ -86,24 +86,49 @@ def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = [
     y = tf.concat(y_list, axis=0)
     variances = tf.concat(variances_list, axis=0)    
 
+    if add_variances:
+        # add variances to X
+        variances = tf.expand_dims(variances, axis=1)
+        X = tf.concat([X, variances], axis=1)
+
     mean = tf.reduce_mean(X, axis=0)
     std = tf.math.reduce_std(X, axis=0)
     
     mean = tf.Variable(mean)
     std = tf.Variable(std)
 
-    mean[0].assign(tf.constant(0.0))
-    std[0].assign(tf.constant(1.0))
+    if not normalize_wind:
+        mean[0].assign(tf.constant(0.0))
+        std[0].assign(tf.constant(1.0))
+
+    # we currently will not normalize the spatial variance
+    mean[-1].assign(tf.constant(0.0))
+    std[-1].assign(tf.constant(1.0))
 
     X = (X - mean) / std
-    output_dict = {'X': X, 'y': y, 'variances': variances, 'mean': mean, 'std': std}
+
+    feature_names = parameter_names.copy()
+    
+
+    if add_variances:
+        # add variances to feature_names
+        feature_names.append('spatial_variance')
+
+    output_dict = {'X': X, 'y': y, 'variances': variances, 'mean': mean, 'std': std, 'features_names': feature_names}
+
+    if add_variances:
+        # remove variances output_dict
+        output_dict.pop('variances')
+
     return output_dict
     
-def sort_tensor(X, y, variance):
+def sort_tensor(X, y, variance = None):
     order = tf.argsort(y, axis=0, direction='DESCENDING')
     X = tf.gather(X, order)
     y = tf.gather(y, order)
-    variance = tf.gather(variance, order)
+
+    if variance is not None:
+        variance = tf.gather(variance, order)
 
     return X, y, variance
     

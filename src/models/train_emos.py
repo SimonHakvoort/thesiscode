@@ -6,24 +6,22 @@ import numpy as np
 
 from src.models.emos import EMOS
 from src.models.get_data import get_normalized_tensor, get_tensors
-from src.models.initial_params import get_gev_initial_params, get_trunc_normal_initial_params
     
 
-def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup):
-    data = get_normalized_tensor(neighbourhood_size, parameter_names, folds)
+def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup, ignore = []):
+    data = get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = ignore)
 
     X = data["X"]
     y = data["y"]
-    variances = data["variances"]
 
-    setup["num_features"] = len(parameter_names)
+    setup["all_features"] = data["features_names"]
     setup["feature_mean"] = data["mean"]
     setup["feature_std"] = data["std"]
     setup["features"] = parameter_names
     setup["neighbourhood_size"] = neighbourhood_size
 
     emos = EMOS(setup)
-    emos.fit(X, y, variances, epochs)
+    emos.fit(X, y, epochs)
 
     return emos
 
