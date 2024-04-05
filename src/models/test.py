@@ -4,7 +4,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from src.models.train_emos import train_emos, train_and_test_emos
-from src.training.training import load_model
+from src.training.training import load_model, train_and_save
 from src.visualization.brier_score import make_brier_skill_plot, brier_plot
 from src.visualization.pit import make_cpit_diagram_emos
 from src.visualization.plot_forecasts import plot_forecast_pdf
@@ -13,18 +13,58 @@ from src.models.get_data import get_tensors, get_normalized_tensor
 from src.models.emos import EMOS
 from src.models.emos import EMOS
 
-folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
+forecast_distribution = 'distr_mixture_linear'
+distribution_1 = 'distr_trunc_normal'
+distribution_2 = 'distr_gev'
 
-mixture = load_model(folder + 'mixture_linear/mixturelinear_tn_gev_twcrps_mean13.0_std2.0_epochs600.pkl')
+loss = 'loss_twCRPS_sample' # options: loss_CRPS_sample, loss_twCRPS_sample, loss_log_likelihood
 
-test_fold = 3
+chain_function = 'chain_function_normal_cdf' # options: chain_function_normal_cdf, chain_function_indicator, chain_function_normal_cdf_plus_constant
+chain_function_mean = 13
+chain_function_std = 2
+chain_function_threshold = 15 # 12 / 15
+chain_function_constant = 0.02
+
+optimizer = 'Adam'
+learning_rate = 0.03
+folds = [1,2]
+neighbourhood_size = 11
 ignore = ['229', '285', '323']
-X_test, y_test, variances_test = get_tensors(mixture.neighbourhood_size, mixture.feature_names, test_fold, ignore)
-X_test = (X_test - mixture.feature_mean) / mixture.feature_std
+epochs = 600
 
-distribution = mixture.forecast_distribution.get_distribution(X_test, variances_test)
-weight = distribution.weight.numpy()
+samples = 100
+printing = True
+pretrained = True
+random_init = False
 
-min_index = np.argmin(weight)
+all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot', 'spatial_variance']
 
-cdf = distribution.cdf(y_test)
+location_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
+
+scale_features = ['spatial_variance']
+
+model = train_and_save(
+    forecast_distribution,
+    loss,
+    optimizer,
+    learning_rate,
+    folds,
+    all_features,
+    location_features,
+    scale_features,
+    neighbourhood_size,
+    ignore,
+    epochs,
+
+    chain_function = chain_function,
+    chain_function_mean = chain_function_mean,
+    chain_function_std = chain_function_std,
+    chain_function_constant = chain_function_constant,
+    chain_function_threshold = chain_function_threshold,
+    samples = samples,
+    printing = printing,
+    distribution_1 = distribution_1,
+    distribution_2 = distribution_2,
+    pretrained = pretrained,
+    random_init = random_init
+)

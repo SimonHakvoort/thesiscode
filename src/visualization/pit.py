@@ -36,7 +36,7 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     plt.title(title)
     plt.show()
 
-def make_cpit_hist_emos(emos, X, y, variance, bins = 20, title = "", t = 0):
+def make_cpit_hist_emos(emos, X, y, bins = 20, title = "", t = 0):
     """
     Function to make a PIT histogram for a given EMOS model and data.
 
@@ -44,7 +44,6 @@ def make_cpit_hist_emos(emos, X, y, variance, bins = 20, title = "", t = 0):
     - emos: EMOS model
     - X: tensor with shape (n, m), where n is the number of samples and m is the number of features
     - y: array with shape (n,) with the true values
-    - variances: array with shape (n,) with the variances in the neighborhood of the true values
     - bins: number of bins for the histogram
     - title: title of the histogram
     - t: real valued number greater than 0
@@ -57,7 +56,7 @@ def make_cpit_hist_emos(emos, X, y, variance, bins = 20, title = "", t = 0):
     elif t > 0:
         X, y, variance = threshold(X, y, variance, t)
 
-    distribution = emos.forecast_distribution.get_distribution(X, variance)
+    distribution = emos.forecast_distribution.get_distribution(X)
     make_cpit_hist(distribution.cdf, y, bins, title, t)
     
 def make_cpit_diagram(cdf_dict, y, title = "", t = 0, gev_shape = None):
@@ -121,7 +120,7 @@ def make_cpit_diagram(cdf_dict, y, title = "", t = 0, gev_shape = None):
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
 
-def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0, base_model = None):
+def make_cpit_diagram_emos(emos_dict, X, y, title = "", t = 0, base_model = None):
     """
     Function to make a PIT diagram for a dictionary of EMOS models and data.
 
@@ -140,17 +139,17 @@ def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0, base_mo
     if t < 0:
         raise ValueError("t needs to be greater than 0")
     elif t > 0:
-        X, y, variance = threshold(X, y, variance, t)
+        X, y = threshold(X, y, t)
 
     cdf_dict = {}
     for name, emos in emos_dict.items():
-        distribution = emos.forecast_distribution.get_distribution(X, variance)
+        distribution = emos.forecast_distribution.get_distribution(X)
         cdf_dict[name] = distribution.cdf
 
     gev_shape = {}
 
     if base_model is not None:
-        distribution = base_model.forecast_distribution.get_distribution(X, variance)
+        distribution = base_model.forecast_distribution.get_distribution(X)
         cdf_dict["Base Model"] = distribution.cdf
         gev_shape["Base Model"] = base_model.forecast_distribution.get_gev_shape()
 
@@ -163,7 +162,7 @@ def make_cpit_diagram_emos(emos_dict, X, y, variance, title = "", t = 0, base_mo
 
 
 
-def threshold(X, y, variance, t):
+def threshold(X, y, t):
     """
     Checks for which indices in y the value is greater than t, and then returns the rows of X, y, variance for which this is the case
 
@@ -182,8 +181,8 @@ def threshold(X, y, variance, t):
 
     y_greater = tf.gather(y, indices)
     X_greater = tf.gather(X, indices)
-    variance_greater = tf.gather(variance, indices)
-    return X_greater, y_greater, variance_greater
+    #variance_greater = tf.gather(variance, indices)
+    return X_greater, y_greater
 
     
 

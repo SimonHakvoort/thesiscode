@@ -41,11 +41,30 @@ def get_station_info():
     return station_info
 
 def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
+    """
+    This function generates tensors 'X' and 'y' from the given parameters and fold.
+
+    Parameters:
+    neighbourhood_size (int): The size of the neighbourhood to consider.
+    parameter_names (list): A list of parameter names to include in the tensor.
+    fold (int): The fold to use for generating the samples.
+    ignore (list, optional): A list of parameters to ignore. Defaults to an empty list.
+
+    Returns:
+    tuple: A tuple containing the tensor 'X' and the target tensor 'y'. If 'spatial_variance' 
+           is included in parameter_names, it is added to 'X' and removed from parameter_names.
+    """
     fold = get_fold_i(fold)
     station_info = get_station_info()
     X_list = []
     y_list = []
     variances_list = []
+
+    include_variance = False
+    if 'spatial_variance' in parameter_names:
+        include_variance = True
+        parameter_names.remove('spatial_variance')
+
     for forecast in fold:
         if forecast.has_observations():
             X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names, ignore)
@@ -56,40 +75,41 @@ def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
     X = tf.concat(X_list, axis=0)
     y = tf.concat(y_list, axis=0)
     variances = tf.concat(variances_list, axis=0)
-    return X, y, variances
 
-def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = [], normalize_wind = False, add_variances = True):
-    """
-    Returns a dictionary containing the normalized X (except the first row), y and variances of the neighberhoods in the folds, except for the stations from ignore.
-    In the dictionary this can be accessed with the keys 'X', 'y' and 'variances'. The mean and standard deviation of the features are also included in the dictionary, 
-    which can be accessed with the keys 'mean' and 'std'.
-
-    Args:
-    - neighbourhood_size: int
-    - parameter_names: list of strings
-    - folds: list of ints
-    - ignore: list of strings
-
-    Returns:
-    - dict: dictionary
-    """
-    X_list = []
-    y_list = []
-    variances_list = []
-    for fold in folds:
-        X, y, variances = get_tensors(neighbourhood_size, parameter_names, fold, ignore)
-        X_list.append(X)
-        y_list.append(y)
-        variances_list.append(variances)
-
-    X = tf.concat(X_list, axis=0)
-    y = tf.concat(y_list, axis=0)
-    variances = tf.concat(variances_list, axis=0)    
-
-    if add_variances:
+    if include_variance:
         # add variances to X
         variances = tf.expand_dims(variances, axis=1)
         X = tf.concat([X, variances], axis=1)
+        parameter_names.append('spatial_variance')
+        
+    return X, y
+
+def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = [], normalize_wind = False):
+    """
+    This function generates a normalized tensor from the given parameters.
+
+    Parameters:
+    neighbourhood_size (int): The size of the neighbourhood to consider.
+    parameter_names (list): A list of parameter names to include in the tensor.
+    folds (list): A list of folds to use for cross-validation.
+    ignore (list, optional): A list of parameters to ignore. Defaults to an empty list.
+    normalize_wind (bool, optional): If True, normalizes the wind parameter. Defaults to False.
+
+    Returns:
+    dict: A dictionary containing the normalized tensor 'X', the target tensor 'y', 
+          the mean and standard deviation used for normalization, and the feature names.
+    """
+    X_list = []
+    y_list = []
+
+    for fold in folds:
+        X, y = get_tensors(neighbourhood_size, parameter_names, fold, ignore)
+        X_list.append(X)
+        y_list.append(y)
+
+    X = tf.concat(X_list, axis=0)
+    y = tf.concat(y_list, axis=0)
+
 
     mean = tf.reduce_mean(X, axis=0)
     std = tf.math.reduce_std(X, axis=0)
@@ -101,24 +121,18 @@ def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = [
         mean[0].assign(tf.constant(0.0))
         std[0].assign(tf.constant(1.0))
 
-    # we currently will not normalize the spatial variance
-    mean[-1].assign(tf.constant(0.0))
-    std[-1].assign(tf.constant(1.0))
+    # check if spatial_variance is in the parameter_names
+    if 'spatial_variance' in parameter_names:
+        # find the index in parameter_names
+        index = parameter_names.index('spatial_variance')
+        mean[index].assign(tf.constant(0.0))
+        std[index].assign(tf.constant(1.0))
 
     X = (X - mean) / std
 
     feature_names = parameter_names.copy()
-    
 
-    if add_variances:
-        # add variances to feature_names
-        feature_names.append('spatial_variance')
-
-    output_dict = {'X': X, 'y': y, 'variances': variances, 'mean': mean, 'std': std, 'features_names': feature_names}
-
-    if add_variances:
-        # remove variances output_dict
-        output_dict.pop('variances')
+    output_dict = {'X': X, 'y': y, 'mean': mean, 'std': std, 'features_names': feature_names}
 
     return output_dict
     

@@ -17,7 +17,7 @@ from src.models.probability_distributions import TruncGEV
 import pickle as pkl
 
 
-all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
+all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot', 'spatial_variance']
 
 location_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
@@ -28,7 +28,7 @@ scale_features = ['spatial_variance']
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
 loss = "loss_CRPS_sample"
-samples = 200
+samples = 100
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
@@ -41,7 +41,7 @@ chain_function_std = 1
 
 # possible optimizers: 'SGD', 'Adam'
 optimizer = "Adam"
-learning_rate = 0.01
+learning_rate = 0.05
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
 forecast_distribution = "distr_trunc_normal"
@@ -49,6 +49,8 @@ forecast_distribution = "distr_trunc_normal"
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
 distribution_2 = "distr_gev"
+
+random_init = True
 
 setup = {'loss': loss,
          'samples': samples, 
@@ -63,11 +65,12 @@ setup = {'loss': loss,
          'chain_function_std': chain_function_std,
          'location_features': location_features,
          'scale_features': scale_features,
+         'random_init': random_init
          }
 
 
 neighbourhood_size = 11
-epochs = 200
+epochs = 600
 test_fold = 3
 folds = [1,2]
 ignore = ['229', '285', '323']
@@ -75,8 +78,8 @@ ignore = ['229', '285', '323']
 #tf.debugging.enable_check_numerics()
 folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
 
-train_emos(neighbourhood_size, all_features, epochs, folds, setup, ignore=ignore)
-
+model = train_emos(neighbourhood_size, all_features, epochs, folds, setup, ignore=ignore)
+print(model)
 # test_fold = 3
 # ignore = ['229', '285', '323']
 # X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_fold, ignore)

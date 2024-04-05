@@ -108,11 +108,11 @@ def make_reliability_diagram(emos_dict, X, y, variances, t, n_subset = 11, base_
     plt.legend()
     plt.show()
 
-def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset = 10, base_model = None):
+def make_reliability_diagram_sklearn(emos_dict, X, y, t, n_subset = 10, base_model = None):
     y_true = y > t
     cdfs = {}
     for name, model in emos_dict.items():
-        probs = 1.0 - model.forecast_distribution.comp_cdf(X, variances, t)
+        probs = 1.0 - model.forecast_distribution.comp_cdf(X, t)
         # if probs is greater than 1, set it to 1 or if it is less than 0, set it to 0
         probs = np.clip(probs, 0, 1)
         cdfs[name] = probs.squeeze()
@@ -126,7 +126,7 @@ def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset = 1
         # distributions = base_model.forecast_distribution.get_distribution(X, variances)
         # cdf = distributions.cdf
         # cdf_values = cdf(t).numpy()
-        cdf_values = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, variances, t), 0, 1).squeeze()
+        cdf_values = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, t), 0, 1).squeeze()
         prob_true, prob_pred = calibration_curve(y_true, 1 - cdf_values, n_bins=n_subset)
         plt.plot(prob_pred, prob_true, 'o-', label = "Base model")
     
@@ -138,17 +138,17 @@ def make_reliability_diagram_sklearn(emos_dict, X, y, variances, t, n_subset = 1
     plt.legend()
     plt.show()
 
-def make_sharpness_diagram(emos_dict, X, y, variances, t, n_subset = 10, base_model = None):
+def make_sharpness_diagram(emos_dict, X, y, t, n_subset = 10, base_model = None):
     subset_values = np.linspace(0, 1, n_subset)
     cdfs = {}
     for name, model in emos_dict.items():
-        probs = 1.0 - model.forecast_distribution.comp_cdf(X, variances, t)
+        probs = 1.0 - model.forecast_distribution.comp_cdf(X, t)
         # if probs is greater than 1, set it to 1 or if it is less than 0, set it to 0
         probs = np.clip(probs, 0, 1)
         cdfs[name] = probs.squeeze()
 
     if base_model is not None:
-        cdfs["Base model"] = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, variances, t), 0, 1).squeeze()
+        cdfs["Base model"] = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, t), 0, 1).squeeze()
 
 
     for name, y_prob in cdfs.items():
@@ -163,7 +163,18 @@ def make_sharpness_diagram(emos_dict, X, y, variances, t, n_subset = 10, base_mo
     plt.show()
 
 
-def make_reliability_and_sharpness(emos_dict, X, y, variances, t, n_subset = 10, base_model = None):
+def make_reliability_and_sharpness(emos_dict, X, y, t, n_subset = 10, base_model = None):
+    """
+    Makes a reliability diagram and a sharpness diagram for each EMOS model in the dictionary, for the given data and threshold t.
+
+    Args:
+    - emos_dict: dictionary of EMOS models
+    - X: tensor with shape (n, m), where n is the number of samples and m is the number of features
+    - y: array with shape (n,) with the true values
+    - t: real valued number greater than 0
+    - n_subset: integer, number of subsets to divide the forecast probabilities in
+    - base_model: EMOS model, optional
+    """
     fig = plt.figure(figsize=(8, 8))  # Create a figure
     gs = gridspec.GridSpec(4, 1)  # Create a GridSpec with 3 rows and 1 column
 
@@ -174,7 +185,7 @@ def make_reliability_and_sharpness(emos_dict, X, y, variances, t, n_subset = 10,
     cdfs = {}
 
     for name, model in emos_dict.items():
-        probs = 1.0 - model.forecast_distribution.comp_cdf(X, variances, t)
+        probs = 1.0 - model.forecast_distribution.comp_cdf(X, t)
         # if probs is greater than 1, set it to 1 or if it is less than 0, set it to 0
         # This is necessary because sometimes the forecast distribution can be slightly off due to numerical errors
         probs = np.clip(probs, 0, 1)
@@ -185,7 +196,7 @@ def make_reliability_and_sharpness(emos_dict, X, y, variances, t, n_subset = 10,
         axs[0].plot(prob_pred, prob_true, 'o-', label = name)
     
     if base_model is not None:
-        cdf_values = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, variances, t), 0, 1).squeeze()
+        cdf_values = np.clip(1 - base_model.forecast_distribution.comp_cdf(X, t), 0, 1).squeeze()
         prob_true, prob_pred = calibration_curve(y_true, cdf_values, n_bins=n_subset)
         axs[0].plot(prob_pred, prob_true, 'o-', label = "Base model")
         cdfs["Base model"] = cdf_values

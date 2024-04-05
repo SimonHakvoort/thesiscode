@@ -10,7 +10,7 @@ gev = load_model(folder + 'gev/gev_twcrps_mean13.0_std2.0_epochs600.pkl')
 
 test_fold = 3
 ignore = ['229', '285', '323']
-X_test, y_test, variances_test = get_tensors(tn.neighbourhood_size, tn.feature_names, test_fold, ignore)
+X_test, y_test, variances_test = get_tensors(tn.neighbourhood_size, tn.all_features, test_fold, ignore)
 X_test = (X_test - tn.feature_mean) / tn.feature_std
 
 mydict = {'base_model': base_model, 'tn': tn, 'gev': gev}

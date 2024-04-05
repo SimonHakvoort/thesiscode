@@ -35,8 +35,11 @@ class EMOS:
         - learning_rate: the learning rate used in the optimizer
         - forecast_distribution: the distribution used to model the forecast
         """
-        self.feature_names = setup['features']
-        self.num_features = len(self.feature_names)
+        self.all_features = setup['all_features']
+        self.location_features = setup['location_features']
+        self.scale_features = setup['scale_features']
+
+        self.num_features = len(self.all_features)
         self.neighbourhood_size = setup['neighbourhood_size']
 
         self._init_loss(setup)
@@ -154,7 +157,9 @@ class EMOS:
         if "all_features" not in setup:
             raise ValueError("All features not specified")
 
-        
+        random_init = False
+        if "random_init" in setup:
+            random_init = setup["random_init"]
 
         distribution_1 = None
         distribution_2 = None
@@ -172,6 +177,7 @@ class EMOS:
             setup["location_features"],
             setup["scale_features"],
             parameters, 
+            random_init,
             distribution_1,
             distribution_2)        
         
@@ -193,7 +199,9 @@ class EMOS:
         forecast_distribution_info = f"Forecast distribution: {self.forecast_distribution.name()}"
 
         # Feature info
-        feature_info = f"Features: {', '.join(self.feature_names)}"
+        feature_info = f"Features: {', '.join(self.all_features)}"
+        location_features = f"Location features: {', '.join(self.location_features)}"
+        scale_features = f"Scale features: {', '.join(self.scale_features)}"
         num_features_info = f"Number of features: {self.num_features}"
         neighbourhood_size_info = f"Neighbourhood size: {self.neighbourhood_size}"
 
@@ -239,6 +247,8 @@ class EMOS:
             f"{distribution_info}"
             f"{parameters_info}\n"
             f"{feature_info}\n"
+            f"{location_features}\n"
+            f"{scale_features}\n"
             f"{num_features_info}\n"
             f"{neighbourhood_size_info}\n"
             f"{chaining_function_info}\n"
@@ -278,7 +288,9 @@ class EMOS:
             'feature_mean': self.feature_mean.numpy() if self.feature_mean is not None else None,
             'feature_std': self.feature_std.numpy() if self.feature_std is not None else None,
             'steps_made': self.steps_made,
-            'features': self.feature_names,
+            'all_features': self.all_features,
+            'location_features': self.location_features,
+            'scale_features': self.scale_features,
             'neighbourhood_size': self.neighbourhood_size
         }
         model_dict['parameters'] = self.get_parameters()
@@ -403,7 +415,7 @@ class EMOS:
     def loss_twCRPS_sample(self, X, y):
         return self.loss_twCRPS_sample_general(X, y, self.chain_function, self.samples)
         
-    def loss_twCRPS_sample_general(self, X, y, variance, chain_function, samples):
+    def loss_twCRPS_sample_general(self, X, y, chain_function, samples):
         forecast_distribution = self.forecast_distribution.get_distribution(X)
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)

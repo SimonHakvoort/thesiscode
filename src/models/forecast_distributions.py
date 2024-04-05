@@ -10,7 +10,7 @@ from src.models.probability_distributions import DistributionMixture, TruncGEV
 tfpd = tfp.distributions
 
 ### In case a new distribution is added, the following functions need to be updated:
-def initialize_distribution(distribution, all_features, location_features, scale_features, parameters, distribution_1 = None, distribution_2 = None):
+def initialize_distribution(distribution, all_features, location_features, scale_features, parameters, random_init, distribution_1 = None, distribution_2 = None):
     """
     Initializes the given distribution based on the input.
 
@@ -24,11 +24,11 @@ def initialize_distribution(distribution, all_features, location_features, scale
     - ForecastDistribution: The initialized distribution object
     """
     if distribution_name(distribution) == "distr_trunc_normal":
-        return TruncatedNormal(all_features, location_features, scale_features, parameters)
+        return TruncatedNormal(all_features, location_features, scale_features, random_init, parameters)
     elif distribution_name(distribution) == "distr_log_normal":
-        return LogNormal(all_features, location_features, scale_features, parameters)
+        return LogNormal(all_features, location_features, scale_features, random_init, parameters)
     elif distribution_name(distribution) == "distr_gev":
-        return GEV(all_features, location_features, scale_features, parameters)
+        return GEV(all_features, location_features, scale_features, random_init, parameters)
     elif distribution_name(distribution) == "distr_gev2":
         return GEV2(location_features, scale_features, parameters)
     elif distribution_name(distribution) == "distr_gev3":
@@ -38,9 +38,9 @@ def initialize_distribution(distribution, all_features, location_features, scale
     elif distribution_name(distribution) == "distr_frechet":
         return Frechet(location_features, scale_features, parameters)
     elif distribution_name(distribution) == "distr_mixture":
-        return Mixture(all_features, location_features, scale_features, distribution_1, distribution_2, parameters)
+        return Mixture(all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters)
     elif distribution_name(distribution) == "distr_mixture_linear":
-        return MixtureLinear(all_features, location_features, scale_features, distribution_1, distribution_2, parameters)      
+        return MixtureLinear(all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters)      
     else:
         raise ValueError("Unknown distribution")
     
@@ -213,6 +213,14 @@ class ForecastDistribution(ABC):
 
 
 
+
+def random_initialization(x, setting):
+    if setting == 'standard_uniform':
+        return np.random.uniform(size = x)
+    elif setting == 'standard_normal':
+        return np.random.normal(size = x)
+
+
     
 class TruncatedNormal(ForecastDistribution):
     """
@@ -227,7 +235,7 @@ class TruncatedNormal(ForecastDistribution):
         num_features (int): Number of features used in the model.
         parameter_dict (dict): Dictionary containing the parameters of the distribution.
     """
-    def __init__(self, all_features, location_features, scale_features, parameters: Dict[str, float] = {}):
+    def __init__(self, all_features, location_features, scale_features, random_init, parameters: Dict[str, float] = {}):
         """
         Constructor for the TruncatedNormal class. Initializes the parameters of the distribution.
         In case parameters is provided, it sets the parameters to the given values. Otherwise, it
@@ -248,6 +256,13 @@ class TruncatedNormal(ForecastDistribution):
             self._parameter_dict["c_tn"] = tf.Variable(parameters["c_tn"], dtype = tf.float32, name="c_tn")
             self._parameter_dict["d_tn"] = tf.Variable(parameters["d_tn"], dtype = tf.float32, name="d_tn")
             print("Using given parameters for Truncated Normal distribution")
+        elif random_init:
+            # initialize using random_initialization
+            self._parameter_dict['a_tn'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="a_tn")
+            self._parameter_dict['b_tn'] = tf.Variable(random_initialization(len(self.location_features_indices), 'standard_normal'), dtype = tf.float32, name="b_tn")
+            self._parameter_dict['c_tn'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="c_tn")
+            self._parameter_dict['d_tn'] = tf.Variable(random_initialization(len(self.scale_features_indices), 'standard_normal'), dtype = tf.float32, name="d_tn")
+            print("Using random initialization for Truncated Normal distribution")
         else:
             self._parameter_dict['a_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_tn"))
             self._parameter_dict['b_tn'] = tf.Variable(tf.ones(len(self.location_features_indices), dtype=tf.float32), name="b_tn")
@@ -259,8 +274,8 @@ class TruncatedNormal(ForecastDistribution):
         # mu = self._parameter_dict['a_tn'] + tf.tensordot(X, self._parameter_dict['b_tn'], axes=1)
         # sigma = tf.sqrt(self._parameter_dict['c_tn'] + self._parameter_dict['d_tn'] * variance)
         mu = self._parameter_dict['a_tn'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_tn'], axes=1)
-        sigma = tf.sqrt(self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1))
-        sigma = tf.math.softplus(sigma)
+        sigma = self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1)
+        sigma = tf.sqrt(tf.math.softplus(sigma))
         return tfpd.TruncatedNormal(mu, sigma, 0, 1000)
     
     def __str__(self):
@@ -293,7 +308,7 @@ class LogNormal(ForecastDistribution):
         num_features (int): Number of features used in the model.
         parameter_dict (dict): Dictionary containing the parameters of the distribution.
     """
-    def __init__(self, all_features, location_features, scale_features, parameters = {}):
+    def __init__(self, all_features, location_features, scale_features, random_init, parameters = {}):
         super().__init__(all_features, location_features, scale_features)
 
         if "a_ln" in parameters and "b_ln" in parameters and "c_ln" in parameters:
@@ -302,6 +317,13 @@ class LogNormal(ForecastDistribution):
             self._parameter_dict["c_ln"] = tf.Variable(parameters["c_ln"], dtype = tf.float32, name="c_ln")
             self._parameter_dict["d_ln"] = tf.Variable(parameters["d_ln"], dtype = tf.float32, name="d_ln")
             print("Using given parameters for Log Normal distribution")
+        elif random_init:
+            # initialize using random_initialization
+            self._parameter_dict['a_ln'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="a_ln")
+            self._parameter_dict['b_ln'] = tf.Variable(random_initialization(len(self.location_features_indices), 'standard_normal'), dtype = tf.float32, name="b_ln")
+            self._parameter_dict['c_ln'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="c_ln")
+            self._parameter_dict['d_ln'] = tf.Variable(random_initialization(len(self.scale_features_indices), 'standard_normal'), dtype = tf.float32, name="d_ln")
+            print("Using random initialization for Log Normal distribution")
         else:
             self._parameter_dict['a_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_ln"))
             self._parameter_dict['b_ln'] = tf.Variable(tf.zeros(len(self.location_features_indices), dtype=tf.float32), name="b_ln")
@@ -311,7 +333,7 @@ class LogNormal(ForecastDistribution):
 
     def get_distribution(self, X):
         m = self._parameter_dict['a_ln'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_ln'], axes=1)
-        v = self._parameter_dict['c_ln'] + tf.tenordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_ln'], axes=1)
+        v = self._parameter_dict['c_ln'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_ln'], axes=1)
         v = tf.math.softplus(v)
         mean = tf.math.log(m ** 2) - 0.5 * tf.math.log(v + m ** 2)
         sigma = tf.sqrt(tf.math.log(1 + v / m ** 2))
@@ -346,7 +368,7 @@ class GEV(ForecastDistribution):
         num_features (int): Number of features used in the model.
         parameter_dict (dict): Dictionary containing the parameters of the distribution.
     """
-    def __init__(self, all_features, scale_features, location_features, parameters = {}):
+    def __init__(self, all_features, location_features, scale_features, random_init, parameters = {}):
         super().__init__(all_features, location_features, scale_features)
         if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
             self._parameter_dict["a_gev"] = tf.Variable(parameters["a_gev"], dtype = tf.float32, name="a_gev")
@@ -355,6 +377,14 @@ class GEV(ForecastDistribution):
             self._parameter_dict["d_gev"] = tf.Variable(parameters["d_gev"], dtype = tf.float32, name="d_gev")
             self._parameter_dict["e_gev"] = tf.Variable(parameters["e_gev"], dtype = tf.float32, name="e_gev")
             print("Using given parameters for Generalized Extreme Value distribution")
+        elif random_init:
+            # initialize using random_initialization
+            self._parameter_dict['a_gev'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="a_gev")
+            self._parameter_dict['b_gev'] = tf.Variable(random_initialization(len(self.location_features_indices), 'standard_normal'), dtype = tf.float32, name="b_gev")
+            self._parameter_dict['c_gev'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="c_gev")
+            self._parameter_dict['d_gev'] = tf.Variable(random_initialization(len(self.scale_features_indices), 'standard_normal'), dtype = tf.float32, name="d_gev")
+            self._parameter_dict['e_gev'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="e_gev")
+            print("Using random initialization for Generalized Extreme Value distribution")
         else:
             self._parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="a_gev")
             self._parameter_dict['b_gev'] = tf.Variable(tf.zeros(len(self.location_features_indices), dtype=tf.float32), name="b_gev")
@@ -625,12 +655,12 @@ class Mixture(ForecastDistribution):
     - distribution_2 (ForecastDistribution): The second distribution in the mixture
     - parameters (dict): Dictionary containing the parameters of the distribution
     """
-    def __init__(self, all_features, location_features, scale_features, distribution_1, distribution_2, parameters = {}):
+    def __init__(self, all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters = {}):
         super().__init__(all_features, location_features, scale_features)
         
-        self.distribution_1 = initialize_distribution(distribution_1, all_features, location_features, scale_features, parameters)
+        self.distribution_1 = initialize_distribution(distribution_1, all_features, location_features, scale_features, parameters, random_init)
         
-        self.distribution_2 = initialize_distribution(distribution_2, all_features, location_features, scale_features, parameters)
+        self.distribution_2 = initialize_distribution(distribution_2, all_features, location_features, scale_features, parameters, random_init)
         
         constraint = tf.keras.constraints.MinMaxNorm(min_value=0.0, max_value=1.0)
 
@@ -712,12 +742,12 @@ class MixtureLinear(ForecastDistribution):
     - distribution_2 (ForecastDistribution): The second distribution in the mixture
     - parameters (dict): Dictionary containing the parameters of the distribution
     """
-    def __init__(self, all_features, location_features, scale_features, distribution_1, distribution_2, parameters = {}):
+    def __init__(self, all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters = {}):
         super().__init__(all_features, location_features, scale_features)
         
-        self.distribution_1 = initialize_distribution(distribution_1, all_features, location_features, scale_features, parameters)
+        self.distribution_1 = initialize_distribution(distribution_1, all_features, location_features, scale_features, parameters, random_init)
         
-        self.distribution_2 = initialize_distribution(distribution_2, all_features, location_features, scale_features, parameters)
+        self.distribution_2 = initialize_distribution(distribution_2, all_features, location_features, scale_features, parameters, random_init)
         
         if "weight_a" in parameters and "weight_b" in parameters: # and "weight_c" in parameters:
             self._parameter_dict['weight_a'] = tf.Variable(parameters['weight_a'], dtype = tf.float32, name="weight_a")

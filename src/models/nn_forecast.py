@@ -1,5 +1,4 @@
 import tensorflow as tf
-
 from tensorflow.keras.layers import Dense, Concatenate, Conv2D, Flatten
 from tensorflow.keras.models import Model
 
@@ -109,3 +108,5 @@ class NN_Forecast():
 
             return tf.reduce_mean(E_1 - 0.5 * E_2)
         return NN_CRPS
+    
+

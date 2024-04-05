@@ -3,7 +3,7 @@ import numpy as np
 
 from src.models.forecast_distributions import Mixture, MixtureLinear
 
-def plot_forecast_cdf(emos_dict, X, y, variances, observation_value = 0, base_model = None, seed = None):
+def plot_forecast_cdf(emos_dict, X, y, observation_value = 0, base_model = None, seed = None):
     """
     Plot the forecast distributions for each model in the dictionary, for a single random observation value that is greater than a specified value.
 
@@ -20,7 +20,6 @@ def plot_forecast_cdf(emos_dict, X, y, variances, observation_value = 0, base_mo
         np.random.seed(seed)
     y = y.numpy()
     X = X.numpy()
-    variances = variances.numpy()
 
     #pick a single random row from y that is greater than the observation value
     candidates = y > observation_value
@@ -30,13 +29,13 @@ def plot_forecast_cdf(emos_dict, X, y, variances, observation_value = 0, base_mo
 
     #plot the forecast distributions for each model
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X[i, :], variances[i])
+        distributions = model.forecast_distribution.get_distribution(X[i, :])
         cdf = distributions.cdf
 
         plt.plot(x, cdf(x).numpy(), label = name)
     
     if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X[i, :], variances[i])
+        distributions = base_model.forecast_distribution.get_distribution(X[i, :])
         cdf = distributions.cdf
         plt.plot(x, cdf(x).numpy(), label = 'base model', color = 'black', linestyle = 'dashed')
     
@@ -48,7 +47,7 @@ def plot_forecast_cdf(emos_dict, X, y, variances, observation_value = 0, base_mo
     plt.legend()
     plt.show()
 
-def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_size = 3, base_model = None, seed = None):
+def plot_forecast_pdf(emos_dict, X, y, observation_value = 0, plot_size = 3, base_model = None, seed = None):
     """
     Plot the forecast distributions for each model in the dictionary, for a single random observation value that is greater than a specified value.
 
@@ -56,7 +55,6 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
     - emos_dict: dictionary of EMOS models
     - X: tensor
     - y: tensor
-    - variances: tensor
     - observation_value: float (default 0)
     - plot_size: float (default 3)
     - base_model: EMOS object (optional)
@@ -66,7 +64,6 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
         np.random.seed(seed)
     X = X.numpy()
     y = y.numpy()
-    variances = variances.numpy()
 
     #pick a single random row from y that is greater than the observation value
     candidates = y > observation_value
@@ -80,7 +77,7 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
 
     #plot the forecast distributions for each model
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X, variances)
+        distributions = model.forecast_distribution.get_distribution(X)
 
         pdf = distributions.prob
         y_values = np.zeros((len(x), distributions.batch_shape[0]))
@@ -92,7 +89,7 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
         plt.plot(x, pdf_val_i, label = name)
 
     if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X[i, :], variances[i])
+        distributions = base_model.forecast_distribution.get_distribution(X[i, :])
         pdf = distributions.prob
         plt.plot(x, pdf(x).numpy(), label = 'base model', color = 'black')
     
@@ -107,7 +104,7 @@ def plot_forecast_pdf(emos_dict, X, y, variances, observation_value = 0, plot_si
     plt.legend()
     plt.show()
 
-def plot_forecast_pdf_i(emos_dict, X, y, variances, i, plot_size = 3, base_model = None):
+def plot_forecast_pdf_i(emos_dict, X, y, i, plot_size = 3, base_model = None):
     """
     Plot the forecast distributions for each model in the dictionary, for a single observation value.
 
@@ -115,14 +112,12 @@ def plot_forecast_pdf_i(emos_dict, X, y, variances, i, plot_size = 3, base_model
     - emos_dict: dictionary of EMOS models
     - X: tensor
     - y: tensor
-    - variances: tensor
     - i: int
     - plot_size: float (default 3)
     - base_model: EMOS object (optional)
     """
     X = X.numpy()
     y = y.numpy()
-    variances = variances.numpy()
 
     min_value = min(y[i] - plot_size, X[i,0] - plot_size)
     max_value = max(y[i] + plot_size, X[i,0] + plot_size)
@@ -131,7 +126,7 @@ def plot_forecast_pdf_i(emos_dict, X, y, variances, i, plot_size = 3, base_model
 
     #plot the forecast distributions for each model
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X, variances)
+        distributions = model.forecast_distribution.get_distribution(X)
 
         pdf = distributions.prob
         y_values = np.zeros((len(x), distributions.batch_shape[0]))
@@ -143,7 +138,7 @@ def plot_forecast_pdf_i(emos_dict, X, y, variances, i, plot_size = 3, base_model
         plt.plot(x, pdf_val_i, label = name)
 
     if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X[i, :], variances[i])
+        distributions = base_model.forecast_distribution.get_distribution(X[i, :])
         pdf = distributions.prob
         plt.plot(x, pdf(x).numpy(), label = 'base model', color = 'black')
     

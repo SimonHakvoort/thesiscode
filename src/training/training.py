@@ -7,7 +7,7 @@ from src.models.forecast_distributions import Mixture, TruncatedGEV, TruncatedNo
 from src.models.get_data import get_normalized_tensor
 
 
-def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, **kwargs):
+def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, all_features, location_features, scale_features, neighbourhood_size, ignore, epochs, **kwargs):
     setup = {}
 
     setup['forecast_distribution'] = distribution_name(forecast_distribution)
@@ -27,16 +27,17 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
             pretrained = kwargs['pretrained']
             original_distribution = setup['forecast_distribution']
 
-    data = get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore)
+    data = get_normalized_tensor(neighbourhood_size, all_features, folds, ignore)
     X = data['X']
     y = data['y']
-    variances = data['variances']
     setup['feature_mean'] = data['mean']
     setup['feature_std'] = data['std']
 
     setup['folds'] = folds
 
-    setup['features'] = parameter_names
+    setup['all_features'] = all_features
+    setup['location_features'] = location_features
+    setup['scale_features'] = scale_features
     setup["neighbourhood_size"] = neighbourhood_size
 
     if 'chain_function' in kwargs:
@@ -51,6 +52,8 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
         if 'chain_function_constant' in kwargs:
             setup['chain_function_constant'] = kwargs['chain_function_constant']
     
+    if "random_init" in kwargs:
+        setup['random_init'] = kwargs['random_init']
 
     if pretrained:
         setup['forecast_distribution'] = setup['distribution_1']
@@ -59,8 +62,8 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
         setup['forecast_distribution'] = setup['distribution_2']
         model_2 = EMOS(setup)
 
-        model_1.fit(X, y, variances, 50, False)
-        model_2.fit(X, y, variances, 50, False)
+        model_1.fit(X, y, 50, False)
+        model_2.fit(X, y, 50, False)
         setup['parameters'] = {**model_1.get_parameters(), **model_2.get_parameters()}
         setup['forecast_distribution'] = original_distribution
 
@@ -76,7 +79,7 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, pa
 
 
 
-    model.fit(X, y, variances, epochs, printing)
+    model.fit(X, y, epochs, printing)
 
     return model
 
@@ -120,7 +123,6 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
     epochs = model.steps_made
     name = f'{distribution_name}_{loss}_{chain_specs}_epochs{epochs}'
 
-
     folds = model.folds
     fold_info = "_folds"
     for fold in folds:
@@ -128,6 +130,19 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
     
     name += fold_info
 
+    # a list containing indices
+    mean_features = model.forecast_distribution.location_features_indices
+    std_features = model.forecast_distribution.scale_features_indices
+
+    mean_features_str = ''
+    for feature in mean_features:
+        mean_features_str += f'{feature}_'
+
+    std_features_str = ''
+    for feature in std_features:
+        std_features_str += f'{feature}_'
+
+    name += f'_mean{mean_features_str}std{std_features_str}'
 
     model_dict = model.to_dict()
     with open(f'{path}{folder}{name}.pkl', 'wb') as f:
@@ -136,8 +151,8 @@ def save_model(model, path = '/net/pc200239/nobackup/users/hakvoort/models/emos/
     print(f'Model saved as {path}{folder}{name}.pkl')
 
     
-def train_and_save(forecast_distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, **kwargs):
-    model = train_model(forecast_distribution, loss, optimizer, learning_rate, folds, parameter_names, neighbourhood_size, ignore, epochs, **kwargs)
+def train_and_save(forecast_distribution, loss, optimizer, learning_rate, folds, all_features, location_features, scale_features, neighbourhood_size, ignore, epochs, **kwargs):
+    model = train_model(forecast_distribution, loss, optimizer, learning_rate, folds, all_features, location_features, scale_features, neighbourhood_size, ignore, epochs, **kwargs)
     save_model(model)
     return model
 
