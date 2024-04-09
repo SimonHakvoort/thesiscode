@@ -21,7 +21,7 @@ all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot', 'spatial_va
 
 location_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
-scale_features = ['spatial_variance']
+scale_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 
 
@@ -70,7 +70,7 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 600
+epochs = 60
 test_fold = 3
 folds = [1,2]
 ignore = ['229', '285', '323']
@@ -79,7 +79,7 @@ ignore = ['229', '285', '323']
 folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
 
 model = train_emos(neighbourhood_size, all_features, epochs, folds, setup, ignore=ignore)
-print(model)
+print(model.scale_features)
 # test_fold = 3
 # ignore = ['229', '285', '323']
 # X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_fold, ignore)

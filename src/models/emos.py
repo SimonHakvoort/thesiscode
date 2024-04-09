@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -35,9 +36,9 @@ class EMOS:
         - learning_rate: the learning rate used in the optimizer
         - forecast_distribution: the distribution used to model the forecast
         """
-        self.all_features = setup['all_features']
-        self.location_features = setup['location_features']
-        self.scale_features = setup['scale_features']
+        self.all_features = copy.deepcopy(setup['all_features'])
+        self.location_features = copy.deepcopy(setup['location_features'])
+        self.scale_features = copy.deepcopy(setup['scale_features'])
 
         self.num_features = len(self.all_features)
         self.neighbourhood_size = setup['neighbourhood_size']

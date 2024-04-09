@@ -3,7 +3,7 @@ import numpy as np
 
 from src.models.forecast_distributions import Mixture, MixtureLinear
 
-def plot_forecast_cdf(emos_dict, X, y, observation_value = 0, base_model = None, seed = None):
+def plot_forecast_cdf(emos_dict, X, y, observation_value = 0, base_model = None, seed = None, plot_size = 3):
     """
     Plot the forecast distributions for each model in the dictionary, for a single random observation value that is greater than a specified value.
 
@@ -18,32 +18,50 @@ def plot_forecast_cdf(emos_dict, X, y, observation_value = 0, base_model = None,
     """
     if seed is not None:
         np.random.seed(seed)
-    y = y.numpy()
     X = X.numpy()
+    y = y.numpy()
 
     #pick a single random row from y that is greater than the observation value
     candidates = y > observation_value
     indices = np.where(candidates)[0]
     i = np.random.choice(indices, 1)[0]
-    x = np.linspace(y[i] - 3, y[i] + 3, 100)
+
+    min_value = min(y[i] - plot_size, X[i,0] - plot_size)
+    max_value = max(y[i] + plot_size, X[i,0] + plot_size)
+
+    x = np.linspace(min_value, max_value, 500)
 
     #plot the forecast distributions for each model
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X[i, :])
-        cdf = distributions.cdf
+        distributions = model.forecast_distribution.get_distribution(X)
 
-        plt.plot(x, cdf(x).numpy(), label = name)
-    
+        pdf = distributions.cdf
+        y_values = np.zeros((len(x), distributions.batch_shape[0]))
+        for p,j in enumerate(x):
+            y_values[p,:] = pdf(j).numpy()
+
+        pdf_val_i = y_values[:,i]
+
+        plt.plot(x, pdf_val_i, label = name)
+
     if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X[i, :])
-        cdf = distributions.cdf
-        plt.plot(x, cdf(x).numpy(), label = 'base model', color = 'black', linestyle = 'dashed')
+        distributions = base_model.forecast_distribution.get_distribution(X)
+        pdf = distributions.cdf
+        y_values = np.zeros((len(x), distributions.batch_shape[0]))
+        for p,j in enumerate(x):
+            y_values[p,:] = pdf(j).numpy()
+
+        pdf_val_i = y_values[:,i]
+        plt.plot(x, pdf_val_i, label = 'base model', color = 'black')
     
     #plot the observation
     plt.axvline(y[i], color = 'red', label = 'observation')
 
+    #plot the forecast of the observation
+    plt.axvline(X[i,0], color = 'black', label = 'forecast', linestyle = 'dashed')
+
     plt.xlabel('Value')
-    plt.ylabel('Probability')
+    plt.ylabel('Probability density')
     plt.legend()
     plt.show()
 
@@ -89,9 +107,14 @@ def plot_forecast_pdf(emos_dict, X, y, observation_value = 0, plot_size = 3, bas
         plt.plot(x, pdf_val_i, label = name)
 
     if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X[i, :])
+        distributions = base_model.forecast_distribution.get_distribution(X)
         pdf = distributions.prob
-        plt.plot(x, pdf(x).numpy(), label = 'base model', color = 'black')
+        y_values = np.zeros((len(x), distributions.batch_shape[0]))
+        for p,j in enumerate(x):
+            y_values[p,:] = pdf(j).numpy()
+
+        pdf_val_i = y_values[:,i]
+        plt.plot(x, pdf_val_i, label = 'base model', color = 'black')
     
     #plot the observation
     plt.axvline(y[i], color = 'red', label = 'observation')
