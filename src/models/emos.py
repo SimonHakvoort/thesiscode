@@ -501,7 +501,7 @@ class EMOS:
 
      
 
-    def fit(self, X, y, steps, printing = True):
+    def fit(self, X, y, steps, printing = True, subset_size = None):
         """
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
 
@@ -510,14 +510,33 @@ class EMOS:
         - y (tf.Tensor): the observations of shape (n,).
         - steps: the amount of steps to take with the optimizer.
         - printing: whether to print the loss value at each step.
+        - subset_size: the size of the random subset used to compute the loss and gradient. If None, the full dataset is used for each step.
 
         Returns:
         - hist: a list containing the loss value at each step.
         """
         hist = []
         self.steps_made += steps
-        for step in range(steps):
-            loss_value, grads = self._compute_loss_and_gradient(X, y)
+
+        if subset_size is not None:
+            if subset_size > X.shape[0]:
+                raise ValueError("Subset size is larger than the dataset size")
+            
+        num_steps = steps
+        if subset_size is not None:
+            num_steps = steps * X.shape[0] // subset_size
+
+        for step in range(num_steps):
+
+            if subset_size is not None:
+                indices = np.random.choice(X.shape[0], subset_size, replace=False)
+                X_subset = tf.gather(X, indices)
+                y_subset = tf.gather(y, indices)
+            else:
+                X_subset = X
+                y_subset = y
+
+            loss_value, grads = self._compute_loss_and_gradient(X_subset, y_subset)
 
             # check if gradient contains nan
             if tf.math.reduce_any(tf.math.is_nan(grads[0])):

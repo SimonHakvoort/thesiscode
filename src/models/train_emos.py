@@ -20,8 +20,17 @@ def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup, ignore
     setup["features"] = parameter_names
     setup["neighbourhood_size"] = neighbourhood_size
 
+    subset_size = None
+    if "subset_size" in setup:
+        subset_size = setup["subset_size"]
+
+    printing = False
+    if "printing" in setup:
+        printing = setup["printing"]
+
     emos = EMOS(setup)
-    emos.fit(X, y, epochs)
+
+    emos.fit(X, y, epochs, printing = printing, subset_size = subset_size)
 
     return emos
 

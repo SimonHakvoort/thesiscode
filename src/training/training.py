@@ -40,6 +40,11 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, al
     setup['scale_features'] = scale_features
     setup["neighbourhood_size"] = neighbourhood_size
 
+    if 'subset_size' in kwargs:
+        subset_size = kwargs['subset_size']
+    else:
+        subset_size = None
+
     if 'chain_function' in kwargs:
         setup['chain_function'] = kwargs['chain_function']
 
@@ -62,8 +67,8 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, al
         setup['forecast_distribution'] = setup['distribution_2']
         model_2 = EMOS(setup)
 
-        model_1.fit(X, y, 50, False)
-        model_2.fit(X, y, 50, False)
+        model_1.fit(X, y, 100, False, subset_size = subset_size)
+        model_2.fit(X, y, 100, False, subset_size = subset_size)
         setup['parameters'] = {**model_1.get_parameters(), **model_2.get_parameters()}
         setup['forecast_distribution'] = original_distribution
 
@@ -79,7 +84,7 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, al
 
 
 
-    model.fit(X, y, epochs, printing)
+    model.fit(X, y, epochs, printing = printing, subset_size = subset_size)
 
     return model
 

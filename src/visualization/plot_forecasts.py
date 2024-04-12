@@ -95,25 +95,26 @@ def plot_forecast_pdf(emos_dict, X, y, observation_value = 0, plot_size = 3, bas
 
     #plot the forecast distributions for each model
     for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X)
+        # use row i and i+1 to get the distribution
+        distributions = model.forecast_distribution.get_distribution(X[i-1:i+1, :])
 
         pdf = distributions.prob
         y_values = np.zeros((len(x), distributions.batch_shape[0]))
         for p,j in enumerate(x):
             y_values[p,:] = pdf(j).numpy()
 
-        pdf_val_i = y_values[:,i]
+        pdf_val_i = y_values[:,1]
 
         plt.plot(x, pdf_val_i, label = name)
 
     if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X)
+        distributions = base_model.forecast_distribution.get_distribution(X[i-1:i+1, :])
         pdf = distributions.prob
         y_values = np.zeros((len(x), distributions.batch_shape[0]))
         for p,j in enumerate(x):
             y_values[p,:] = pdf(j).numpy()
 
-        pdf_val_i = y_values[:,i]
+        pdf_val_i = y_values[:,1]
         plt.plot(x, pdf_val_i, label = 'base model', color = 'black')
     
     #plot the observation

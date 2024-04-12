@@ -336,7 +336,9 @@ class LogNormal(ForecastDistribution):
         v = self._parameter_dict['c_ln'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_ln'], axes=1)
         v = tf.math.softplus(v)
         mean = tf.math.log(m ** 2) - 0.5 * tf.math.log(v + m ** 2)
-        sigma = tf.sqrt(tf.math.log(1 + v / m ** 2))
+
+        # We add a small value to avoid numerical instability
+        sigma = tf.sqrt(tf.math.log(1 + v / m ** 2) + 1e-6)
         return tfpd.LogNormal(mean, sigma)
     
     def __str__(self):
@@ -676,9 +678,9 @@ class Mixture(ForecastDistribution):
         self._parameter_dict.update(self.distribution_2.parameter_dict)
 
 
-    def get_distribution(self, X, variance):
-        distribution_1 = self.distribution_1.get_distribution(X, variance)
-        distribution_2 = self.distribution_2.get_distribution(X, variance)
+    def get_distribution(self, X):
+        distribution_1 = self.distribution_1.get_distribution(X)
+        distribution_2 = self.distribution_2.get_distribution(X)
         return DistributionMixture(distribution_1, distribution_2, self._parameter_dict['weight']) 
 
     def __str__(self):
@@ -727,8 +729,10 @@ class Mixture(ForecastDistribution):
     def folder_name(self):
         return "mixture"
     
-    def short_name(self):
-        return "m" + "_" + self.distribution_1.short_name() + "_" + self.distribution_2.short_name()
+    def distribution_name(self):
+        return "m" + "_" + self.distribution_1.distribution_name() + "_" + self.distribution_2.distribution_name()
+    
+
 
     
 class MixtureLinear(ForecastDistribution):
