@@ -66,6 +66,8 @@ class DistributionMixture(tfp.distributions.Distribution):
         # Create a soft mask using a sigmoid function
         mask = tf.sigmoid((self.weight - uniform_samples) * 10000)
 
+        return mask * samples_1 + (1 - mask) * samples_2
+
         # # This code can be used to check the distribution of the mask
         # lesser = tf.reduce_sum(tf.cast(mask < 0.01, tf.int32)).numpy()
         # greater = tf.reduce_sum(tf.cast(mask > 0.99, tf.int32)).numpy()
@@ -73,9 +75,7 @@ class DistributionMixture(tfp.distributions.Distribution):
         # total = n * self.distribution_1.batch_shape[0]
         # ratio = lesser / total
 
-        return mask * samples_1 + (1 - mask) * samples_2
 
-        
         # return self.mixture.sample(n)
         # return self.weight * self.distribution_1.sample(n) + (1 - self.weight) * self.distribution_2.sample(n)    
     
