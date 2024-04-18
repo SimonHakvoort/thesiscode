@@ -17,18 +17,31 @@ X_2, y_2 = get_tensors(neighbourhood_size, location_features, fold, ignore = ign
 X = np.concatenate((X_1, X_2), axis=0)
 y = np.concatenate((y_1, y_2), axis=0)
 
-input_shape = X.shape[1]
+
 
 # set the seed for tensorflow probability
 # tf.random.set_seed(42)
 # np.random.seed(42)
 
-dense_l2_regularization = 0.0008
 loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 12
 chain_function_std = 2
 chain_function_constant = 0.3
+
+
+dense_l2_regularization = 0.0002
+input_shape = X.shape[1]
+hidden_layers = 3
+hidden_units_list = [100, 100, 100]
+
+nn_architecture = {
+    'input_shape': input_shape,
+    'hidden_layers': hidden_layers,
+    'hidden_units_list': hidden_units_list,
+    'dense_l2_regularization': dense_l2_regularization,
+    'normalization': 'standard'
+}
 
 setup = {
     'loss_function': loss_function,
@@ -36,11 +49,10 @@ setup = {
     'chain_function_mean': chain_function_mean,
     'chain_function_std': chain_function_std,
     'chain_function_constant': chain_function_constant,
-    'dense_l2_regularization': dense_l2_regularization
 }
 
 
-nn = NNForecast(input_shape, 'distr_trunc_normal', 100, **setup)
+nn = NNForecast(nn_architecture, 'distr_trunc_normal', 100, **setup)
 
 nn.fit(X, y, epochs=250, batch_size=32)
 

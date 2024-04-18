@@ -6,22 +6,20 @@ from sklearn.preprocessing import StandardScaler
 from tensorflow.keras import regularizers
 
 from src.neural_networks.nn_distributions import distribution_name
+from src.neural_networks.nn_model import NNModel, NNModel
 
 class NNForecast:
-    def __init__(self, input_shape, forecast_distribution, sample_size, **kwargs):
-        self.input_shape = input_shape
+    def __init__(self, nn_architecture, forecast_distribution, sample_size, **kwargs):
+        self.nn_architecture = nn_architecture
         self.forecast_distribution = distribution_name(forecast_distribution)
         self.sample_size = sample_size
         self.scaler = StandardScaler()
 
-        if 'dense_l2_regularization' in kwargs:
-            self.dense_l2_regularization = kwargs['dense_l2_regularization']
-        else:
-            self.dense_l2_regularization = 0.0
-
         self._init_loss_function(**kwargs)
 
-        self.model = self._build_model()
+        self.model = NNModel(self.forecast_distribution, self.nn_architecture['hidden_units_list'], self.nn_architecture['input_shape'], self.nn_architecture['dense_l2_regularization'])
+
+        self.model.compile(optimizer='adam', loss=self.loss_function)
 
     def _init_loss_function(self, **kwargs):
         if 'loss_function' not in kwargs:
@@ -129,21 +127,27 @@ class NNForecast:
         y_pred = self.predict(X)
         return self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
     
-    def _build_model(self):
-        inputs = tf.keras.Input(shape=self.input_shape)
+    def _build_nn(self, nn_architecture, forecast_distribution):
+        inputs = tf.KerasInput(shape=(self.input_shape,))
+        
+        if self.normalization_layer:
+            norm = self.normalization_layer(inputs)
+            x = Flatten()(norm)
+        else:
+            x = Flatten()(inputs)
 
-        dense1 = Dense(106, activation='relu', kernel_regularizer=regularizers.l2(self.dense_l2_regularization))(inputs)
-        dense2 = Dense(106, activation='relu', kernel_regularizer=regularizers.l2(self.dense_l2_regularization))(dense1)
+        for i in range(self.hidden_layers):
+            # check if hidden_units_list is an iterable or a single value
+            if isinstance(self.hidden_units_list, int):
+                x = Dense(self.hidden_units_list, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(self.dense_l2_regularization))(x)
+            else:
+                x = Dense(self.hidden_units_list[i], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(self.dense_l2_regularization))(x)
 
-        parameters = self.forecast_distribution.build_output_layers(dense2)
+        x = forecast_distribution.build_output_layers(x)
 
-        outputs = Concatenate()(parameters)
+        x = Concatenate()(x)
 
-        model = Model(inputs=inputs, outputs=outputs)
-
-        model.compile(optimizer='adam', loss=self.loss_function)
-
-        return model
+        return Model(inputs=inputs, outputs=x)
     
     def fit(self, X, y, epochs=100, batch_size=32):
         X = self.scaler.fit_transform(X)

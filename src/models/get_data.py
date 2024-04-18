@@ -58,29 +58,16 @@ def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
     station_info = get_station_info()
     X_list = []
     y_list = []
-    variances_list = []
-
-    include_variance = False
-    if 'spatial_variance' in parameter_names:
-        include_variance = True
-        parameter_names.remove('spatial_variance')
 
     for forecast in fold:
         if forecast.has_observations():
-            X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names, ignore)
+            # X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names, ignore)
+            X, y = forecast.generate_all_samples(station_info, parameter_names, station_ignore=ignore, neighbourhood_size=neighbourhood_size)
             X_list.append(X)
             y_list.append(y)
-            variances_list.append(variances)
     
     X = tf.concat(X_list, axis=0)
     y = tf.concat(y_list, axis=0)
-    variances = tf.concat(variances_list, axis=0)
-
-    if include_variance:
-        # add variances to X
-        variances = tf.expand_dims(variances, axis=1)
-        X = tf.concat([X, variances], axis=1)
-        parameter_names.append('spatial_variance')
         
     return X, y
 

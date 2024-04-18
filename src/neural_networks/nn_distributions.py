@@ -28,9 +28,9 @@ class NNTruncNormal():
         scale = y_pred[:, 1]
         return tfp.distributions.TruncatedNormal(loc=loc, scale=scale, low=0.0, high=1000.0)
     
-    def build_output_layers(self, final_layer):
-        mu = Dense(1, activation='linear')(final_layer)
-        sigma = Dense(1, activation='softplus')(final_layer)
+    def build_output_layers(self):
+        mu = Dense(1, activation='linear')
+        sigma = Dense(1, activation='softplus')
         return mu, sigma
     
 

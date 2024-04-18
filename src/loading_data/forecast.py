@@ -43,37 +43,36 @@ class Forecast:
         wind_speeds = self.wind_speed[x - half:x + half + 1, y - half:y + half + 1]
         return np.var(wind_speeds)
 
-    def generate_sample(self, station, neighbourhood_size, variables_names):
+    def generate_sample(self, station, variables_names, neighbourhood_size = None):
         """
         Method to generate a sample for a station. The sample consists of the values of the variables at the gridcell of the station and the observation at the station.
         The features are ordered in the same order as the variables_names list.
 
         Arguments:
         - station: Station instance
-        - neighbourhood_size: int
         - variables_names: list of strings
+        - neighbourhood_size: int
 
         Returns:
-        - tuple of numpy arrays
+        - X: numpy array
+        - y: float
         """
         i, j = station.gridcell
 
         X = []
         y = self.observations[station.code][0]
 
-        # for key, value in self.__dict__.items():
-        #     if key not in self.ignore and key in variables_names:
-        #         X.append(value[i, j])
+
 
         for key in variables_names:
-            X.append(getattr(self, key)[i, j])
+            if key == 'spatial_variance':
+                if neighbourhood_size == None:
+                    raise ValueError('Neighbourhood size must be specified when using spatial variance as a predictor')
+                X.append(self.neighbourhood_variance((i, j), neighbourhood_size))
+            else:
+                X.append(getattr(self, key)[i, j])
 
-        if neighbourhood_size == 0:
-            variance = 0
-        else:
-            variance = self.neighbourhood_variance((i, j), neighbourhood_size)
-
-        return np.array(X), y, variance
+        return np.array(X), y
     
     def get_predictors(self):
         # get the predictors for the forecast
@@ -87,22 +86,54 @@ class Forecast:
         # check if the forecast has observations
         return len(self.observations) > 0
     
+    def get_grid_variable(self, station, variable_name, grid_size):
+        i, j = station.gridcell
+        half = grid_size // 2
+        variable = getattr(self, variable_name)
+        return variable[i - half:i + half + 1, j - half:j + half + 1]
+    
+    def get_sample_grid(self, station, parameter_names):
+        # parameter names is a dict, with as key the parameter name and as value the grid size. If grid size = 1 or 0 or None, the value at the gridcell is returned
+
+        X = []
+        y = self.observations[station.code][0]
+        for key, value in parameter_names.items():
+            if key == 'spatial_variance':
+                if value == None:
+                    raise ValueError('Neighbourhood size must be specified when using spatial variance as a predictor')
+                X.append(self.neighbourhood_variance(station.gridcell, value))
+            else:
+                if value == 0 or value == 1 or value == None:
+                    X.append(getattr(self, key)[station.gridcell])
+                else:
+                    X.append(self.get_grid_variable(station, key, value))
+
+        return X, y
+    
+    def generate_all_samples_grid(self, station_info, parameter_names, station_ignore = []):
+        X = {}
+        y = []
+        for station in station_info.values():
+            if station.code in self.observations and station.code not in station_ignore:
+                X[station.code], observation = self.get_sample_grid(station, parameter_names)
+                y.append(observation)
+        
+        return X, y
+
         
 
-    def generate_all_samples(self, neighbourhood_size, station_info, variable_names, station_ignore = []):
+    def generate_all_samples(self, station_info, variable_names, station_ignore = [], neighbourhood_size = None):
         # generate samples for all stations in station_info
         # station_info is a dictionary with station codes as keys and Station instances as values
         X = []
         y = []
-        variances = []
         for station in station_info.values():
             if station.code in self.observations and station.code not in station_ignore:
-                x, observation, variance = self.generate_sample(station, neighbourhood_size, variable_names)
+                x, observation = self.generate_sample(station, variable_names, neighbourhood_size)
                 X.append(x)
                 y.append(observation)
-                variances.append(variance)
 
-        return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32), tf.convert_to_tensor(variances, dtype=tf.float32)
+        return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32)
     
     def __contains__(self, station_code):
         """
