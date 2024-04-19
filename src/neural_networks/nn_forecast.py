@@ -7,19 +7,30 @@ from tensorflow.keras import regularizers
 
 from src.neural_networks.nn_distributions import distribution_name
 from src.neural_networks.nn_model import NNModel, NNModel
+from src.neural_networks.normalizer import Normalizer
 
 class NNForecast:
-    def __init__(self, nn_architecture, forecast_distribution, sample_size, **kwargs):
-        self.nn_architecture = nn_architecture
-        self.forecast_distribution = distribution_name(forecast_distribution)
-        self.sample_size = sample_size
-        self.scaler = StandardScaler()
+    def __init__(self, **kwargs):
+        self._init_distribution(**kwargs['setup_distribution'])
 
-        self._init_loss_function(**kwargs)
+        self.sample_size = kwargs['sample_size']
+        self.features_names = kwargs['feature_names']
+        self.scaler = StandardScaler() 
 
-        self.model = NNModel(self.forecast_distribution, self.nn_architecture['hidden_units_list'], self.nn_architecture['input_shape'], self.nn_architecture['dense_l2_regularization'])
+        self._init_loss_function(**kwargs['setup_loss'])
 
-        self.model.compile(optimizer='adam', loss=self.loss_function)
+        self.model = NNModel(self.forecast_distribution, **kwargs['setup_nn_architecture'])
+
+        self._init_optimizer(**kwargs['setup_optimizer'])
+
+        self.model.compile(optimizer=self.optimizer, loss=self.loss_function)
+
+    def _init_distribution(self, **kwargs):
+        if 'forecast_distribution' not in kwargs:
+            raise ValueError("forecast_distribution must be provided")
+        else:
+            self.forecast_distribution = distribution_name(kwargs['forecast_distribution'], **kwargs)
+
 
     def _init_loss_function(self, **kwargs):
         if 'loss_function' not in kwargs:
@@ -32,6 +43,27 @@ class NNForecast:
                 self.loss_function = self._loss_twCRPS_sample
             else:
                 raise ValueError("Invalid loss function")
+            
+    def _init_optimizer(self, **kwargs):
+        if 'optimizer' not in kwargs:
+            raise ValueError("optimizer must be provided")
+        else:
+            self.optimizer = kwargs['optimizer']
+
+        if 'learning_rate' not in kwargs:
+            raise ValueError("learning_rate must be provided")
+        else:
+            self.learning_rate = kwargs['learning_rate']
+        
+        if self.optimizer == 'adam':
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+        elif self.optimizer == 'sgd':
+            self.optimizer = tf.keras.optimizers.SGD(learning_rate=self.learning_rate)
+        elif self.optimizer == 'rmsprop':
+            self.optimizer = tf.keras.optimizers.RMSprop(learning_rate=self.learning_rate)
+        else:
+            raise ValueError("Invalid optimizer")
+
 
     def _init_chain_function(self, **kwargs):
         if 'chain_function' not in kwargs:
@@ -63,14 +95,26 @@ class NNForecast:
 
     def _compute_CRPS(self, y_true, y_pred, sample_size):
         distribution = self.forecast_distribution.get_distribution(y_pred)
+        tf.print("Event Shape:", distribution.event_shape)
+        tf.print("Batch Shape:", distribution.batch_shape)
 
-        X_1 = distribution.sample(sample_size)
-        X_2 = distribution.sample(sample_size)
+        tf.print("y_true shape:", y_true.shape)
+        tf.print("y_pred shape:", y_pred.shape)
 
+        sample_shape = tf.concat([[sample_size], tf.ones_like(distribution.batch_shape_tensor(), dtype=tf.int32)], axis=0)
+
+        X_1 = distribution.sample(sample_shape)
+        X_2 = distribution.sample(sample_shape)
+
+        tf.print("X_1 shape:", X_1.shape)
+        tf.print("X_2 shape:", X_2.shape)
         E_1 = tf.reduce_mean(tf.abs(X_1 - tf.squeeze(y_true)), axis=0)
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
 
-        return tf.reduce_mean(E_1 - 0.5 * E_2)
+        print("E_1 shape:", E_1.shape)
+        print("E_2 shape:", E_2.shape)
+
+        return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
         
 
     def _loss_CRPS_sample(self, y_true, y_pred):

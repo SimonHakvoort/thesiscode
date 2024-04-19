@@ -3,13 +3,13 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Dense, Concatenate, Flatten
 
 class NNModel(Model):
-    def __init__(self, forecast_distribution, hidden_units_list, input_shape, dense_l2_regularization):
+    def __init__(self, forecast_distribution, **kwargs):
         super(NNModel, self).__init__()
 
         self.hidden_layers = []
 
-        for units in hidden_units_list:
-            self.hidden_layers.append(Dense(units, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(dense_l2_regularization)))
+        for units in kwargs['hidden_units_list']:
+            self.hidden_layers.append(Dense(units, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(kwargs["dense_l2_regularization"])))
 
         self.output_layers = forecast_distribution.build_output_layers()
 
@@ -19,7 +19,7 @@ class NNModel(Model):
         x = Flatten()(inputs)
 
         for layer in self.hidden_layers:
-            x = layer(x)
+            x = layer(x) 
 
         outputs = self.concatenate([layer(x) for layer in self.output_layers])
 

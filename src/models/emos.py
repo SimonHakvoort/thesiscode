@@ -498,6 +498,18 @@ class EMOS:
             loss_value = self.loss(X, y)
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
+    
+    def predict(self, X):
+        """
+        Predict the forecast distribution for the given input data.
+
+        Arguments:
+        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+
+        Returns:
+        - the forecast distribution.
+        """
+        return self.forecast_distribution.get_distribution(X)
 
      
 
