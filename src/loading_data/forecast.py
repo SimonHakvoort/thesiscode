@@ -119,6 +119,21 @@ class Forecast:
                 y.append(observation)
         
         return X, y
+    
+    def generate_ForecastSample(self, station_info, variable_names, ignore = []):
+        samples = []
+        for station in station_info.values():
+            if station.code in self.observations and station.code not in ignore:
+                sample = ForecastSample(variable_names, station.code)
+                for variable_name, grid_size in variable_names.items():
+                    if grid_size == 0 or grid_size == 1 or grid_size == None:
+                        sample.add_feature(variable_name, getattr(self, variable_name)[station.gridcell])
+                    else:
+                        sample.add_feature(variable_name, self.get_grid_variable(station, variable_name, grid_size))
+                sample.add_y(self.observations[station.code][0])
+                samples.append(sample)
+        return samples
+        
 
         
 
@@ -146,5 +161,40 @@ class Forecast:
         - boolean
         """
         return station_code in self.observations
+
+
+class ForecastSample():
+    def __init__(self, feature_names, station_code):
+        self.feature_names = feature_names
+        self.station_code = station_code
+        # make attribute for each feature name
+        for feature_name in feature_names:
+            setattr(self, feature_name, None)
+        self.y = None
+        self.contains_grid = False
+
+    def add_feature(self, feature_name, value):
+        setattr(self, feature_name, value)
+        if type(value) == np.ndarray:
+            self.contains_grid = True
+
+    def add_y(self, y):
+        self.y = y
+
+    def get_tensor(self):
+        return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32), tf.convert_to_tensor(self.y, dtype=tf.float32)
+    
+    def get_X(self):
+        if not self.contains_grid:
+            return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32)
+        else:
+            # make a tuple containing the grid and the other features
+            return (tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names if type(getattr(self, feature_name)) != np.ndarray], dtype=tf.float32), 
+                    tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names if type(getattr(self, feature_name)) == np.ndarray], dtype=tf.float32)) 
+        
+          
+    def get_y(self):
+        return tf.convert_to_tensor(self.y, dtype=tf.float32)
+    
 
 

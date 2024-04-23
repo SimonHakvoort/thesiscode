@@ -409,6 +409,7 @@ class EMOS:
         cdf_values = self.forecast_distribution.comp_cdf(X, threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
 
+
     def twCRPS(self, X, y, threshold, samples):
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
         return self.loss_twCRPS_sample_general(X, y, chain_function, samples)
@@ -565,3 +566,27 @@ class EMOS:
         print("Final loss: ", loss_value.numpy())	
         return hist
             
+
+
+
+class BootstrapEmos():
+    def __init__(self, setup):
+        self.setup = setup
+        self.num_samples = setup['num_samples']
+        self.models = [EMOS(setup) for _ in range(self.num_samples)]
+
+    def fit(self, X, y, steps, printing = True, subset_size = None):
+        for model in self.models:
+            # sample data from X, y
+            indices = np.random.choice(X.shape[0], X.shape[0], replace=True)
+            X_sample = tf.gather(X, indices)
+            y_sample = tf.gather(y, indices)
+            model.fit(X_sample, y_sample, steps, printing, subset_size)
+
+    # def Brier_Score_Bootstrap(self, X, y, threshold):
+
+
+
+
+
+

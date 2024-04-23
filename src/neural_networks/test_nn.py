@@ -1,10 +1,16 @@
 import numpy as np
+from neural_networks.get_data import get_tf_data
 from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
 
 neighbourhood_size = 5
 feature_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
+
+feature_names_dict = {name: 1 for name in feature_names}
+
+feature_names_dict['wind_speed'] = 5
+
 fold = 1
 ignore = ['229', '285', '323']
 
@@ -19,7 +25,9 @@ y = np.concatenate((y_1, y_2), axis=0)
 
 
 
-forecast_distribution = 'distr_mixture'
+
+
+forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
@@ -30,10 +38,11 @@ chain_function_std = 2
 chain_function_constant = 0.3
 
 optimizer = 'adam'
-learning_rate = 0.0005
+learning_rate = 0.0002
 
-dense_l2_regularization = 0.0002
-hidden_units_list = [40, 30]
+dense_l2_regularization = 0.0003
+hidden_units_list = [100, 100]
+add_forecast_layer = True
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -44,6 +53,7 @@ setup_distribution = {
 setup_nn_architecture = {
     'hidden_units_list': hidden_units_list,
     'dense_l2_regularization': dense_l2_regularization,
+    'add_forecast_layer': add_forecast_layer,
 }
 
 setup_loss = {
@@ -71,7 +81,7 @@ setup = {
 
 nn = NNForecast(**setup)
 
-history = nn.fit(X, y, epochs=100, batch_size=32)
+history = nn.fit(X, y, epochs=200, batch_size=32)
 
 fold = 3
 X_test, y_test = get_tensors(neighbourhood_size, feature_names, fold, ignore = ignore)

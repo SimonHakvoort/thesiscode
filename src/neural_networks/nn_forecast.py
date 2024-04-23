@@ -7,7 +7,8 @@ from tensorflow.keras import regularizers
 
 from src.neural_networks.nn_distributions import distribution_name
 from src.neural_networks.nn_model import NNModel, NNModel
-from src.neural_networks.normalizer import Normalizer
+
+import pdb
 
 class NNForecast:
     def __init__(self, **kwargs):
@@ -23,7 +24,7 @@ class NNForecast:
 
         self._init_optimizer(**kwargs['setup_optimizer'])
 
-        self.model.compile(optimizer=self.optimizer, loss=self.loss_function)
+        self.model.compile(optimizer=self.optimizer, loss=self.loss_function, run_eagerly=True)
 
     def _init_distribution(self, **kwargs):
         if 'forecast_distribution' not in kwargs:
@@ -95,24 +96,14 @@ class NNForecast:
 
     def _compute_CRPS(self, y_true, y_pred, sample_size):
         distribution = self.forecast_distribution.get_distribution(y_pred)
-        tf.print("Event Shape:", distribution.event_shape)
-        tf.print("Batch Shape:", distribution.batch_shape)
-
-        tf.print("y_true shape:", y_true.shape)
-        tf.print("y_pred shape:", y_pred.shape)
 
         sample_shape = tf.concat([[sample_size], tf.ones_like(distribution.batch_shape_tensor(), dtype=tf.int32)], axis=0)
 
         X_1 = distribution.sample(sample_shape)
         X_2 = distribution.sample(sample_shape)
 
-        tf.print("X_1 shape:", X_1.shape)
-        tf.print("X_2 shape:", X_2.shape)
         E_1 = tf.reduce_mean(tf.abs(X_1 - tf.squeeze(y_true)), axis=0)
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
-
-        print("E_1 shape:", E_1.shape)
-        print("E_2 shape:", E_2.shape)
 
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
         
@@ -171,27 +162,14 @@ class NNForecast:
         y_pred = self.predict(X)
         return self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
     
-    def _build_nn(self, nn_architecture, forecast_distribution):
-        inputs = tf.KerasInput(shape=(self.input_shape,))
-        
-        if self.normalization_layer:
-            norm = self.normalization_layer(inputs)
-            x = Flatten()(norm)
-        else:
-            x = Flatten()(inputs)
-
-        for i in range(self.hidden_layers):
-            # check if hidden_units_list is an iterable or a single value
-            if isinstance(self.hidden_units_list, int):
-                x = Dense(self.hidden_units_list, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(self.dense_l2_regularization))(x)
-            else:
-                x = Dense(self.hidden_units_list[i], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(self.dense_l2_regularization))(x)
-
-        x = forecast_distribution.build_output_layers(x)
-
-        x = Concatenate()(x)
-
-        return Model(inputs=inputs, outputs=x)
+    def Brier_Score(self, X, y, threshold):
+        y_pred = self.predict(X)
+        distribution = self.forecast_distribution.get_distribution(y_pred)
+        cdf_values = distribution.cdf(threshold)
+        return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
+    
+    def indicator_function(self, y, threshold):
+        return tf.cast(y <= threshold, tf.float32)
     
     def fit(self, X, y, epochs=100, batch_size=32):
         X = self.scaler.fit_transform(X)

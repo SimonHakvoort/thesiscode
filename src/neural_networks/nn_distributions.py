@@ -5,6 +5,8 @@ from tensorflow.keras.constraints import Constraint
 
 from src.models.probability_distributions import DistributionMixture
 
+import pdb
+
 def distribution_name(distribution, **kwargs):
     if distribution.lower() in ['trunc_normal', 'truncated_normal', 'distr_trunc_normal', 'distr_tn', 'tn', 'truncnorm']:
         return NNTruncNormal()
@@ -40,6 +42,12 @@ class NNTruncNormal():
         mu = Dense(1, activation='linear')
         sigma = Dense(1, activation='softplus')
         return mu, sigma
+    
+    def add_forecast_layers(self, output_layer, inputs):
+        # we get the mu and the sigma of the build_output_layer, and add the first element of inputs to mu
+        mu = output_layer[:,0]
+        sigma = output_layer[:,1]
+        return mu + inputs[:, 0], sigma
     
 
 class NNLogNormal():
@@ -78,17 +86,16 @@ class NNMixture():
         weight = y_pred[:, 0]
         params_1 = y_pred[:, 1:1+self.num_params_distribution_1]
         params_2 = y_pred[:, 1+self.num_params_distribution_1:]
-        return DistributionMixture(self.distribution_1.get_distribution(params_1), self.distribution_2.get_distribution(params_2), weight)
         
-        # dist_1 = self.distribution_1.get_distribution(params_1)
-        # dist_2 = self.distribution_2.get_distribution(params_2)
+        dist_1 = self.distribution_1.get_distribution(params_1)
+        dist_2 = self.distribution_2.get_distribution(params_2)
 
-        # cat = tfp.distributions.Categorical(probs=[weight, 1 - weight])
+        cat = tfp.distributions.Categorical(probs=tf.stack([weight, 1 - weight], axis=-1))
 
-        # return tfp.distributions.Mixture(
-        #     cat,
-        #     [dist_1, dist_2]
-        # )
+        return tfp.distributions.Mixture(
+            cat,
+            [dist_1, dist_2]
+        )
     
     def build_output_layers(self):
         weight = Dense(1, activation='sigmoid')
@@ -96,4 +103,3 @@ class NNMixture():
         params_2 = self.distribution_2.build_output_layers()
         return weight, *params_1, *params_2
         
-
