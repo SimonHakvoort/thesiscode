@@ -1,5 +1,5 @@
 import numpy as np
-from neural_networks.get_data import normalize_1d_features, stack_1d_features, get_tf_data
+from neural_networks.get_data import normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features, get_tf_data
 from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
@@ -23,17 +23,17 @@ X_2, y_2 = get_tensors(neighbourhood_size, feature_names, fold, ignore = ignore)
 X = np.concatenate((X_1, X_2), axis=0)
 y = np.concatenate((y_1, y_2), axis=0)
 
-dataset = get_tf_data([1,2], feature_names_dict, ignore=ignore)
+test_data = get_tf_data([1,2], feature_names_dict, ignore=ignore)
 
-dataset = dataset.map(lambda x, y: stack_1d_features(x, y))
+test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
 
-dataset, mean, std = normalize_1d_features(dataset)
+test_data, mean, std = normalize_1d_features(test_data)
 
-dataset = dataset.shuffle(len(dataset))
+test_data = test_data.shuffle(len(test_data))
 
-dataset = dataset.batch(32)
+test_data = test_data.batch(32)
 
-dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
@@ -43,7 +43,7 @@ forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_CRPS_sample'
+loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 12
 chain_function_std = 2
@@ -52,8 +52,8 @@ chain_function_constant = 0.3
 optimizer = 'adam'
 learning_rate = 0.0002
 
-dense_l2_regularization = 0.0003
-hidden_units_list = [100, 100]
+dense_l2_regularization = 0.002
+hidden_units_list = [100, 100, 100, 100]
 add_forecast_layer = True
 
 setup_distribution = {
@@ -93,9 +93,18 @@ setup = {
 
 nn = NNForecast(**setup)
 
-history = nn.fit(X, y, epochs=200, batch_size=32)
+history = nn.fit(test_data, epochs=200, batch_size=32)
 
 fold = 3
-X_test, y_test = get_tensors(neighbourhood_size, feature_names, fold, ignore = ignore)
+test_data = get_tf_data([fold], feature_names_dict, ignore=ignore)
 
-print(nn.CRPS(X_test, y_test, 5000).numpy()) 
+test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
+
+test_data = normalize_1d_features_with_mean_std(test_data, mean, std)
+
+test_data = test_data.batch(32)
+
+test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+print(nn.CRPS(test_data, 1000))
+

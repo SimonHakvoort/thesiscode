@@ -112,9 +112,21 @@ class NNForecast:
         return self._compute_CRPS(y_true, y_pred, self.sample_size)
 
     
-    def CRPS(self, X, y, sample_size):
-        y_pred = self.predict(X)
-        return self._compute_CRPS(y, y_pred, sample_size)
+    # def CRPS(self, X, y, sample_size):
+    #     y_pred = self.predict(X)
+    #     return self._compute_CRPS(y, y_pred, sample_size)
+    
+    def CRPS(self, dataset, sample_size):
+        y_true = []
+        y_pred = []
+
+        for X, y in dataset:
+            y_true.append(y)
+            y_pred.append(self.predict(X))
+            
+        y_true = tf.concat(y_true, axis=0)
+        y_pred = tf.concat(y_pred, axis=0)
+        return self._compute_CRPS(y_true, y_pred, sample_size)
     
     def _chain_function_indicator(self, x, threshold):
         return tf.maximum(x, threshold)
@@ -171,13 +183,12 @@ class NNForecast:
     def indicator_function(self, y, threshold):
         return tf.cast(y <= threshold, tf.float32)
     
-    def fit(self, X, y, epochs=100, batch_size=32):
-        X = self.scaler.fit_transform(X)
+    def fit(self, dataset, epochs=100, batch_size=32):
 
-        history = self.model.fit(X, y, epochs=epochs, batch_size=batch_size)
+        history = self.model.fit(dataset, epochs=epochs)
 
         return history
 
     def predict(self, X):
-        X = self.scaler.transform(X)
+
         return self.model.predict(X)

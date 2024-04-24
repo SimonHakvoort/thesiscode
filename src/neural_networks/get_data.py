@@ -82,6 +82,13 @@ def normalize_1d_features(dataset):
     
     return dataset.map(normalize), mean, std
 
+def normalize_1d_features_with_mean_std(dataset, mean, std):
+    def normalize(x, y):
+        x['features_1d'] = (x['features_1d'] - mean) / std
+        return x, y
+    
+    return dataset.map(normalize)
+
 
 
             

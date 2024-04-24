@@ -17,31 +17,24 @@ class NNModel(Model):
 
         self.concatenate = Concatenate()
 
-        self.add_forecast_layer = False
-        if 'add_forecast_layer' in kwargs:
-            self.add_forecast_layer = kwargs['add_forecast_layer']
-            self.forecast_distribution = forecast_distribution
-
     
     def call(self, inputs):
 
-        x = Flatten()(inputs)
-
-        inputs = x
+        x = Flatten()(inputs['features_1d'])
         
         for layer in self.hidden_layers:
             x = layer(x) 
 
         
         outputs = self.concatenate([layer(x) for layer in self.output_layers])
-        # pdb.set_trace()
-        # outputs = self.forecast_distribution.add_forecast_layers(outputs, inputs)
 
-        # pdb.set_trace()
+        # we add inputs['wind_speed_forecast'] to the first element of outputs
+        #updated_outputs = tf.concat([outputs[:,0] + inputs['wind_speed_forecast'], outputs[:,1]], axis=1)
+        updated_outputs = tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
 
-        # outputs = tf.stack(outputs, axis=1)
 
-        return outputs
+        #pdb.set_trace()
+        return updated_outputs
 
         
 class ResidualLayer(tf.keras.layers.Layer):
