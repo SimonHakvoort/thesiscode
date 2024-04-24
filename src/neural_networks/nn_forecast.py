@@ -24,7 +24,7 @@ class NNForecast:
 
         self._init_optimizer(**kwargs['setup_optimizer'])
 
-        self.model.compile(optimizer=self.optimizer, loss=self.loss_function, run_eagerly=True)
+        self.model.compile(optimizer=self.optimizer, loss=self.loss_function)#, run_eagerly=True)
 
     def _init_distribution(self, **kwargs):
         if 'forecast_distribution' not in kwargs:

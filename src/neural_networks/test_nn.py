@@ -1,5 +1,5 @@
 import numpy as np
-from neural_networks.get_data import get_tf_data
+from neural_networks.get_data import normalize_1d_features, stack_1d_features, get_tf_data
 from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
@@ -9,7 +9,7 @@ feature_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 feature_names_dict = {name: 1 for name in feature_names}
 
-feature_names_dict['wind_speed'] = 5
+feature_names_dict['wind_speed'] = 1
 
 fold = 1
 ignore = ['229', '285', '323']
@@ -22,6 +22,18 @@ X_2, y_2 = get_tensors(neighbourhood_size, feature_names, fold, ignore = ignore)
 
 X = np.concatenate((X_1, X_2), axis=0)
 y = np.concatenate((y_1, y_2), axis=0)
+
+dataset = get_tf_data([1,2], feature_names_dict, ignore=ignore)
+
+dataset = dataset.map(lambda x, y: stack_1d_features(x, y))
+
+dataset, mean, std = normalize_1d_features(dataset)
+
+dataset = dataset.shuffle(len(dataset))
+
+dataset = dataset.batch(32)
+
+dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 

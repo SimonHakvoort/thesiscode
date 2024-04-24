@@ -171,12 +171,14 @@ class ForecastSample():
         for feature_name in feature_names:
             setattr(self, feature_name, None)
         self.y = None
-        self.contains_grid = False
 
     def add_feature(self, feature_name, value):
         setattr(self, feature_name, value)
         if type(value) == np.ndarray:
-            self.contains_grid = True
+            # add a boolean attribute for each feature name that is True if the feature is a grid
+            setattr(self, feature_name + '_grid', True)
+        else:
+            setattr(self, feature_name + '_grid', False)
 
     def add_y(self, y):
         self.y = y
@@ -184,15 +186,31 @@ class ForecastSample():
     def get_tensor(self):
         return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32), tf.convert_to_tensor(self.y, dtype=tf.float32)
     
+    def check_if_everything_is_set(self):
+        for feature_name in self.feature_names:
+            if getattr(self, feature_name) is None:
+                return False
+        return self.y is not None
+    
     def get_X(self):
-        if not self.contains_grid:
-            return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32)
-        else:
-            # make a tuple containing the grid and the other features
-            return (tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names if type(getattr(self, feature_name)) != np.ndarray], dtype=tf.float32), 
-                    tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names if type(getattr(self, feature_name)) == np.ndarray], dtype=tf.float32)) 
-        
-          
+        if not self.check_if_everything_is_set():
+            raise ValueError('Not all features are set')
+        # make a dictionary with the feature names as keys and the values as tensors. In case of a grid, the name of the key is the feature name + '_grid'
+        X = {}
+        for feature_name in self.feature_names:
+            if getattr(self, feature_name + '_grid'):
+                X[feature_name + '_grid'] = tf.convert_to_tensor(getattr(self, feature_name), dtype=tf.float32)
+            else:
+                X[feature_name] = tf.convert_to_tensor(getattr(self, feature_name), dtype=tf.float32)
+
+        if 'wind_speed' in X:
+            X['wind_speed_forecast'] = X['wind_speed']
+        elif 'wind_speed_grid' in X:
+            grid = X['wind_speed_grid']
+            central_value = grid[grid.shape[0] // 2, grid.shape[1] // 2]
+            X['wind_speed_forecast'] = central_value
+        return X
+     
     def get_y(self):
         return tf.convert_to_tensor(self.y, dtype=tf.float32)
     
