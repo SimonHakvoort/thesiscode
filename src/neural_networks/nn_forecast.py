@@ -142,7 +142,7 @@ class NNForecast:
         return first_part + second_part 
     
     def _chain_function_normal_cdf_for_twCRPS(self, x):
-        return self.chain_function_normal_cdf(x, self.chain_function_normal_distribution)
+        return self._chain_function_normal_cdf(x, self.chain_function_normal_distribution)
 
     def _chain_function_normal_cdf_plus_constant(self, x, normal_distribution, constant):
         first_part = (x - normal_distribution.loc) * normal_distribution.cdf(x)

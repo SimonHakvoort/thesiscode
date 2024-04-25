@@ -42,12 +42,10 @@ class NNTruncNormal():
         mu = Dense(1, activation='linear')
         sigma = Dense(1, activation='softplus')
         return mu, sigma
+
     
-    def add_forecast_layers(self, output_layer, inputs):
-        # we get the mu and the sigma of the build_output_layer, and add the first element of inputs to mu
-        mu = output_layer[:,0]
-        sigma = output_layer[:,1]
-        return mu + inputs[:, 0], sigma
+    def add_forecast(self, outputs, inputs):
+        return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
     
 
 class NNLogNormal():
@@ -60,6 +58,10 @@ class NNLogNormal():
         mu = Dense(1, activation='linear')
         sigma = Dense(1, activation='softplus')
         return mu, sigma
+    
+    def add_forecast(self, outputs, inputs):
+        adjusted_mean = outputs[:, 0:1] + tf.math.log(tf.expand_dims(inputs['wind_speed_forecast'], axis=-1)) - tf.square(outputs[:, 1:])/2
+        return tf.concat([adjusted_mean, outputs[:, 1:]], axis=1)
     
 
 class NNGEV():
@@ -74,6 +76,9 @@ class NNGEV():
         scale = Dense(1, activation='softplus')
         shape = Dense(1, activation='linear', kernel_constraint=SymmetricClipConstraint(1.0))
         return loc, scale, shape
+    
+    def add_forecast(self, outputs, inputs):
+        return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
 
 class NNMixture():
     def __init__(self, distribution_1, distribution_2):
@@ -102,4 +107,7 @@ class NNMixture():
         params_1 = self.distribution_1.build_output_layers()
         params_2 = self.distribution_2.build_output_layers()
         return weight, *params_1, *params_2
+    
+    def add_forecast(self, outputs, inputs):
+        return tf.concat([outputs[:, 0:1], self.distribution_1.add_forecast(outputs[:, 1:1+self.num_params_distribution_1], inputs), self.distribution_2.add_forecast(outputs[:, 1+self.num_params_distribution_1:], inputs)], axis=1)
         
