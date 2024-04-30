@@ -408,11 +408,34 @@ class EMOS:
         
         cdf_values = self.forecast_distribution.comp_cdf(X, threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
+    
+    def Brier_Score_tfdataset(self, data, threshold):
+        """
+        The loss function for the Brier score, based on the forecast distribution and observations, using a tf.dataset.
+
+        Arguments:
+        - data (tf.dataset): the dataset containing the input data and observations.
+        - threshold (float): the threshold for the Brier score.
+
+        Returns:
+        - the Brier score at the given threshold.
+        """
+        brier_score = 0
+        data_size = len(data)
+        for X, y in data:
+            brier_score += self.Brier_Score(X, y, threshold) * len(y) / data_size
+
+        return brier_score
+
 
 
     def twCRPS(self, X, y, threshold, samples):
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
         return self.loss_twCRPS_sample_general(X, y, chain_function, samples)
+    
+    def twCRPS_tfdataset(self, data, threshold, samples):
+        chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
+        return self.loss_twCRPS_tfdataset_general(data, chain_function, samples)
     
     def loss_twCRPS_sample(self, X, y):
         return self.loss_twCRPS_sample_general(X, y, self.chain_function, self.samples)
@@ -435,7 +458,21 @@ class EMOS:
 
 
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
-        #return tf.reduce_mean(E_1_) - 0.5 * tf.reduce_mean(E_2_)
+    
+    def loss_twCRPS_tfdataset_general(self, data, chain_function, samples):
+        twcrps = 0
+        count = 0
+        for X, y in data:
+            forecast_distribution = self.forecast_distribution.get_distribution(X)
+            X_1 = forecast_distribution.sample(samples)
+            X_2 = forecast_distribution.sample(samples)
+            vX_1 = chain_function(X_1)
+            vX_2 = chain_function(X_2)
+            E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
+            E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
+            twcrps += tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
+            count += 1
+        return twcrps / count
         
 
     def chain_function_indicator(self, y):
@@ -500,6 +537,13 @@ class EMOS:
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
     
+    def _train_step(self, X, y):
+        loss_value, grads = self._compute_loss_and_gradient(X, y)
+        if tf.math.reduce_any(tf.math.is_nan(grads[0])):
+            return
+        self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.parameter_dict.values()))
+        return loss_value
+    
     def predict(self, X):
         """
         Predict the forecast distribution for the given input data.
@@ -512,6 +556,8 @@ class EMOS:
         """
         return self.forecast_distribution.get_distribution(X)
 
+
+    # def fit_dataset(self, dataset, steps, printing = True, subset_size = None):
      
 
     def fit(self, X, y, steps, printing = True, subset_size = None):
@@ -565,6 +611,23 @@ class EMOS:
                 print("Step: {}, Loss: {}".format(step, loss_value))
         print("Final loss: ", loss_value.numpy())	
         return hist
+    
+
+    @tf.function
+    def fit_tfdataset(self, data, epochs, printing = True, subset_size = None):
+        hist = []
+        for epoch in range(epochs):
+            epoch_loss = 0
+            batch_count = 0
+            for X, y in data:
+                loss_value = self._train_step(X, y)
+                epoch_loss += loss_value
+                batch_count += 1
+            hist.append(epoch_loss / batch_count)
+            if printing:
+                tf.print("Epoch: {}, Loss: {}".format(epoch, hist[-1]))
+        return hist
+                
             
 
 

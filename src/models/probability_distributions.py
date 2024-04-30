@@ -62,13 +62,13 @@ class DistributionMixture(tfp.distributions.Distribution):
         samples_1 = self.distribution_1.sample(n, seed=seed)
         samples_2 = self.distribution_2.sample(n, seed=seed)
         
-        # uniform_samples = tf.random.uniform([n, self.distribution_1.batch_shape[0]], seed=seed)
-        uniform_samples = tf.random.uniform([n], seed=seed)
+        uniform_samples = tf.random.uniform([n, self.distribution_1.batch_shape[0]], seed=seed)
+        # uniform_samples = tf.random.uniform([n], seed=seed)
 
         # Create a soft mask using a sigmoid function
         mask = tf.sigmoid((self.weight - uniform_samples) * 10000)
 
-        mask = tf.reshape(mask, [-1, 1])
+        # mask = tf.reshape(mask, [-1, 1])
 
         return mask * samples_1 + (1 - mask) * samples_2
 

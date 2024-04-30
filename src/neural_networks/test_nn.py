@@ -1,15 +1,20 @@
 import numpy as np
 from neural_networks.get_data import normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features, get_tf_data
+from neural_networks.nn_model import NNModel
 from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
+from tensorflow.keras.models import load_model
+
 
 neighbourhood_size = 5
-feature_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
+features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
-feature_names_dict = {name: 1 for name in feature_names}
+# nnmodel = NNModel()
 
-feature_names_dict['wind_speed'] = 1
+features_names_dict = {name: 1 for name in features_names}
+
+features_names_dict['wind_speed'] = 1
 
 ignore = ['229', '285', '323']
 
@@ -22,7 +27,7 @@ ignore = ['229', '285', '323']
 # X = np.concatenate((X_1, X_2), axis=0)
 # y = np.concatenate((y_1, y_2), axis=0)
 
-train_data = get_tf_data([1,2], feature_names_dict, ignore=ignore)
+train_data = get_tf_data([1,2], features_names_dict, ignore=ignore)
 
 train_data = train_data.map(lambda x, y: stack_1d_features(x, y))
 
@@ -38,7 +43,7 @@ train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
-forecast_distribution = 'distr_mixture'
+forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
@@ -46,14 +51,14 @@ loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 12
 chain_function_std = 2
-chain_function_constant = 0.1
+chain_function_constant = 0.2
 
 optimizer = 'adam'
 learning_rate = 0.0002
 
 dense_l1_regularization = 0.000
-dense_l2_regularization = 0.002
-hidden_units_list = [100, 100, 100, 100]
+dense_l2_regularization = 0.003
+hidden_units_list = [100, 100, 100]
 add_forecast_layer = True
 
 setup_distribution = {
@@ -84,20 +89,24 @@ setup_optimizer = {
 
 setup = {
     'setup_distribution': setup_distribution,
-    'feature_names': feature_names,
+    'features_names': features_names,
     'setup_loss': setup_loss,
     'setup_optimizer': setup_optimizer,
     'sample_size': 100,
     'setup_nn_architecture': setup_nn_architecture,
 }
 
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn'
 
 nn = NNForecast(**setup)
 
-history = nn.fit(train_data, epochs=100, batch_size=32)
+
+
+
+history = nn.fit(train_data, epochs=30, batch_size=32)
 
 fold = 3
-test_data = get_tf_data([fold], feature_names_dict, ignore=ignore)
+test_data = get_tf_data([fold], features_names_dict, ignore=ignore)
 
 test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
 
@@ -108,4 +117,14 @@ test_data = test_data.batch(len(test_data))
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 print(nn.CRPS(test_data, 1000))
+
+print(nn.model.get_forecast_distribution())
+
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn'
+
+nn.my_save(filepath)
+
+nn.model.summary()
+
+x = 3
 

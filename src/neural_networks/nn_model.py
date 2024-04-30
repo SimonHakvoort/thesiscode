@@ -1,12 +1,20 @@
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Dense, Concatenate, Flatten
+import pickle
 
 import pdb
+
+from neural_networks.nn_distributions import NNDistribution, NNTruncNormal
 
 class NNModel(Model):
     def __init__(self, forecast_distribution, **kwargs):
         super(NNModel, self).__init__()
+
+        self._forecast_distribution = forecast_distribution
+
+        if not kwargs:
+            return
 
         self.hidden_layers = []
 
@@ -25,9 +33,14 @@ class NNModel(Model):
 
         self.concatenate = Concatenate()
 
-        self.forecast_distribution = forecast_distribution
+        self.setup = {
+            'hidden_units_list': kwargs['hidden_units_list'],
+            'dense_l1_regularization': kwargs['dense_l1_regularization'],
+            'dense_l2_regularization': kwargs['dense_l2_regularization'],
+            'forecast_distribution': forecast_distribution,
+        }
+        
 
-    
     def call(self, inputs):
 
         x = Flatten()(inputs['features_1d'])
@@ -38,16 +51,52 @@ class NNModel(Model):
         
         outputs = self.concatenate([layer(x) for layer in self.output_layers])
 
-        # we add inputs['wind_speed_forecast'] to the first element of outputs
-        #updated_outputs = tf.concat([outputs[:,0] + inputs['wind_speed_forecast'], outputs[:,1]], axis=1)
-        # updated_outputs = tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
-        
-        updated_outputs = self.forecast_distribution.add_forecast(outputs, inputs)
+        updated_outputs = self._forecast_distribution.add_forecast(outputs, inputs)
 
-        #pdb.set_trace()
         return updated_outputs
+    
+    def get_forecast_distribution(self):
+        return self._forecast_distribution
+    
+    def get_config(self):
+        config = super(NNModel, self).get_config()
+        config.update({
+            'forecast_distribution': self._forecast_distribution.get_config()
+        })
+        return config
+    
+    @classmethod
+    def from_config(cls, config):
+        forecast_distribution = config.pop('forecast_distribution')
+        # forecast_distribution = NNTruncNormal.from_config(forecast_distributions_config)
+        return cls(forecast_distribution, **config)
+    
+    def my_save(self, filepath):
+        configuration_path = filepath + '/configuration'
+        with open(configuration_path, 'wb') as f:
+            pickle.dump(self.setup, f)
+
+        # save the weights 
+        self.save_weights(filepath + '/weights')
+
+
+    @staticmethod
+    def my_load(filepath):
+        configuration_path = filepath + '/configuration'
+        
+        with open(configuration_path, 'rb') as f:
+            configuration = pickle.load(f)
+        
+        # forecast_distribution = configuration['forecast_distribution']
+        model = NNModel(**configuration)
+
+        model.load_weights(filepath + '/weights')
+
+        return model
+
 
         
+                
 class ResidualLayer(tf.keras.layers.Layer):
     def __init__(self, units, **kwargs):
         super(ResidualLayer, self).__init__() 

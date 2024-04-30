@@ -4,33 +4,34 @@ from tensorflow.keras.layers import Dense, Concatenate, Conv2D, Flatten
 from tensorflow.keras.models import Model
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras import regularizers
+from tensorflow.keras.utils import register_keras_serializable
 
 from src.neural_networks.nn_distributions import distribution_name
 from src.neural_networks.nn_model import NNModel, NNModel
 
 import pdb
+import pickle
+import os
 
 class NNForecast:
     def __init__(self, **kwargs):
-        self._init_distribution(**kwargs['setup_distribution'])
+        if not kwargs:
+            return
 
         self.sample_size = kwargs['sample_size']
-        self.features_names = kwargs['feature_names']
-        self.scaler = StandardScaler() 
+        self.features_names = kwargs['features_names']
 
         self._init_loss_function(**kwargs['setup_loss'])
 
-        self.model = NNModel(self.forecast_distribution, **kwargs['setup_nn_architecture'])
+        if 'setup_nn_architecture' not in kwargs:
+            return
+
+        self.model = NNModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
 
         self._init_optimizer(**kwargs['setup_optimizer'])
 
         self.model.compile(optimizer=self.optimizer, loss=self.loss_function)#, run_eagerly=True)
 
-    def _init_distribution(self, **kwargs):
-        if 'forecast_distribution' not in kwargs:
-            raise ValueError("forecast_distribution must be provided")
-        else:
-            self.forecast_distribution = distribution_name(kwargs['forecast_distribution'], **kwargs)
 
 
     def _init_loss_function(self, **kwargs):
@@ -92,10 +93,11 @@ class NNForecast:
                 
                 self.chain_function_normal_distribution = tfp.distributions.Normal(loc=kwargs['chain_function_mean'], scale=kwargs['chain_function_std'])
 
-        
+    def get_distribution(self, y_pred):
+        return self.model._forecast_distribution.get_distribution(y_pred)
 
     def _compute_CRPS(self, y_true, y_pred, sample_size):
-        distribution = self.forecast_distribution.get_distribution(y_pred)
+        distribution = self.get_distribution(y_pred)
 
         sample_shape = tf.concat([[sample_size], tf.ones_like(distribution.batch_shape_tensor(), dtype=tf.int32)], axis=0)
 
@@ -107,7 +109,6 @@ class NNForecast:
 
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
         
-
     def _loss_CRPS_sample(self, y_true, y_pred):
         return self._compute_CRPS(y_true, y_pred, self.sample_size)
 
@@ -154,7 +155,7 @@ class NNForecast:
 
     
     def _compute_twCRPS(self, y_true, y_pred, sample_size, chain_function):
-        distribution = self.forecast_distribution.get_distribution(y_pred)
+        distribution = self.get_distribution(y_pred)
 
         X_1 = distribution.sample(sample_size)
         X_2 = distribution.sample(sample_size)
@@ -170,18 +171,101 @@ class NNForecast:
     def _loss_twCRPS_sample(self, y_true, y_pred):
         return self._compute_twCRPS(y_true, y_pred, self.sample_size, self.chain_function)
     
-    def twCRPS(self, X, y, sample_size, t):
-        y_pred = self.predict(X)
-        return self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
+    # def twCRPS(self, X, y, sample_size, t):
+    #     y_pred = self.predict(X)
+    #     return self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
+    
+    def twCRPS(self, dataset, sample_size, t):
+        y_true = []
+        y_pred = []
+
+        for X, y in dataset:
+            y_true.append(y)
+            y_pred.append(self.predict(X))
+            
+        y_true = tf.concat(y_true, axis=0)
+        y_pred = tf.concat(y_pred, axis=0)
+        return self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
     
     def Brier_Score(self, X, y, threshold):
         y_pred = self.predict(X)
-        distribution = self.forecast_distribution.get_distribution(y_pred)
+        distribution = self.get_distribution(y_pred)
         cdf_values = distribution.cdf(threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
     
     def indicator_function(self, y, threshold):
         return tf.cast(y <= threshold, tf.float32)
+    
+    def my_save(self, filepath):
+        os.makedirs(filepath + '/nnmodel', exist_ok=True)
+        self.model.my_save(filepath + '/nnmodel')
+
+        setup = {
+            'sample_size': self.sample_size,
+            'features_names': self.features_names,
+        }
+
+        setup['setup_loss'] = {}
+
+        if hasattr(self, 'loss_function'):
+            if self.loss_function == self._loss_CRPS_sample:
+                setup['setup_loss']['loss_function'] = 'loss_CRPS_sample'
+            elif self.loss_function == self._loss_twCRPS_sample:
+                setup['setup_loss']['loss_function'] = 'loss_twCRPS_sample'
+                if hasattr(self, 'chain_function'):
+                    setup['setup_loss']['chain_function'] = self.chain_function.__name__
+                    if hasattr(self, 'chain_function_threshold'):
+                        setup['setup_loss']['chain_function_threshold'] = self.chain_function_threshold
+                    if hasattr(self, 'chain_function_normal_distribution'):
+                        setup['setup_loss']['chain_function_mean'] = self.chain_function_normal_distribution.loc.numpy()
+                        setup['setup_loss']['chain_function_std'] = self.chain_function_normal_distribution.scale.numpy()
+                    if hasattr(self, 'chain_function_constant'):
+                        setup['setup_loss']['chain_function_constant'] = self.chain_function_constant
+
+        setup['setup_optimizer'] = {
+            'optimizer': self.optimizer.__class__.__name__.lower(),
+            'learning_rate': self.optimizer.learning_rate.numpy(),
+        }
+
+
+        with open(filepath + '/attributes', 'wb') as f:
+            pickle.dump(setup, f)
+
+    @classmethod
+    def my_load(self, filepath):
+        with open(filepath + '/attributes', 'rb') as f:
+            attributes = pickle.load(f)
+
+        nnforecast = NNForecast(**attributes)
+
+        nnforecast.model = NNModel.my_load(filepath + '/nnmodel')
+
+        nnforecast._init_optimizer(**attributes['setup_optimizer'])
+
+        nnforecast.model.compile(optimizer=nnforecast.optimizer, loss=nnforecast.loss_function)
+
+        return nnforecast
+
+    @classmethod
+    def load(cls, filepath):
+        with open(filepath + '/attributes', 'rb') as f:
+            attributes = pickle.load(f)
+
+        nnforecast = cls(**attributes)
+
+        # let custom objects contain the correct loss function
+        custom_objects = {
+            '_loss_CRPS_sample': nnforecast._loss_CRPS_sample,
+            '_loss_twCRPS_sample': nnforecast._loss_twCRPS_sample,
+        }
+
+        nnforecast.model = NNModel.load(filepath + '/nnmodel', **custom_objects)
+
+        nnforecast.model.compile(optimizer=nnforecast.optimizer, loss=nnforecast.loss_function)
+
+        return nnforecast
+
+
     
     def fit(self, dataset, epochs=100, batch_size=32):
 
