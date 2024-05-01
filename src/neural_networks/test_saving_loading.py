@@ -24,7 +24,7 @@ train_data, mean, std = normalize_1d_features(train_data)
 
 
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn/test'
 
 model = NNForecast.my_load(filepath)
 

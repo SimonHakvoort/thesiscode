@@ -14,7 +14,7 @@ features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 features_names_dict = {name: 1 for name in features_names}
 
-features_names_dict['wind_speed'] = 1
+features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
@@ -43,6 +43,7 @@ train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
+
 forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
@@ -51,15 +52,19 @@ loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 12
 chain_function_std = 2
-chain_function_constant = 0.2
+chain_function_constant = 0.1
 
 optimizer = 'adam'
 learning_rate = 0.0002
 
+
 dense_l1_regularization = 0.000
-dense_l2_regularization = 0.003
+dense_l2_regularization = 0.0003
 hidden_units_list = [100, 100, 100]
-add_forecast_layer = True
+add_nwp_forecast = True
+conv_7x7_units = 5
+conv_5x5_units = 5
+conv_3x3_units = 5
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -71,7 +76,11 @@ setup_nn_architecture = {
     'hidden_units_list': hidden_units_list,
     'dense_l1_regularization': dense_l1_regularization,
     'dense_l2_regularization': dense_l2_regularization,
-    'add_forecast_layer': add_forecast_layer,
+    'add_nwp_forecast': add_nwp_forecast,
+
+    'conv_7x7_units': conv_7x7_units,
+    'conv_5x5_units': conv_5x5_units,
+    'conv_3x3_units': conv_3x3_units,
 }
 
 setup_loss = {
@@ -96,8 +105,6 @@ setup = {
     'setup_nn_architecture': setup_nn_architecture,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn'
-
 nn = NNForecast(**setup)
 
 
@@ -120,11 +127,11 @@ print(nn.CRPS(test_data, 1000))
 
 print(nn.model.get_forecast_distribution())
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn/test'
 
 nn.my_save(filepath)
 
-nn.model.summary()
+
 
 x = 3
 

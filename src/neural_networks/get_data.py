@@ -41,7 +41,13 @@ def get_tf_data(fold, feature_names, ignore = []):
     X = {key: tf.convert_to_tensor(value) for key, value in X.items()}
     y = tf.convert_to_tensor(y_list)
 
+    X['wind_speed_grid'] = tf.expand_dims(X['wind_speed_grid'], axis=-1)
+
     data = tf.data.Dataset.from_tensor_slices((X, y))
+
+    # for the key 'wind_speed_grid' in X, turn the dimension from axa to axax1
+    
+
     return data
 
 

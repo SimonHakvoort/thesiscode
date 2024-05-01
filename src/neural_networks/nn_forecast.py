@@ -7,7 +7,7 @@ from tensorflow.keras import regularizers
 from tensorflow.keras.utils import register_keras_serializable
 
 from src.neural_networks.nn_distributions import distribution_name
-from src.neural_networks.nn_model import NNModel, NNModel
+from src.neural_networks.nn_model import NNConvModel, NNModel, NNModel
 
 import pdb
 import pickle
@@ -26,7 +26,7 @@ class NNForecast:
         if 'setup_nn_architecture' not in kwargs:
             return
 
-        self.model = NNModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
+        self.model = NNConvModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
 
         self._init_optimizer(**kwargs['setup_optimizer'])
 
@@ -187,11 +187,27 @@ class NNForecast:
         y_pred = tf.concat(y_pred, axis=0)
         return self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
     
-    def Brier_Score(self, X, y, threshold):
-        y_pred = self.predict(X)
+    # def Brier_Score(self, X, y, threshold):
+    #     y_pred = self.predict(X)
+    #     distribution = self.get_distribution(y_pred)
+    #     cdf_values = distribution.cdf(threshold)
+    #     return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
+    
+
+    ### Checken of de distribution van de GEV distribution niet NaN geeft!!!!!!
+    def Brier_Score(self, dataset, threshold):
+        y_true = []
+        y_pred = []
+
+        for X, y in dataset:
+            y_true.append(y)
+            y_pred.append(self.predict(X))
+            
+        y_true = tf.concat(y_true, axis=0)
+        y_pred = tf.concat(y_pred, axis=0)
         distribution = self.get_distribution(y_pred)
         cdf_values = distribution.cdf(threshold)
-        return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
+        return tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
     
     def indicator_function(self, y, threshold):
         return tf.cast(y <= threshold, tf.float32)
