@@ -52,7 +52,7 @@ loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 12
 chain_function_std = 2
-chain_function_constant = 0.1
+chain_function_constant = 0.3
 
 optimizer = 'adam'
 learning_rate = 0.0002
@@ -62,9 +62,10 @@ dense_l1_regularization = 0.000
 dense_l2_regularization = 0.0003
 hidden_units_list = [100, 100, 100]
 add_nwp_forecast = True
-conv_7x7_units = 5
+conv_7x7_units = 0
 conv_5x5_units = 5
 conv_3x3_units = 5
+add_wind_conv = True
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -103,6 +104,8 @@ setup = {
     'setup_optimizer': setup_optimizer,
     'sample_size': 100,
     'setup_nn_architecture': setup_nn_architecture,
+
+    'add_wind_conv': add_wind_conv,
 }
 
 nn = NNForecast(**setup)
@@ -124,6 +127,10 @@ test_data = test_data.batch(len(test_data))
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 print(nn.CRPS(test_data, 1000))
+
+print(nn.twCRPS(test_data, 1000, 12))
+
+print(nn.Brier_Score(test_data, 10))
 
 print(nn.model.get_forecast_distribution())
 

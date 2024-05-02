@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from neural_networks.get_data import get_tf_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
 from src.models.train_emos import train_emos
 from src.models.emos import EMOS
 from src.models.get_data import get_tensors
@@ -14,11 +15,13 @@ import pickle as pkl
 import time
 
 
-all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot', 'spatial_variance']
+all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 location_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 scale_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
+
+features_names_dict = {name: 1 for name in all_features}
 
 
 
@@ -64,6 +67,7 @@ setup = {'loss': loss,
          'chain_function_mean': chain_function_mean,
          'chain_function_std': chain_function_std,
          'chain_function_constant': chain_function_constant,
+         'all_features': all_features,
          'location_features': location_features,
          'scale_features': scale_features,
          'random_init': random_init,
@@ -75,28 +79,52 @@ setup = {'loss': loss,
 neighbourhood_size = 11
 epochs = 100
 test_fold = 3
-folds = [1,2]
+
 ignore = ['229', '285', '323']
 
-# tf.debugging.enable_check_numerics()
-folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
+train_data = get_tf_data([1,2], features_names_dict, ignore=ignore)
 
-# time the length that train_emos takes
+train_data = train_data.map(lambda x, y: stack_1d_features(x, y))
+
+train_data, mean, std = normalize_1d_features(train_data)
+
+train_data = train_data.shuffle(len(train_data))
+
+train_data = train_data.batch(64)
+
+train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+setup['feature_mean'] = mean
+setup['feature_std'] = std
+
+emos = EMOS(setup)
+#start timing:
 start = time.time()
 
-model = train_emos(neighbourhood_size, all_features, epochs, folds, setup, ignore=ignore)
+print("Starting training")
 
+loss = emos.fit_tfdataset(train_data, epochs, printing = False)
+
+#end timing:
 end = time.time()
+
+
 print("Time taken to train model: ", end - start)
 
-test_fold = 3
-ignore = ['229', '285', '323']
-X_test, y_test = get_tensors(model.neighbourhood_size, model.all_features, test_fold, ignore)
-X_test = (X_test - model.feature_mean) / model.feature_std
+fold = 3
+test_data = get_tf_data([fold], features_names_dict, ignore=ignore)
 
-print(model.CRPS(X_test, y_test, 20000))
+test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
 
-print(model.Brier_Score(X_test, y_test, 10))
-print(model.Brier_Score(X_test, y_test, 15))
+test_data = normalize_1d_features_with_mean_std(test_data, mean, std)
 
-print(model.twCRPS(X_test, y_test, 12, 1000))
+test_data = test_data.batch(len(test_data))
+
+test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+print(emos.CRPS_tfdataset(test_data, 1000))
+
+print(emos.Brier_Score_tfdataset(test_data, 10))
+print(emos.Brier_Score_tfdataset(test_data, 15))
+
+print(emos.twCRPS_tfdataset(test_data, 12, 1000))

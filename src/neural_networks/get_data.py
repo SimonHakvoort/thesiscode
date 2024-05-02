@@ -41,17 +41,17 @@ def get_tf_data(fold, feature_names, ignore = []):
     X = {key: tf.convert_to_tensor(value) for key, value in X.items()}
     y = tf.convert_to_tensor(y_list)
 
-    X['wind_speed_grid'] = tf.expand_dims(X['wind_speed_grid'], axis=-1)
+    # To ensure that the wind_speed_grid is a 3D tensor, where the final dimension is for the number of channels.
+    if 'wind_speed_grid' in X:
+        X['wind_speed_grid'] = tf.expand_dims(X['wind_speed_grid'], axis=-1)
 
     data = tf.data.Dataset.from_tensor_slices((X, y))
-
-    # for the key 'wind_speed_grid' in X, turn the dimension from axa to axax1
-    
 
     return data
 
 
 def stack_1d_features(features, label):
+    
     feature_names_1d = [key for key, value in features.items() if value.shape == () and key != 'wind_speed_forecast']
     features_1d = [features[key] for key in feature_names_1d]
     features_1d = tf.stack(features_1d, axis=0)
@@ -64,10 +64,18 @@ def stack_1d_features(features, label):
     return features, label
 
 def normalize_1d_features(dataset):
-    # dataset is a tf.data.Dataset. We normalize the value from the key 'features_1d' in the dataset
-    # by subtracting the mean and dividing by the standard deviation
-    # The mean and standard deviation are computed over the entire dataset
+    """
+    Normalizes the key 'features_1d' in the given dataset.
 
+    Args:
+        dataset (tf.data.Dataset): The dataset containing the features to be normalized.
+
+    Returns:
+        tf.data.Dataset: The normalized dataset.
+        float: The mean value used for normalization.
+        float: The standard deviation value used for normalization.
+    """
+    
     mean = 0
 
     for x, y in dataset:
@@ -89,6 +97,19 @@ def normalize_1d_features(dataset):
     return dataset.map(normalize), mean, std
 
 def normalize_1d_features_with_mean_std(dataset, mean, std):
+    """
+    Normalizes the key 'features_1d' in the given dataset using the provided mean and standard deviation.
+
+    Args:
+        dataset (tf.data.Dataset): The dataset containing the features to be normalized.
+        mean (float): The mean value used for normalization.
+        std (float): The standard deviation value used for normalization.
+
+    Returns:
+        tf.data.Dataset: The normalized dataset.
+
+    """
+    
     def normalize(x, y):
         x['features_1d'] = (x['features_1d'] - mean) / std
         return x, y

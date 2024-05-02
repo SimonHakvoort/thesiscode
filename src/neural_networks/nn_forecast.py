@@ -25,8 +25,13 @@ class NNForecast:
 
         if 'setup_nn_architecture' not in kwargs:
             return
+        
+        self.add_wind_conv = kwargs['add_wind_conv']
+        if self.add_wind_conv:
+            self.model = NNConvModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
+        else:
+            self.model = NNModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
 
-        self.model = NNConvModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
 
         self._init_optimizer(**kwargs['setup_optimizer'])
 
@@ -219,6 +224,7 @@ class NNForecast:
         setup = {
             'sample_size': self.sample_size,
             'features_names': self.features_names,
+            'add_wind_conv': self.add_wind_conv,
         }
 
         setup['setup_loss'] = {}
@@ -242,7 +248,6 @@ class NNForecast:
             'optimizer': self.optimizer.__class__.__name__.lower(),
             'learning_rate': self.optimizer.learning_rate.numpy(),
         }
-
 
         with open(filepath + '/attributes', 'wb') as f:
             pickle.dump(setup, f)
