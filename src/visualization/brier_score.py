@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.models.emos import EMOS
+from src.neural_networks.nn_forecast import NNForecast
+
 
 def make_brier_plot(emos, X, y, values, title = ''):
     """
@@ -45,6 +48,18 @@ def get_brier_scores(emos, X, y, values):
         brier_scores[i] = emos.Brier_Score(X, y, threshold)
     return brier_scores
 
+def get_brier_scores_tf(model, data, values):
+    brier_scores = np.zeros(len(values))
+    if type(model) == EMOS:
+        for i, threshold in enumerate(values):
+            brier_scores[i] = model.Brier_Score_tfdataset(data, threshold).numpy()
+    elif type(model) == NNForecast:
+        brier_scores = np.array(model.Brier_Score(data, values))
+    else:
+        raise ValueError('Model type not recognized')
+    return brier_scores
+
+
 def get_brier_skill_scores(emos1, emos2, X, y, values):
     """
     Returns the Brier skill scores for a range of thresholds. We assume that X is already normalized.
@@ -79,6 +94,25 @@ def make_brier_skill_plot(basemodel, models, X, y, values, ylim = None, title = 
     """
     for model in models:
         brier_skill_scores = get_brier_skill_scores(models[model], basemodel, X, y, values)
+        plt.plot(values, brier_skill_scores, label = model)
+
+    # print a striped black horizontal line at y=0
+    plt.axhline(0, color='black', linestyle='--')
+
+    plt.xlabel('wind speed threshold (m/s)')
+    plt.ylabel('Brier skill score')
+    plt.xlim(values[0], values[-1])
+    if ylim != None:
+        plt.ylim(ylim[0], ylim[1])
+    plt.title(title)
+    plt.legend()
+    plt.show()
+
+def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title = 'Brier skill score'):
+    brier_base_model = get_brier_scores_tf(basemodel, data, values)
+    for model in models:
+        brier_scores = get_brier_scores_tf(models[model], data, values)
+        brier_skill_scores = 1 - brier_scores / brier_base_model
         plt.plot(values, brier_skill_scores, label = model)
 
     # print a striped black horizontal line at y=0

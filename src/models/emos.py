@@ -434,7 +434,6 @@ class EMOS:
         - the Brier score at the given threshold.
         """
         brier_score = 0
-        data_size = len(data)
         for X, y in data:
             brier_score += self.Brier_Score(X['features_1d'], y, threshold)
 

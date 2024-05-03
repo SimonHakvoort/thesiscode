@@ -2,7 +2,7 @@ import tensorflow as tf
 
 import pdb
 
-from models.get_data import get_fold_i, get_station_info
+from src.models.get_data import get_fold_i, get_station_info
 
 def get_tf_data(fold, feature_names, ignore = []):
     """

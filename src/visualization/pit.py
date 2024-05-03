@@ -4,6 +4,9 @@ import tensorflow as tf
 import numpy as np
 import tensorflow as tf
 
+from src.models.emos import EMOS
+from src.neural_networks.nn_forecast import NNForecast
+
 def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     """
     Function to make a PIT histogram for a given cdf and data. The cdf needs to have the same shape as y.
@@ -184,6 +187,39 @@ def threshold(X, y, t):
     #variance_greater = tf.gather(variance, indices)
     return X_greater, y_greater
 
+def threshold_tf(data, t):
+    def filter_function(X, y):
+        return y > t
     
+    data = data.unbatch()
+    
+    filtered_data = data.filter(filter_function)
+
+    filtered_data = filtered_data.batch(100000)
+    return filtered_data
+
+def make_cpit_diagram_tf(model_dict, data, t = 0, base_model = None):
+    test_data_greater = threshold_tf(data, t)
+    
+    cdf_dict = {}
+    for name, model in model_dict.items():
+        if type(model) == EMOS:
+            distribution = model.forecast_distribution.get_distribution(data)
+            cdf_dict[name] = distribution.cdf
+        elif type(model) == NNForecast:
+            cdf_dict[name] = model.get_prob_distribution(data)
+        else:
+            raise ValueError('Model type not recognized')
+        
+    if base_model is not None:
+        if type(base_model) == EMOS:
+            distribution = base_model.forecast_distribution.get_distribution(data)
+            cdf_dict["Base Model"] = distribution.cdf
+        elif type(base_model) == NNForecast:
+            cdf_dict["Base Model"] = base_model.get_distribution(data)
+        else:
+            raise ValueError('Model type not recognized')
+        
+    make_cpit_diagram(cdf_dict, test_data_greater, t)
 
 

@@ -5,7 +5,7 @@ import pickle
 
 import pdb
 
-from neural_networks.nn_distributions import NNDistribution, NNTruncNormal
+from src.neural_networks.nn_distributions import NNDistribution, NNTruncNormal
 
 class NNBaseModel(Model):
     def my_save(self, filepath):
@@ -18,14 +18,17 @@ class NNBaseModel(Model):
 
 
     @staticmethod
-    def my_load(filepath):
+    def my_load(filepath, make_conv = True):
         configuration_path = filepath + '/configuration'
         
         with open(configuration_path, 'rb') as f:
             configuration = pickle.load(f)
         
         # forecast_distribution = configuration['forecast_distribution']
-        model = NNModel(**configuration)
+        if make_conv:
+            model = NNConvModel(**configuration)
+        else:
+            model = NNModel(**configuration)
 
         model.load_weights(filepath + '/weights')
 

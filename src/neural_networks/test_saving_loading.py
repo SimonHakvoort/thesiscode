@@ -3,14 +3,11 @@ from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
 from src.neural_networks.nn_model import NNModel
 
-neighbourhood_size = 5
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
-
-# nnmodel = NNModel()
 
 features_names_dict = {name: 1 for name in features_names}
 
-features_names_dict['wind_speed'] = 1
+features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 

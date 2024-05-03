@@ -21,12 +21,17 @@ class NNForecast:
         self.sample_size = kwargs['sample_size']
         self.features_names = kwargs['features_names']
 
+        self.features_1d_mean = kwargs['features_1d_mean']
+        self.features_1d_std = kwargs['features_1d_std']
+
+
         self._init_loss_function(**kwargs['setup_loss'])
+
+        self.add_wind_conv = kwargs['add_wind_conv']
 
         if 'setup_nn_architecture' not in kwargs:
             return
         
-        self.add_wind_conv = kwargs['add_wind_conv']
         if self.add_wind_conv:
             self.model = NNConvModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
         else:
@@ -36,8 +41,6 @@ class NNForecast:
         self._init_optimizer(**kwargs['setup_optimizer'])
 
         self.model.compile(optimizer=self.optimizer, loss=self.loss_function)#, run_eagerly=True)
-
-
 
     def _init_loss_function(self, **kwargs):
         if 'loss_function' not in kwargs:
@@ -180,17 +183,35 @@ class NNForecast:
     #     y_pred = self.predict(X)
     #     return self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
     
-    def twCRPS(self, dataset, sample_size, t):
+    # def twCRPS(self, dataset, sample_size, t):
+    #     y_true = []
+    #     y_pred = []
+
+    #     for X, y in dataset:
+    #         y_true.append(y)
+    #         y_pred.append(self.predict(X))
+            
+    #     y_true = tf.concat(y_true, axis=0)
+    #     y_pred = tf.concat(y_pred, axis=0)
+    #     return self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
+
+    def twCRPS(self, dataset, thresholds, sample_size):
         y_true = []
         y_pred = []
 
         for X, y in dataset:
             y_true.append(y)
             y_pred.append(self.predict(X))
-            
+
         y_true = tf.concat(y_true, axis=0)
         y_pred = tf.concat(y_pred, axis=0)
-        return self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
+
+        scores = []
+        for threshold in thresholds:
+            scores.append(self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, threshold)))
+        return scores
+    
+
     
     # def Brier_Score(self, X, y, threshold):
     #     y_pred = self.predict(X)
@@ -200,7 +221,21 @@ class NNForecast:
     
 
     ### Checken of de distribution van de GEV distribution niet NaN geeft!!!!!!
-    def Brier_Score(self, dataset, threshold):
+    # def Brier_Score(self, dataset, threshold):
+    #     y_true = []
+    #     y_pred = []
+
+    #     for X, y in dataset:
+    #         y_true.append(y)
+    #         y_pred.append(self.predict(X))
+            
+    #     y_true = tf.concat(y_true, axis=0)
+    #     y_pred = tf.concat(y_pred, axis=0)
+    #     distribution = self.get_distribution(y_pred)
+    #     cdf_values = distribution.cdf(threshold)
+    #     return tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
+
+    def Brier_Score(self, dataset, thresholds):
         y_true = []
         y_pred = []
 
@@ -210,9 +245,14 @@ class NNForecast:
             
         y_true = tf.concat(y_true, axis=0)
         y_pred = tf.concat(y_pred, axis=0)
-        distribution = self.get_distribution(y_pred)
-        cdf_values = distribution.cdf(threshold)
-        return tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
+        distributions = self.get_distribution(y_pred)
+        
+        scores = []
+        for threshold in thresholds:
+            cdf_values = distributions.cdf(threshold)
+            scores.append(tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values)))
+        return scores
+
     
     def indicator_function(self, y, threshold):
         return tf.cast(y <= threshold, tf.float32)
@@ -225,6 +265,8 @@ class NNForecast:
             'sample_size': self.sample_size,
             'features_names': self.features_names,
             'add_wind_conv': self.add_wind_conv,
+            'features_1d_mean': self.features_1d_mean,
+            'features_1d_std': self.features_1d_std,
         }
 
         setup['setup_loss'] = {}
@@ -259,7 +301,7 @@ class NNForecast:
 
         nnforecast = NNForecast(**attributes)
 
-        nnforecast.model = NNModel.my_load(filepath + '/nnmodel')
+        nnforecast.model = NNModel.my_load(filepath + '/nnmodel')# , make_conv=nnforecast.add_wind_conv)
 
         nnforecast._init_optimizer(**attributes['setup_optimizer'])
 
@@ -288,7 +330,7 @@ class NNForecast:
 
 
     
-    def fit(self, dataset, epochs=100, batch_size=32):
+    def fit(self, dataset, epochs=100):
 
         history = self.model.fit(dataset, epochs=epochs)
 
@@ -297,3 +339,13 @@ class NNForecast:
     def predict(self, X):
 
         return self.model.predict(X)
+    
+    def get_prob_distribution(self, data):
+        y_pred = []
+        for X, y in data:
+            y_pred.append(self.predict(X))
+
+        y_pred = tf.concat(y_pred, axis=0)
+        return self.model._forecast_distribution.get_distribution(y_pred)
+
+

@@ -1,9 +1,22 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.models.emos import EMOS
+from src.neural_networks.nn_forecast import NNForecast
+
 def comp_twcrpss(model_ref, model, X, y, threshold, sample_size = 1000):
     return 1 - model.twCRPS(X, y, threshold, sample_size).numpy() / model_ref.twCRPS(X, y, threshold, sample_size).numpy()
 
+def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
+    scores = []
+    if type(model) == EMOS:
+        for threshold in thresholds:
+            scores.append(model.twCRPS_tfdataset(data, threshold, sample_size).numpy())
+    elif type(model) == NNForecast:
+        scores = model.twCRPS(data, thresholds, sample_size)
+    else:
+        raise ValueError('Model type not recognized')
+    return scores
 
 def make_twcrpss_plot(base_model, model_dict, X, y, thresholds, ylim = None, sample_size = 1000):
     """
@@ -28,6 +41,25 @@ def make_twcrpss_plot(base_model, model_dict, X, y, thresholds, ylim = None, sam
     # plot horizontal black striped line at y=0
     plt.plot([thresholds[0], thresholds[-1]], [0, 0], color="black", linestyle="dashed")
 
+    plt.xlabel('Threshold (m/s)')
+    plt.ylabel('twCRPSS')
+    if ylim is not None:
+        plt.ylim(ylim[0], ylim[1])
+    plt.xlim(thresholds[0], thresholds[-1])
+    plt.legend()
+    plt.show()
+
+
+def make_twcrpss_plot_tf(base_model, model_dict, data, thresholds, ylim = None, sample_size = 1000):
+    base_model_twcrps = comp_twcrps_tf(base_model, data, thresholds, sample_size)
+    for model_name, model in model_dict.items():
+        scores = comp_twcrps_tf(model, data, thresholds, sample_size)
+        scores = 1 - np.array(scores) / np.array(base_model_twcrps)
+        plt.plot(thresholds, scores, label = model_name)
+
+    # plot horizontal black striped line at y=0
+    plt.plot([thresholds[0], thresholds[-1]], [0, 0], color="black", linestyle="dashed")
+    
     plt.xlabel('Threshold (m/s)')
     plt.ylabel('twCRPSS')
     if ylim is not None:

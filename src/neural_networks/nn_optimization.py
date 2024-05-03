@@ -2,7 +2,7 @@ from skopt import BayesSearchCV
 from skopt.space import Real, Categorical, Integer
 from bayes_opt import BayesianOptimization
 
-from neural_networks.nn_forecast import NNForecast
+from src.neural_networks.nn_forecast import NNForecast
 
 
 def create_model(forecast_distribution, 

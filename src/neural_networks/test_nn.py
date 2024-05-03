@@ -62,7 +62,7 @@ dense_l1_regularization = 0.000
 dense_l2_regularization = 0.0003
 hidden_units_list = [100, 100, 100]
 add_nwp_forecast = True
-conv_7x7_units = 0
+conv_7x7_units = 5
 conv_5x5_units = 5
 conv_3x3_units = 5
 add_wind_conv = True
@@ -106,14 +106,15 @@ setup = {
     'setup_nn_architecture': setup_nn_architecture,
 
     'add_wind_conv': add_wind_conv,
+
+    'features_1d_mean': mean,
+    'features_1d_std': std,
 }
 
 nn = NNForecast(**setup)
 
 
-
-
-history = nn.fit(train_data, epochs=30, batch_size=32)
+history = nn.fit(train_data, epochs=10, batch_size=32)
 
 fold = 3
 test_data = get_tf_data([fold], features_names_dict, ignore=ignore)
@@ -128,13 +129,13 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 print(nn.CRPS(test_data, 1000))
 
-print(nn.twCRPS(test_data, 1000, 12))
+# print(nn.twCRPS(test_data, 1000, 12))
 
-print(nn.Brier_Score(test_data, 10))
+# print(nn.Brier_Score(test_data, 10))
 
-print(nn.model.get_forecast_distribution())
+# print(nn.model.get_forecast_distribution())
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/non_conv_nn/test'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test_twcrps_12_2_0.3'
 
 nn.my_save(filepath)
 
