@@ -75,7 +75,8 @@ class NNDistribution(ABC):
     
 @register_keras_serializable(package='Custom')
 class NNTruncNormal(NNDistribution):
-    def get_distribution(self, y_pred):
+    @staticmethod
+    def get_distribution(y_pred):
         loc = y_pred[:, 0]
         scale = y_pred[:, 1]
         return tfp.distributions.TruncatedNormal(loc=loc, scale=scale, low=0.0, high=1000.0)

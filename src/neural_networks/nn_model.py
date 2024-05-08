@@ -8,31 +8,31 @@ import pdb
 from src.neural_networks.nn_distributions import NNDistribution, NNTruncNormal
 
 class NNBaseModel(Model):
-    def my_save(self, filepath):
-        configuration_path = filepath + '/configuration'
-        with open(configuration_path, 'wb') as f:
-            pickle.dump(self.setup, f)
+    # def my_save(self, filepath):
+    #     configuration_path = filepath + '/configuration'
+    #     with open(configuration_path, 'wb') as f:
+    #         pickle.dump(self.setup, f)
 
-        # save the weights 
-        self.save_weights(filepath + '/weights')
+    #     # save the weights 
+    #     self.save_weights(filepath + '/weights')
 
 
-    @staticmethod
-    def my_load(filepath, make_conv = True):
-        configuration_path = filepath + '/configuration'
+    # @staticmethod
+    # def my_load(filepath, make_conv = True):
+    #     configuration_path = filepath + '/configuration'
         
-        with open(configuration_path, 'rb') as f:
-            configuration = pickle.load(f)
+    #     with open(configuration_path, 'rb') as f:
+    #         configuration = pickle.load(f)
         
-        # forecast_distribution = configuration['forecast_distribution']
-        if make_conv:
-            model = NNConvModel(**configuration)
-        else:
-            model = NNModel(**configuration)
+    #     # forecast_distribution = configuration['forecast_distribution']
+    #     if make_conv:
+    #         model = NNConvModel(**configuration)
+    #     else:
+    #         model = NNModel(**configuration)
 
-        model.load_weights(filepath + '/weights')
+    #     model.load_weights(filepath + '/weights')
 
-        return model
+    #     return model
     
     def get_forecast_distribution(self):
         return self._forecast_distribution
@@ -91,20 +91,6 @@ class NNModel(NNBaseModel):
             return self._forecast_distribution.add_forecast(outputs, inputs)
 
         return outputs
-
-    
-    # def get_config(self):
-    #     config = super(NNModel, self).get_config()
-    #     config.update({
-    #         'forecast_distribution': self._forecast_distribution.get_config()
-    #     })
-    #     return config
-    
-    # @classmethod
-    # def from_config(cls, config):
-    #     forecast_distribution = config.pop('forecast_distribution')
-    #     # forecast_distribution = NNTruncNormal.from_config(forecast_distributions_config)
-    #     return cls(forecast_distribution, **config)
 
 
 

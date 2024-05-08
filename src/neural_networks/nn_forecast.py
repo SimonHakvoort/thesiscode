@@ -40,9 +40,25 @@ class NNForecast:
 
         self._init_optimizer(**kwargs['setup_optimizer'])
 
+        if 'compile_model' in kwargs:
+            if not kwargs['compile_model']:
+                return
+
         self.model.compile(optimizer=self.optimizer, loss=self.loss_function)#, run_eagerly=True)
 
     def _init_loss_function(self, **kwargs):
+        """
+        Initializes the loss function based on the provided arguments.
+
+        Parameters:
+        - kwargs (dict): Additional keyword arguments.
+
+        Raises:
+        - ValueError: If 'loss_function' is not provided or if an invalid loss function is specified.
+
+        Returns:
+        - None
+        """
         if 'loss_function' not in kwargs:
             raise ValueError("loss_function must be provided")
         else:
@@ -55,6 +71,19 @@ class NNForecast:
                 raise ValueError("Invalid loss function")
             
     def _init_optimizer(self, **kwargs):
+        """
+        Initializes the optimizer for the neural network.
+
+        Args:
+            optimizer (str): The optimizer to be used. Must be one of 'adam', 'sgd', or 'rmsprop'.
+            learning_rate (float): The learning rate for the optimizer.
+
+        Raises:
+            ValueError: If the optimizer is not one of 'adam', 'sgd', or 'rmsprop'.
+
+        Returns:
+            None
+        """
         if 'optimizer' not in kwargs:
             raise ValueError("optimizer must be provided")
         else:
@@ -76,6 +105,25 @@ class NNForecast:
 
 
     def _init_chain_function(self, **kwargs):
+        """
+        Initializes the chain function for the neural network forecast.
+
+        Parameters:
+            kwargs (dict): Keyword arguments containing the chain function and its parameters.
+
+        Raises:
+            ValueError: If the chain_function argument is not provided.
+            ValueError: If the chain_function_threshold argument is not provided when using the 'chain_function_indicator' option.
+            ValueError: If the chain_function_constant argument is not provided when using the 'chain_function_normal_cdf_plus_constant' option.
+            ValueError: If the chain_function_mean argument is not provided when using the 'chain_function_normal_cdf' or 'chain_function_normal_cdf_plus_constant' options.
+            ValueError: If the chain_function_std argument is not provided when using the 'chain_function_normal_cdf' or 'chain_function_normal_cdf_plus_constant' options.
+
+        Returns:
+            None
+        """
+        # Implementation code...
+    def _init_chain_function(self, **kwargs):
+
         if 'chain_function' not in kwargs:
             raise ValueError("chain_function must be provided")
         else:
@@ -125,7 +173,17 @@ class NNForecast:
     #     y_pred = self.predict(X)
     #     return self._compute_CRPS(y, y_pred, sample_size)
     
-    def CRPS(self, dataset, sample_size):
+    def CRPS(self, dataset: tf.data.Dataset, sample_size: int) -> float:
+        """
+        Calculates the Continuous Ranked Probability Score (CRPS) for a given dataset.
+
+        Args:
+            dataset (tf.data.Dataset): The dataset containing input features and true labels.
+            sample_size (int): The number of samples to use for prediction.
+
+        Returns:
+            float: The CRPS value.
+        """
         y_true = []
         y_pred = []
 
@@ -162,7 +220,19 @@ class NNForecast:
         return self._chain_function_normal_cdf_plus_constant(x, self.chain_function_normal_distribution, self.chain_function_constant)
 
     
-    def _compute_twCRPS(self, y_true, y_pred, sample_size, chain_function):
+    def _compute_twCRPS(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable):
+        """
+        Internal method that is used to compute the twCRPS for given sample size and a chaining function
+
+        Parameters:
+            y_true (tf.Tensor): The true labels.
+            y_pred (tf.Tensor): The predicted labels.
+            sample_size (int): The number of samples to use for estimating the twCRPS.
+            chain_function (function): The chaining function to use.
+
+        Returns:
+            tf.Tensor: The twCRPS score.
+        """
         distribution = self.get_distribution(y_pred)
 
         X_1 = distribution.sample(sample_size)
@@ -176,9 +246,22 @@ class NNForecast:
 
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
     
-    def _loss_twCRPS_sample(self, y_true, y_pred):
+    def _loss_twCRPS_sample(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+        """
+        Internal method that can be used as a loss function for training the model.
+        It calculates the threshold-weighted Continuous Ranked Probability Score (twCRPS) for a given sample size and chain function.
+
+        Parameters:
+            y_true (tf.Tensor): The true labels.
+            y_pred (tf.Tensor): The predicted labels.
+
+        Returns:
+            tf.Tensor: The twCRPS score.
+        """
         return self._compute_twCRPS(y_true, y_pred, self.sample_size, self.chain_function)
     
+
+
     # def twCRPS(self, X, y, sample_size, t):
     #     y_pred = self.predict(X)
     #     return self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
@@ -195,7 +278,19 @@ class NNForecast:
     #     y_pred = tf.concat(y_pred, axis=0)
     #     return self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
 
-    def twCRPS(self, dataset, thresholds, sample_size):
+    def twCRPS(self, dataset: tf.data.Dataset, thresholds: list[float], sample_size: int) -> list[float]:
+        """
+        Calculates the threshold-weighted Continuous Ranked Probability Score (twCRPS) for a given dataset.
+
+        Parameters:
+            dataset (tf.data.Dataset): The dataset containing input features and true labels.
+            thresholds (list[float]): A list of threshold values for computing twCRPS.
+            sample_size (int): The number of samples to use for estimating the twCRPS.
+
+        Returns:
+            list[float]: A list of twCRPS scores corresponding to each threshold value.
+
+        """
         y_true = []
         y_pred = []
 
@@ -235,7 +330,17 @@ class NNForecast:
     #     cdf_values = distribution.cdf(threshold)
     #     return tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
 
-    def Brier_Score(self, dataset, thresholds):
+    def Brier_Score(self, dataset: tf.data.Dataset, thresholds: list[float]) -> list[float]:
+        """
+        Calculates the Brier score for a given dataset and a list of thresholds.
+
+        Args:
+            dataset (tf.data.Dataset): The dataset containing input features and true labels.
+            thresholds (list[float]): A list of thresholds to calculate the Brier score.
+
+        Returns:
+            list[float]: A list of Brier scores corresponding to each threshold.
+        """
         y_true = []
         y_pred = []
 
@@ -254,81 +359,63 @@ class NNForecast:
         return scores
 
     
-    def indicator_function(self, y, threshold):
+    def indicator_function(self, y: tf.Tensor, threshold: float) -> tf.Tensor:
+        """
+        Applies an indicator function to the input values.
+
+        Parameters:
+            y (tf.Tensor): The input tensor.
+            threshold (float): The threshold value.
+
+        Returns:
+            tf.Tensor: A tensor of the same shape as `y`, where each element is 1 if the corresponding element in `y` is less than or equal to `threshold`, and 0 otherwise.
+        """
         return tf.cast(y <= threshold, tf.float32)
-    
-    def my_save(self, filepath):
-        os.makedirs(filepath + '/nnmodel', exist_ok=True)
-        self.model.my_save(filepath + '/nnmodel')
 
-        setup = {
-            'sample_size': self.sample_size,
-            'features_names': self.features_names,
-            'add_wind_conv': self.add_wind_conv,
-            'features_1d_mean': self.features_1d_mean,
-            'features_1d_std': self.features_1d_std,
-        }
-
-        setup['setup_loss'] = {}
-
-        if hasattr(self, 'loss_function'):
-            if self.loss_function == self._loss_CRPS_sample:
-                setup['setup_loss']['loss_function'] = 'loss_CRPS_sample'
-            elif self.loss_function == self._loss_twCRPS_sample:
-                setup['setup_loss']['loss_function'] = 'loss_twCRPS_sample'
-                if hasattr(self, 'chain_function'):
-                    setup['setup_loss']['chain_function'] = self.chain_function.__name__
-                    if hasattr(self, 'chain_function_threshold'):
-                        setup['setup_loss']['chain_function_threshold'] = self.chain_function_threshold
-                    if hasattr(self, 'chain_function_normal_distribution'):
-                        setup['setup_loss']['chain_function_mean'] = self.chain_function_normal_distribution.loc.numpy()
-                        setup['setup_loss']['chain_function_std'] = self.chain_function_normal_distribution.scale.numpy()
-                    if hasattr(self, 'chain_function_constant'):
-                        setup['setup_loss']['chain_function_constant'] = self.chain_function_constant
-
-        setup['setup_optimizer'] = {
-            'optimizer': self.optimizer.__class__.__name__.lower(),
-            'learning_rate': self.optimizer.learning_rate.numpy(),
-        }
-
-        with open(filepath + '/attributes', 'wb') as f:
-            pickle.dump(setup, f)
 
     @classmethod
-    def my_load(self, filepath):
+    def my_load(cls, filepath: str, data: tf.data.Dataset) -> 'NNForecast':
+        """
+        Load a neural network forecast model from a file. Data is needed to compile the parameters of the model.
+
+        Parameters:
+        - filepath (str): The path to the directory containing the model files.
+        - data (numpy.ndarray): The input data for prediction.
+
+        Returns:
+        - nnforecast (NNForecast): The loaded neural network forecast model.
+        """
         with open(filepath + '/attributes', 'rb') as f:
             attributes = pickle.load(f)
 
-        nnforecast = NNForecast(**attributes)
-
-        nnforecast.model = NNModel.my_load(filepath + '/nnmodel')# , make_conv=nnforecast.add_wind_conv)
-
-        nnforecast._init_optimizer(**attributes['setup_optimizer'])
-
-        nnforecast.model.compile(optimizer=nnforecast.optimizer, loss=nnforecast.loss_function)
-
-        return nnforecast
-
-    @classmethod
-    def load(cls, filepath):
-        with open(filepath + '/attributes', 'rb') as f:
-            attributes = pickle.load(f)
+        attributes['compile_model'] = False
 
         nnforecast = cls(**attributes)
 
-        # let custom objects contain the correct loss function
-        custom_objects = {
-            '_loss_CRPS_sample': nnforecast._loss_CRPS_sample,
-            '_loss_twCRPS_sample': nnforecast._loss_twCRPS_sample,
-        }
-
-        nnforecast.model = NNModel.load(filepath + '/nnmodel', **custom_objects)
-
         nnforecast.model.compile(optimizer=nnforecast.optimizer, loss=nnforecast.loss_function)
+
+        nnforecast.predict(data.take(1))
+
+        nnforecast.model.load_weights(filepath + '/model.weights.h5')
 
         return nnforecast
 
 
+
+    
+    def fit(self, dataset: tf.data.Dataset, epochs: int = 100) -> tf.keras.callbacks.History:
+        """
+        Fits the neural network model to the given dataset.
+
+        Parameters:
+            dataset (Any): The dataset to train the model on.
+            epochs (int): The number of epochs to train the model (default: 100).
+
+        Returns:
+            history (tf.keras.callbacks.History): The history of the training process.
+        """
+        history = self.model.fit(dataset, epochs=epochs)
+        return history
     
     def fit(self, dataset, epochs=100):
 
@@ -347,5 +434,8 @@ class NNForecast:
 
         y_pred = tf.concat(y_pred, axis=0)
         return self.model._forecast_distribution.get_distribution(y_pred)
+    
+    def save_weights(self, filepath):
+        self.model.save_weights(filepath + '/model.weights.h5')
 
 
