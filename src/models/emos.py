@@ -141,7 +141,8 @@ class EMOS:
         try:
             if 'learning_rate' not in setup:
                 raise ValueError("Learning rate not specified")
-            self.optimizer = getattr(tf.optimizers, setup['optimizer'])(learning_rate=setup['learning_rate'])
+            learning_rate = round(float(setup['learning_rate']), 6)
+            self.optimizer = getattr(tf.optimizers, setup['optimizer'])(learning_rate=learning_rate)
         except AttributeError:
             raise ValueError("Invalid optimizer: " + setup['optimizer']) 
         

@@ -21,7 +21,7 @@ features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
-train_data = get_tf_data([1,2], features_names_dict, ignore=ignore)
+train_data = get_tf_data([1,2], features_names_dict, ignore=ignore, add_emos = True)
 
 train_data = train_data.map(lambda x, y: stack_1d_features(x, y))
 

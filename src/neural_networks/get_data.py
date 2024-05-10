@@ -4,7 +4,7 @@ import pdb
 
 from src.models.get_data import get_fold_i, get_station_info
 
-def get_tf_data(fold, feature_names, ignore = []):
+def get_tf_data(fold, feature_names, ignore = [], add_emos = False):
     """
     Gets a specific fold number and feature names and returns the data as a tf.data.Dataset
 
@@ -41,9 +41,27 @@ def get_tf_data(fold, feature_names, ignore = []):
     X = {key: tf.convert_to_tensor(value) for key, value in X.items()}
     y = tf.convert_to_tensor(y_list)
 
+    if add_emos:
+        # Add a key 'features_emos' to X that contains all the features_names that are 1D, and the centre grid cell of wind_speed_grid
+        temp = {}
+        for feature in feature_names:
+            if feature_names[feature] == 1:
+                temp[feature] = X[feature]
+            else:
+                name = feature + '_grid'
+                temp[feature] = X[name][:, feature_names[feature] // 2, feature_names[feature] // 2]
+        X['features_emos'] = tf.stack([temp[feature] for feature in temp], axis=1)
+
+        mean = tf.reduce_mean(X['features_emos'], axis=0)
+        std = tf.math.reduce_std(X['features_emos'], axis=0)
+
+        X['features_emos'] = (X['features_emos'] - mean) / std
+
     # To ensure that the wind_speed_grid is a 3D tensor, where the final dimension is for the number of channels.
     if 'wind_speed_grid' in X:
         X['wind_speed_grid'] = tf.expand_dims(X['wind_speed_grid'], axis=-1)
+
+
 
     data = tf.data.Dataset.from_tensor_slices((X, y))
 

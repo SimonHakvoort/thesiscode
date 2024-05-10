@@ -73,13 +73,13 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 100
+epochs = 20
 test_fold = 3
 folds = [1,2]
 ignore = ['229', '285', '323']
 
 # tf.debugging.enable_check_numerics()
-folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/'
+folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/test'
 
 # time the length that train_emos takes
 start = time.time()
@@ -96,7 +96,11 @@ X_test = (X_test - model.feature_mean) / model.feature_std
 
 print(model.CRPS(X_test, y_test, 20000))
 
-print(model.Brier_Score(X_test, y_test, 10))
-print(model.Brier_Score(X_test, y_test, 15))
+mydict = model.to_dict()
 
-print(model.twCRPS(X_test, y_test, 12, 1000))
+#pickle mydict to folder
+
+with open(folder, 'wb') as f:
+    pkl.dump(mydict, f)
+
+print("Model saved")
