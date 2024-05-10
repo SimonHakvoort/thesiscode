@@ -34,6 +34,18 @@ train_data = train_data.batch(32)
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
+fold = 3
+test_data = get_tf_data([fold], features_names_dict, ignore=ignore)
+
+test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
+
+test_data = normalize_1d_features_with_mean_std(test_data, mean, std)
+
+test_data = test_data.batch(len(test_data))
+
+test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+
 
 
 
@@ -61,7 +73,11 @@ conv_5x5_units = 5
 conv_3x3_units = 5
 add_wind_conv = True
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test2'
+metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
+
+saving = True
+
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test_crps2'
 
 
 setup_distribution = {
@@ -106,39 +122,36 @@ setup = {
 
     'features_1d_mean': mean,
     'features_1d_std': std,
+
+    'metrics': metrics,
 }
 
-with open(filepath + '/attributes', 'wb') as f:
-    pickle.dump(setup, f)
+if saving:
+    with open(filepath + '/attributes', 'wb') as f:
+        pickle.dump(setup, f)
 
 nn = NNForecast(**setup)
 
 #start the time
 time_start = time.time()
 
-history = nn.fit(train_data, epochs=10)
+history = nn.fit(train_data, epochs=2, validation_data=test_data)
 
 #end the time
 time_end = time.time()
 
 print("Time: ", time_end - time_start)
 
-fold = 3
-test_data = get_tf_data([fold], features_names_dict, ignore=ignore)
 
-test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
 
-test_data = normalize_1d_features_with_mean_std(test_data, mean, std)
 
-test_data = test_data.batch(len(test_data))
+if saving:
+    nn.save_weights(filepath)
 
-test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
-
-print(nn.CRPS(test_data, 1000))
-
-nn.save_weights(filepath)
-
-# print(nn.model.summary())
+# save the history
+if saving:
+    with open(filepath + '/history.pickle', 'wb') as f:
+        pickle.dump(history.history, f)
 
 
 

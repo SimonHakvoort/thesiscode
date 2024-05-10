@@ -44,7 +44,19 @@ class NNForecast:
             if not kwargs['compile_model']:
                 return
 
-        self.model.compile(optimizer=self.optimizer, loss=self.loss_function)#, run_eagerly=True)
+        self.metrics = []
+        if 'metrics' in kwargs:
+            if 'CRPS' in kwargs['metrics']:
+                self.metrics.append(self._loss_CRPS_sample)
+            if 'twCRPS_10' in kwargs['metrics']:
+                self.metrics.append(self._twCRPS_10)
+            if 'twCRPS_12' in kwargs['metrics']:
+                self.metrics.append(self._twCRPS_12)
+            if 'twCRPS_15' in kwargs['metrics']:
+                self.metrics.append(self._twCRPS_15)
+
+
+        self.model.compile(optimizer=self.optimizer, loss=self.loss_function, metrics=self.metrics)#, run_eagerly=True)
 
     def _init_loss_function(self, **kwargs):
         """
@@ -218,6 +230,15 @@ class NNForecast:
     
     def _chain_function_normal_cdf_plus_constant_for_twCRPS(self, x):
         return self._chain_function_normal_cdf_plus_constant(x, self.chain_function_normal_distribution, self.chain_function_constant)
+    
+    def _twCRPS_10(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+        return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 10))
+    
+    def _twCRPS_12(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+        return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 12))
+    
+    def _twCRPS_15(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+        return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 15))
 
     
     def _compute_twCRPS(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable):
@@ -403,25 +424,22 @@ class NNForecast:
 
 
     
-    def fit(self, dataset: tf.data.Dataset, epochs: int = 100) -> tf.keras.callbacks.History:
+    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None) -> tf.keras.callbacks.History:
         """
         Fits the neural network model to the given dataset.
 
         Parameters:
-            dataset (Any): The dataset to train the model on.
+            dataset (tf.data.Dataset): The dataset to train the model on.
             epochs (int): The number of epochs to train the model (default: 100).
+            validation_data (tf.data.Dataset): The validation dataset to evaluate the model on.
 
         Returns:
             history (tf.keras.callbacks.History): The history of the training process.
         """
-        history = self.model.fit(dataset, epochs=epochs)
+        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data)
+
         return history
     
-    def fit(self, dataset, epochs=100):
-
-        history = self.model.fit(dataset, epochs=epochs)
-
-        return history
 
     def predict(self, X):
 
@@ -429,11 +447,14 @@ class NNForecast:
     
     def get_prob_distribution(self, data):
         y_pred = []
+        y_true = []
         for X, y in data:
             y_pred.append(self.predict(X))
+            y_true.append(y)
 
         y_pred = tf.concat(y_pred, axis=0)
-        return self.model._forecast_distribution.get_distribution(y_pred)
+        y_true = tf.concat(y_true, axis=0)
+        return self.model._forecast_distribution.get_distribution(y_pred), y_true
     
     def save_weights(self, filepath):
         self.model.save_weights(filepath + '/model.weights.h5')

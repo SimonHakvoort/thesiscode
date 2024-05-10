@@ -3,6 +3,7 @@ from src.neural_networks.get_data import get_tf_data, normalize_1d_features, nor
 from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
 from src.neural_networks.nn_model import NNModel
+from src.visualization.pit import make_cpit_diagram_tf
 
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
@@ -25,9 +26,13 @@ train_data = train_data.batch(32)
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test2'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test_crps'
 
 model = NNForecast.my_load(filepath, train_data)
+
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test_crps2'
+
+model2 = NNForecast.my_load(filepath, train_data)
 
 
 fold = 3
@@ -41,8 +46,9 @@ test_data = test_data.batch(len(test_data))
 
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-print("The CRPS is: ", model.CRPS(test_data, 1000).numpy())
+mymodels = {'model': model, 'model2': model2}
 
-print("The twCRPS is: ", model.twCRPS(test_data, [10, 12, 14], 1000))
 
-print(model.loss_function.__name__)
+t = 0
+
+make_cpit_diagram_tf(mymodels, test_data, t)

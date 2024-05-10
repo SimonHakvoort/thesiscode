@@ -62,7 +62,7 @@ def make_cpit_hist_emos(emos, X, y, bins = 20, title = "", t = 0):
     distribution = emos.forecast_distribution.get_distribution(X)
     make_cpit_hist(distribution.cdf, y, bins, title, t)
     
-def make_cpit_diagram(cdf_dict, y, title = "", t = 0, gev_shape = None):
+def make_cpit_diagram(cdf_dict, y, title = "", t = 0.0, gev_shape = None):
     """
     Function to make a PIT diagram for a given cdf and data. The cdf needs to have the same shape as y, they are stored in cdf_dict
     It is also possible to make a conditional PIT diagram, by setting t to a value different from 0.
@@ -204,22 +204,24 @@ def make_cpit_diagram_tf(model_dict, data, t = 0, base_model = None):
     cdf_dict = {}
     for name, model in model_dict.items():
         if type(model) == EMOS:
-            distribution = model.forecast_distribution.get_distribution(data)
+            distribution = model.forecast_distribution.get_distribution(test_data_greater)
             cdf_dict[name] = distribution.cdf
         elif type(model) == NNForecast:
-            cdf_dict[name] = model.get_prob_distribution(data)
+            distribution, observations = model.get_prob_distribution(test_data_greater)
+            cdf_dict[name] = distribution.cdf
         else:
             raise ValueError('Model type not recognized')
         
     if base_model is not None:
-        if type(base_model) == EMOS:
-            distribution = base_model.forecast_distribution.get_distribution(data)
-            cdf_dict["Base Model"] = distribution.cdf
-        elif type(base_model) == NNForecast:
-            cdf_dict["Base Model"] = base_model.get_distribution(data)
+        if type(model) == EMOS:
+            distribution = model.forecast_distribution.get_distribution(test_data_greater)
+            cdf_dict[name] = distribution.cdf
+        elif type(model) == NNForecast:
+            distribution, observations = model.get_prob_distribution(test_data_greater)
+            cdf_dict[name] = distribution.cdf
         else:
             raise ValueError('Model type not recognized')
         
-    make_cpit_diagram(cdf_dict, test_data_greater, t)
+    make_cpit_diagram(cdf_dict, observations, t=t)
 
 
