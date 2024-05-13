@@ -372,7 +372,7 @@ class EMOS:
     def CRPS_tfdataset(self, data, samples):
         total_crps = 0
         for X, y in data:
-            total_crps += self.CRPS(X['features_1d'], y, samples)
+            total_crps += self.CRPS(X['features_emos'], y, samples)
         return total_crps
 
     
@@ -436,7 +436,7 @@ class EMOS:
         """
         brier_score = 0
         for X, y in data:
-            brier_score += self.Brier_Score(X['features_1d'], y, threshold)
+            brier_score += self.Brier_Score(X['features_emos'], y, threshold)
 
         return brier_score
 
@@ -450,7 +450,7 @@ class EMOS:
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
         total_twcrps = 0
         for X, y in data:
-            total_twcrps += self.loss_twCRPS_sample_general(X['features_1d'], y, chain_function, samples)
+            total_twcrps += self.loss_twCRPS_sample_general(X['features_emos'], y, chain_function, samples)
         return total_twcrps
     
     # def twCRPS_tfdataset(self, data, threshold, samples):
@@ -639,7 +639,7 @@ class EMOS:
             epoch_losses = 0.0
             batch_count = 0.0
             for X, y in data:
-                loss_value = self._train_step(X['features_1d'], y)
+                loss_value = self._train_step(X['features_emos'], y)
                 epoch_losses += loss_value
                 batch_count += 1.0
             epoch_mean_loss = epoch_losses / batch_count

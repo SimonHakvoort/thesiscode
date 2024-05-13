@@ -2,7 +2,7 @@
 import time
 import keras
 import numpy as np
-from src.neural_networks.get_data import normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features, get_tf_data
+from src.neural_networks.get_data import load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features, get_tf_data
 from src.neural_networks.nn_model import NNModel
 from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import NNForecast
@@ -21,11 +21,28 @@ features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
-train_data = get_tf_data([1,2], features_names_dict, ignore=ignore, add_emos = True)
+# data_dict = get_tf_data([1,2], features_names_dict, ignore=ignore, emos = emos, normalize_features = True)
 
-train_data = train_data.map(lambda x, y: stack_1d_features(x, y))
+# train_data = data_dict['data']
 
-train_data, mean, std = normalize_1d_features(train_data)
+# train_data = train_data.shuffle(len(train_data))
+
+# train_data = train_data.batch(32)
+
+# train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+
+# fold = 3
+# test_data_dict = get_tf_data([fold], features_names_dict, ignore=ignore, emos = emos, normalize_features=True, features_1d_mean=data_dict['features_1d_mean'], features_1d_std=data_dict['features_1d_std'])
+
+# test_data = test_data_dict['data']
+
+# test_data = test_data.batch(len(test_data))
+
+# test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+
+train_data, test_data, data_info = load_train_test_data(1, features_names_dict, ignore = ignore)
 
 train_data = train_data.shuffle(len(train_data))
 
@@ -33,28 +50,15 @@ train_data = train_data.batch(32)
 
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-
-fold = 3
-test_data = get_tf_data([fold], features_names_dict, ignore=ignore)
-
-test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
-
-test_data = normalize_1d_features_with_mean_std(test_data, mean, std)
-
 test_data = test_data.batch(len(test_data))
 
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
-
-
-
-
-
 
 forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 12
 chain_function_std = 2
@@ -75,7 +79,7 @@ add_wind_conv = True
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 
-saving = True
+saving = False
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test_crps2'
 
@@ -120,8 +124,8 @@ setup = {
 
     'add_wind_conv': add_wind_conv,
 
-    'features_1d_mean': mean,
-    'features_1d_std': std,
+    'features_1d_mean': data_info['features_1d_mean'],
+    'features_1d_std': data_info['features_1d_std'],
 
     'metrics': metrics,
 }
@@ -135,14 +139,14 @@ nn = NNForecast(**setup)
 #start the time
 time_start = time.time()
 
-history = nn.fit(train_data, epochs=2, validation_data=test_data)
+history = nn.fit(train_data, epochs=10, validation_data=test_data)
 
 #end the time
 time_end = time.time()
 
 print("Time: ", time_end - time_start)
 
-
+print(nn.CRPS(test_data, 10000))
 
 
 if saving:

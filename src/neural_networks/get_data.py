@@ -4,17 +4,26 @@ import pdb
 
 from src.models.get_data import get_fold_i, get_station_info
 
-def get_tf_data(fold, feature_names, ignore = [], add_emos = False):
+def get_tf_data(fold, feature_names, ignore = [], add_emos=True, features_emos_mean = None, features_emos_std = None, normalize_features = True, features_1d_mean = None, features_1d_std = None):
     """
-    Gets a specific fold number and feature names and returns the data as a tf.data.Dataset
+    Generates a TensorFlow Dataset from given forecast data.
 
-    Args:
-    - fold: int or list of ints
-    - feature_names: dictionary with as key the feature name and as value the grid size. If grid size = 1 or 0 or None, the value at the gridcell is returned
-    - ignore: list of strings of station codes to ignore
+    Parameters:
+    fold (int or iterable): Specifies the fold(s) of data to include in the dataset.
+    feature_names (dict): Dictionary mapping feature names to their dimensions.
+    ignore (list, optional): List of features to ignore. Defaults to an empty list.
+    add_emos (bool, optional): Whether to add emotion-related features. Defaults to True.
+    features_emos_mean (Tensor, optional): Mean of emotion-related features. Used for normalization.
+    features_emos_std (Tensor, optional): Standard deviation of emotion-related features. Used for normalization.
+    normalize_features (bool, optional): Whether to normalize 1D features. If None, no normalization is performed.
+    features_1d_mean (Tensor, optional): Mean of 1D features. Used for normalization.
+    features_1d_std (Tensor, optional): Standard deviation of 1D features. Used for normalization.
+
+    Returns:
+    dict: A dictionary containing the generated TensorFlow Dataset and additional information such as feature names, ignored features, and normalization parameters (if applicable).
     """
     fold_list = []
-    if type(fold) == int:
+    if isinstance(fold, int):
         fold_list.append(get_fold_i(fold))
     else:
         for i in fold:
@@ -41,7 +50,7 @@ def get_tf_data(fold, feature_names, ignore = [], add_emos = False):
     X = {key: tf.convert_to_tensor(value) for key, value in X.items()}
     y = tf.convert_to_tensor(y_list)
 
-    if add_emos:
+    if add_emos is True:        
         # Add a key 'features_emos' to X that contains all the features_names that are 1D, and the centre grid cell of wind_speed_grid
         temp = {}
         for feature in feature_names:
@@ -52,20 +61,83 @@ def get_tf_data(fold, feature_names, ignore = [], add_emos = False):
                 temp[feature] = X[name][:, feature_names[feature] // 2, feature_names[feature] // 2]
         X['features_emos'] = tf.stack([temp[feature] for feature in temp], axis=1)
 
-        mean = tf.reduce_mean(X['features_emos'], axis=0)
-        std = tf.math.reduce_std(X['features_emos'], axis=0)
+        if features_emos_mean is None or features_emos_std is None: 
+            features_emos_mean = tf.reduce_mean(X['features_emos'], axis=0)
+            features_emos_std = tf.math.reduce_std(X['features_emos'], axis=0)            
 
-        X['features_emos'] = (X['features_emos'] - mean) / std
+        X['features_emos'] = (X['features_emos'] - features_emos_mean) / features_emos_std
+
 
     # To ensure that the wind_speed_grid is a 3D tensor, where the final dimension is for the number of channels.
     if 'wind_speed_grid' in X:
         X['wind_speed_grid'] = tf.expand_dims(X['wind_speed_grid'], axis=-1)
 
 
-
     data = tf.data.Dataset.from_tensor_slices((X, y))
 
-    return data
+    data = data.map(lambda x, y: stack_1d_features(x, y))
+
+    output = {}
+
+    if normalize_features is True:
+        if features_1d_mean is not None and features_1d_std is not None:
+            data = normalize_1d_features_with_mean_std(data, features_1d_mean, features_1d_std)
+        else:
+            data, features_1d_mean, features_1d_std = normalize_1d_features(data)
+        
+        output['features_1d_mean'] = features_1d_mean
+        output['features_1d_std'] = features_1d_std
+
+
+
+
+    output['data'] = data
+    output['ignore'] = ignore
+    output['feature_names'] = feature_names
+
+    if add_emos:
+        output['features_emos_mean'] = features_emos_mean
+        output['features_emos_std'] = features_emos_std
+
+
+    return output
+
+
+def load_train_test_data(cv, feature_names, ignore = []):
+    if cv == 1:
+        train_folds = [2,3]
+        test_folds = [1]
+    elif cv == 2:
+        train_folds = [1,3]
+        test_folds = [2]
+    elif cv == 3:
+        train_folds = [1,2]
+        test_folds = [3]
+    else:
+        raise ValueError('Invalid value for cv')
+    
+    train_data_dict = get_tf_data(train_folds, feature_names, ignore=ignore, add_emos=True, normalize_features=True)
+    test_data_dict = get_tf_data(test_folds, 
+                                 feature_names, 
+                                 ignore=ignore, 
+                                 add_emos=True, 
+                                 features_emos_mean=train_data_dict['features_emos_mean'],
+                                 features_emos_std=train_data_dict['features_emos_std'],
+                                 normalize_features=True,
+                                 features_1d_mean=train_data_dict['features_1d_mean'],
+                                 features_1d_std=train_data_dict['features_1d_std'])
+    
+    train_data = train_data_dict['data']
+    test_data = test_data_dict['data']
+
+    extra_info = {
+        'features_emos_mean': train_data_dict['features_emos_mean'],
+        'features_emos_std': train_data_dict['features_emos_std'],
+        'features_1d_mean': train_data_dict['features_1d_mean'],
+        'features_1d_std': train_data_dict['features_1d_std']
+    }
+
+    return train_data, test_data, extra_info
 
 
 def stack_1d_features(features, label):
