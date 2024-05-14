@@ -199,8 +199,8 @@ def threshold_tf(data, t):
     filtered_data = filtered_data.batch(100000)
     return filtered_data
 
-def make_cpit_diagram_tf(model_dict, data, t = 0, base_model = None):
-    test_data_greater = threshold_tf(data, t)
+def make_cpit_diagram_tf(model_dict, test_data_greater, t = 0, base_model = None):
+    # we assume that the data is already thresholded
     
     cdf_dict = {}
     for name, model in model_dict.items():
@@ -216,10 +216,10 @@ def make_cpit_diagram_tf(model_dict, data, t = 0, base_model = None):
     if base_model is not None:
         if type(model) == EMOS:
             distribution, observations = model.get_prob_distribution(test_data_greater)
-            cdf_dict[name] = distribution.cdf
+            cdf_dict['base_model'] = distribution.cdf
         elif type(model) == NNForecast:
             distribution, observations = model.get_prob_distribution(test_data_greater)
-            cdf_dict[name] = distribution.cdf
+            cdf_dict['base_model'] = distribution.cdf
         else:
             raise ValueError('Model type not recognized')
         

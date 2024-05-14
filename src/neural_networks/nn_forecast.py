@@ -282,23 +282,6 @@ class NNForecast:
         return self._compute_twCRPS(y_true, y_pred, self.sample_size, self.chain_function)
     
 
-
-    # def twCRPS(self, X, y, sample_size, t):
-    #     y_pred = self.predict(X)
-    #     return self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
-    
-    # def twCRPS(self, dataset, sample_size, t):
-    #     y_true = []
-    #     y_pred = []
-
-    #     for X, y in dataset:
-    #         y_true.append(y)
-    #         y_pred.append(self.predict(X))
-            
-    #     y_true = tf.concat(y_true, axis=0)
-    #     y_pred = tf.concat(y_pred, axis=0)
-    #     return self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, t))
-
     def twCRPS(self, dataset: tf.data.Dataset, thresholds: list[float], sample_size: int) -> list[float]:
         """
         Calculates the threshold-weighted Continuous Ranked Probability Score (twCRPS) for a given dataset.
@@ -315,9 +298,12 @@ class NNForecast:
         y_true = []
         y_pred = []
 
-        for X, y in dataset:
-            y_true.append(y)
-            y_pred.append(self.predict(X))
+        # for X, y in dataset:
+        #     y_true.append(y)
+        #     y_pred.append(self.predict(X))
+        X, y = next(iter(dataset))
+        y_pred.append(self.predict(X))
+        y_true.append(y)
 
         y_true = tf.concat(y_true, axis=0)
         y_pred = tf.concat(y_pred, axis=0)
@@ -365,9 +351,12 @@ class NNForecast:
         y_true = []
         y_pred = []
 
-        for X, y in dataset:
-            y_true.append(y)
-            y_pred.append(self.predict(X))
+        X, y = next(iter(dataset))
+        # for X, y in dataset:
+        #     y_true.append(y)
+        #     y_pred.append(self.predict(X))
+        y_pred.append(self.predict(X))
+        y_true.append(y)
             
         y_true = tf.concat(y_true, axis=0)
         y_pred = tf.concat(y_pred, axis=0)
@@ -448,9 +437,12 @@ class NNForecast:
     def get_prob_distribution(self, data):
         y_pred = []
         y_true = []
-        for X, y in data:
-            y_pred.append(self.predict(X))
-            y_true.append(y)
+        # for X, y in data:
+        #     y_pred.append(self.predict(X))
+        #     y_true.append(y)
+        X, y = next(iter(data))
+        y_pred.append(self.predict(X))
+        y_true.append(y)
 
         y_pred = tf.concat(y_pred, axis=0)
         y_true = tf.concat(y_true, axis=0)

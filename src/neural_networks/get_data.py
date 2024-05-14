@@ -1,6 +1,6 @@
+import os
 import tensorflow as tf
-
-import pdb
+import pickle
 
 from src.models.get_data import get_fold_i, get_station_info
 
@@ -113,6 +113,9 @@ def load_train_test_data(cv, feature_names, ignore = []):
     elif cv == 3:
         train_folds = [1,2]
         test_folds = [3]
+    elif cv == 0:
+        train_folds = [1,2,3]
+        test_folds = [0]
     else:
         raise ValueError('Invalid value for cv')
     
@@ -138,6 +141,41 @@ def load_train_test_data(cv, feature_names, ignore = []):
     }
 
     return train_data, test_data, extra_info
+
+def save_cv_data(feature_names, ignore = []):
+    # save the data in /net/pc200239/nobackup/users/hakvoort/cv_data where there is a folder containing the grid size of wind speed forecast, and in that folder there are the files for the different folds.
+    # The files should contain the data in the format of the output of load_train_test_data
+
+    for fold in [1,2,3]:
+        train_data, test_data, data_info = load_train_test_data(fold, feature_names, ignore = ignore)
+        # make a folder 
+        filepath = '/net/pc200239/nobackup/users/hakvoort/cv_data/'  + str(feature_names['wind_speed']) + '/' + str(fold) + '/'
+        # create the folder
+        os.makedirs(filepath, exist_ok=True)
+
+        train_data_filepath = filepath + 'train_data'
+        test_data_filepath = filepath + 'test_data'
+        data_info_filepath = filepath + 'data_info'
+        train_data.save(train_data_filepath)
+        test_data.save(test_data_filepath)
+        with open(data_info_filepath, 'wb') as f:
+            pickle.dump(data_info, f)
+        
+
+def load_cv_data(cv, feature_names):
+    filepath = '/net/pc200239/nobackup/users/hakvoort/cv_data/' + str(feature_names['wind_speed']) + '/' + str(cv) + '/'
+    train_data_filepath = filepath + 'train_data'
+    test_data_filepath = filepath + 'test_data'
+    data_info_filepath = filepath + 'data_info'
+
+    train_data = tf.data.Dataset.load(train_data_filepath)
+    test_data = tf.data.Dataset.load(test_data_filepath)
+    with open(data_info_filepath, 'rb') as f:
+        data_info = pickle.load(f)
+    
+    return train_data, test_data, data_info
+
+        
 
 
 def stack_1d_features(features, label):

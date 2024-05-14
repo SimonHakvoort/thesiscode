@@ -2,12 +2,13 @@
 import time
 import keras
 import numpy as np
-from src.neural_networks.get_data import load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features, get_tf_data
+from src.neural_networks.get_data import load_cv_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
 from src.neural_networks.nn_model import NNModel
 from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
 import pickle
+import os
 
 from src.visualization.pit import comp_pit_score_tf
 
@@ -19,8 +20,10 @@ features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
+# save_cv_data(features_names_dict, ignore = ignore)
 
-train_data, test_data, data_info = load_train_test_data(1, features_names_dict, ignore = ignore)
+
+train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 train_data = train_data.shuffle(len(train_data))
 
@@ -36,11 +39,11 @@ forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_CRPS_sample'
+loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
-chain_function_mean = 12
+chain_function_mean = 11
 chain_function_std = 2
-chain_function_constant = 0.2
+chain_function_constant = 0.3
 
 optimizer = 'adam'
 learning_rate = 0.0002
@@ -55,12 +58,41 @@ conv_5x5_units = 5
 conv_3x3_units = 5
 add_wind_conv = True
 
-metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
+metrics = ['CRPS']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 
 saving = False
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/test_crps2'
+epochs = 15
 
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
+
+if loss_function == 'loss_twCRPS_sample':
+    name = 'twCRPS'
+    name += '_mean_' + str(chain_function_mean)
+    name += '_std_' + str(chain_function_std)
+    name += '_constant_' + str(chain_function_constant)
+elif loss_function == 'loss_CRPS_sample':
+    name = 'CRPS'
+
+filepath += name + '_'
+
+if forecast_distribution == 'distr_mixture':
+    filepath += 'mixture_'
+elif forecast_distribution == 'distr_trunc_normal':
+    filepath += 'trunc_normal_'
+elif forecast_distribution == 'distr_log_normal':
+    filepath += 'log_normal_'
+
+filepath += 'epochs_' + str(epochs) 
+
+
+
+# filepath += '_v4'
+
+
+# make a folder
+if saving:
+    os.makedirs(filepath, exist_ok=True)
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -117,7 +149,7 @@ nn = NNForecast(**setup)
 #start the time
 time_start = time.time()
 
-history = nn.fit(train_data, epochs=10, validation_data=test_data)
+history = nn.fit(train_data, epochs=epochs, validation_data=test_data)
 
 #end the time
 time_end = time.time()
@@ -129,14 +161,13 @@ print(nn.CRPS(test_data, 10000))
 
 if saving:
     nn.save_weights(filepath)
+    print("Model saved")
 
 # save the history
 if saving:
     with open(filepath + '/history.pickle', 'wb') as f:
         pickle.dump(history.history, f)
+        print("History saved")
 
 
-print(comp_pit_score_tf(nn, test_data, 0))
-
-print(comp_pit_score_tf(nn, test_data, 12))
 

@@ -221,3 +221,22 @@ def make_reliability_and_sharpness(emos_dict, X, y, t, n_subset = 10, base_model
     plt.tight_layout()
     plt.show()
     
+# def make_reliability_and_sharpness_tf(dict, data, t, n_subset = 10, base_model = None):
+#     fig = plt.figure(figsize=(8, 8))  # Create a figure
+#     gs = gridspec.GridSpec(4, 1)  # Create a GridSpec with 3 rows and 1 column
+
+#     # Create the subplots with different heights
+#     axs = [plt.subplot(gs[:3]), plt.subplot(gs[3])]
+
+#     #data is a tf.data.Dataset
+#     X, y = next(iter(data))
+
+#     y_true = y > t
+#     cdfs = {}
+
+#     for name, model in dict.items():
+
+
+
+
+

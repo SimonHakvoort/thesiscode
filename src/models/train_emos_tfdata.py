@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from src.neural_networks.get_data import get_tf_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
+from src.neural_networks.get_data import get_tf_data, load_cv_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
 from src.models.train_emos import train_emos
 from src.models.emos import EMOS
 from src.models.get_data import get_tensors
@@ -28,11 +28,11 @@ features_names_dict['wind_speed'] = 15
 ignore = ['229', '285', '323']
 
 
-train_data, test_data, data_info = load_train_test_data(3, features_names_dict, ignore = ignore)
+train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 train_data = train_data.shuffle(len(train_data))
 
-train_data = train_data.batch(32)
+train_data = train_data.batch(len(train_data))
 
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
@@ -52,9 +52,9 @@ samples = 100
 # if chain_function_normal_cdf is chosen, threshold is necessary
 chain_function = "chain_function_normal_cdf_plus_constant"
 threshold = 8
-chain_function_mean = 13
+chain_function_mean = 12
 chain_function_std = 2
-chain_function_constant = 0.07
+chain_function_constant = 0.1
 
 
 # possible optimizers: 'SGD', 'Adam'
@@ -93,9 +93,7 @@ setup = {'loss': loss,
          }
 
 
-neighbourhood_size = 11
-epochs = 20
-test_fold = 3
+epochs = 600
 
 ignore = ['229', '285', '323']
 
@@ -103,19 +101,19 @@ emos = EMOS(setup)
 #start timing:
 start = time.time()
 
-print("Starting training")
-
 loss = emos.fit_tfdataset(train_data, epochs, printing = printing)
 
 #end timing:
 end = time.time()
 
+mydict = emos.to_dict()
 
-print("Time taken to train model: ", end - start)
+#save the model:
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/batching/crps_batch_none_epochs_600'
+# 
+
+with open(filepath, 'wb') as f:
+    pkl.dump(mydict, f)
+
 
 print(emos.CRPS_tfdataset(test_data, 1000))
-
-
-print(comp_pit_score_tf(emos, test_data, 0))
-
-print(comp_pit_score_tf(emos, test_data, 12))

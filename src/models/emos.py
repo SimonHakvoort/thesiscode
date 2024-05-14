@@ -57,12 +57,15 @@ class EMOS:
         self._init_forecast_distribution(setup)
 
         self.hist = []
+        if 'history' in setup:
+            self.hist = setup['history']
 
 
         # Optionally we can initialize the feature mean and standard deviation with the given values. Not sure whether this needs to be included
         if 'feature_mean' in setup and 'feature_std' in setup:
-            self.feature_mean = tf.Variable(setup['feature_mean'])
-            self.feature_std = tf.Variable(setup['feature_std'])
+            if setup['feature_mean'] is not None and setup['feature_std'] is not None:
+                self.feature_mean = tf.Variable(setup['feature_mean'])
+                self.feature_std = tf.Variable(setup['feature_std'])
         else:
             self.feature_mean = None
             self.feature_std = None
@@ -324,6 +327,8 @@ class EMOS:
             model_dict['distribution_1'] = self.forecast_distribution.distribution_1.name()
             model_dict['distribution_2'] = self.forecast_distribution.distribution_2.name()
 
+        model_dict['history'] = self.hist
+
         return model_dict
     
     def normalize_features(self, X):
@@ -372,9 +377,12 @@ class EMOS:
     def get_prob_distribution(self, data):
         # data is a tf.data.Dataset
 
-        for X, y in data:
-            distributions = self.forecast_distribution.get_distribution(X['features_emos'])
-            observations = y
+        # for X, y in data:
+        #     distributions = self.forecast_distribution.get_distribution(X['features_emos'])
+        #     observations = y
+        X, y = next(iter(data))
+        distributions = self.forecast_distribution.get_distribution(X['features_emos'])
+        observations = y
 
         return distributions, observations
     
@@ -443,9 +451,10 @@ class EMOS:
         Returns:
         - the Brier score at the given threshold.
         """
-        brier_score = 0
-        for X, y in data:
-            brier_score += self.Brier_Score(X['features_emos'], y, threshold)
+        # take 1 element from the data
+        X, y = next(iter(data))
+        brier_score = self.Brier_Score(X['features_emos'], y, threshold)
+            
 
         return brier_score
 
@@ -457,10 +466,8 @@ class EMOS:
     
     def twCRPS_tfdataset(self, data, threshold, samples):
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
-        total_twcrps = 0
-        for X, y in data:
-            total_twcrps += self.loss_twCRPS_sample_general(X['features_emos'], y, chain_function, samples)
-        return total_twcrps
+        X, y = next(iter(data))
+        return self.loss_twCRPS_sample_general(X['features_emos'], y, chain_function, samples)
     
     # def twCRPS_tfdataset(self, data, threshold, samples):
     #     chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
