@@ -369,6 +369,15 @@ class EMOS:
         forecast_distribution = self.forecast_distribution.get_distribution(X)
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
     
+    def get_prob_distribution(self, data):
+        # data is a tf.data.Dataset
+
+        for X, y in data:
+            distributions = self.forecast_distribution.get_distribution(X['features_emos'])
+            observations = y
+
+        return distributions, observations
+    
     def CRPS_tfdataset(self, data, samples):
         total_crps = 0
         for X, y in data:

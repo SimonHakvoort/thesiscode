@@ -1,13 +1,13 @@
 import numpy as np
 import tensorflow as tf
-from neural_networks.get_data import get_tf_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
+from src.neural_networks.get_data import get_tf_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
 from src.models.train_emos import train_emos
 from src.models.emos import EMOS
 from src.models.get_data import get_tensors
 from src.models.train_emos import train_and_test_emos
 from src.training.training import load_model
 from src.visualization.brier_score import make_brier_skill_plot
-from src.visualization.pit import make_cpit_hist_emos
+from src.visualization.pit import comp_pit_score_tf, make_cpit_hist_emos
 from src.visualization.reliability_diagram import make_reliability_and_sharpness
 from src.visualization.scoring_tables import make_table
 from src.models.probability_distributions import TruncGEV
@@ -22,6 +22,23 @@ location_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 scale_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 features_names_dict = {name: 1 for name in all_features}
+
+features_names_dict['wind_speed'] = 15
+
+ignore = ['229', '285', '323']
+
+
+train_data, test_data, data_info = load_train_test_data(3, features_names_dict, ignore = ignore)
+
+train_data = train_data.shuffle(len(train_data))
+
+train_data = train_data.batch(32)
+
+train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+test_data = test_data.batch(len(test_data))
+
+test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
@@ -52,7 +69,7 @@ distribution_1 = "distr_trunc_normal"
 distribution_2 = "distr_log_normal"
 
 random_init = False
-printing = False
+printing = True
 subset_size = None
 
 setup = {'loss': loss,
@@ -77,25 +94,10 @@ setup = {'loss': loss,
 
 
 neighbourhood_size = 11
-epochs = 100
+epochs = 20
 test_fold = 3
 
 ignore = ['229', '285', '323']
-
-train_data = get_tf_data([1,2], features_names_dict, ignore=ignore)
-
-train_data = train_data.map(lambda x, y: stack_1d_features(x, y))
-
-train_data, mean, std = normalize_1d_features(train_data)
-
-train_data = train_data.shuffle(len(train_data))
-
-train_data = train_data.batch(64)
-
-train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
-
-setup['feature_mean'] = mean
-setup['feature_std'] = std
 
 emos = EMOS(setup)
 #start timing:
@@ -103,7 +105,7 @@ start = time.time()
 
 print("Starting training")
 
-loss = emos.fit_tfdataset(train_data, epochs, printing = False)
+loss = emos.fit_tfdataset(train_data, epochs, printing = printing)
 
 #end timing:
 end = time.time()
@@ -111,20 +113,9 @@ end = time.time()
 
 print("Time taken to train model: ", end - start)
 
-fold = 3
-test_data = get_tf_data([fold], features_names_dict, ignore=ignore)
-
-test_data = test_data.map(lambda x, y: stack_1d_features(x, y))
-
-test_data = normalize_1d_features_with_mean_std(test_data, mean, std)
-
-test_data = test_data.batch(len(test_data))
-
-test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
-
 print(emos.CRPS_tfdataset(test_data, 1000))
 
-print(emos.Brier_Score_tfdataset(test_data, 10))
-print(emos.Brier_Score_tfdataset(test_data, 15))
 
-print(emos.twCRPS_tfdataset(test_data, 12, 1000))
+print(comp_pit_score_tf(emos, test_data, 0))
+
+print(comp_pit_score_tf(emos, test_data, 12))

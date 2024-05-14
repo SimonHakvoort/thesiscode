@@ -9,37 +9,15 @@ from src.neural_networks.nn_forecast import NNForecast
 import tensorflow as tf
 import pickle
 
+from src.visualization.pit import comp_pit_score_tf
 
-neighbourhood_size = 5
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
-
-# nnmodel = NNModel()
 
 features_names_dict = {name: 1 for name in features_names}
 
 features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
-
-# data_dict = get_tf_data([1,2], features_names_dict, ignore=ignore, emos = emos, normalize_features = True)
-
-# train_data = data_dict['data']
-
-# train_data = train_data.shuffle(len(train_data))
-
-# train_data = train_data.batch(32)
-
-# train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
-
-
-# fold = 3
-# test_data_dict = get_tf_data([fold], features_names_dict, ignore=ignore, emos = emos, normalize_features=True, features_1d_mean=data_dict['features_1d_mean'], features_1d_std=data_dict['features_1d_std'])
-
-# test_data = test_data_dict['data']
-
-# test_data = test_data.batch(len(test_data))
-
-# test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 train_data, test_data, data_info = load_train_test_data(1, features_names_dict, ignore = ignore)
@@ -158,5 +136,7 @@ if saving:
         pickle.dump(history.history, f)
 
 
+print(comp_pit_score_tf(nn, test_data, 0))
 
+print(comp_pit_score_tf(nn, test_data, 12))
 
