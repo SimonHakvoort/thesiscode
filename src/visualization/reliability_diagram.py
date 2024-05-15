@@ -221,20 +221,54 @@ def make_reliability_and_sharpness(emos_dict, X, y, t, n_subset = 10, base_model
     plt.tight_layout()
     plt.show()
     
-# def make_reliability_and_sharpness_tf(dict, data, t, n_subset = 10, base_model = None):
-#     fig = plt.figure(figsize=(8, 8))  # Create a figure
-#     gs = gridspec.GridSpec(4, 1)  # Create a GridSpec with 3 rows and 1 column
+def make_reliability_and_sharpness_tf(dict, data, t, n_subset = 10, base_model = None):
+    fig = plt.figure(figsize=(8, 8))  # Create a figure
+    gs = gridspec.GridSpec(4, 1)  # Create a GridSpec with 3 rows and 1 column
 
-#     # Create the subplots with different heights
-#     axs = [plt.subplot(gs[:3]), plt.subplot(gs[3])]
+    # Create the subplots with different heights
+    axs = [plt.subplot(gs[:3]), plt.subplot(gs[3])]
 
-#     #data is a tf.data.Dataset
-#     X, y = next(iter(data))
+    #data is a tf.data.Dataset
+    X, y = next(iter(data))
 
-#     y_true = y > t
-#     cdfs = {}
+    y_true = y > t
+    cdfs = {}
 
-#     for name, model in dict.items():
+    for name, model in dict.items():
+        distribution, observations = model.get_prob_distribution(data)
+        probs = 1.0 - distribution.cdf(t)
+        probs = np.clip(probs, 0, 1)
+        prob_true, prob_pred = calibration_curve(y_true, probs, n_bins=n_subset)
+        axs[0].plot(prob_pred, prob_true, 'o-', label = name)
+        cdfs[name] = probs
+
+    if base_model is not None:
+        distribution, observations = base_model.get_prob_distribution(data)
+        cdf_values = np.clip(1 - distribution.cdf(t), 0, 1)
+        prob_true, prob_pred = calibration_curve(y_true, cdf_values, n_bins=n_subset)
+        axs[0].plot(prob_pred, prob_true, 'o-', label = "Base model")
+        cdfs["Base model"] = cdf_values
+
+    axs[0].plot([0, 1], [0, 1], color="black", linestyle="dashed")
+    axs[0].set_xlabel("Mean predicted probability")
+    axs[0].set_ylabel("Fraction of positives")
+    axs[0].set_xlim(0, 1)
+    axs[0].set_ylim(0, 1)
+    axs[0].legend()
+
+    subset_values = np.linspace(0, 1, n_subset)
+    for name, y_prob in cdfs.items():
+        counts, bin_edges = np.histogram(y_prob, bins = subset_values)
+        counts = np.append(counts, 0)
+        axs[1].step(subset_values, counts / len(y) * 100, where='post', label = name)
+
+    axs[1].set_xlabel("Forecast probability")
+    axs[1].set_ylabel("Count (%)")
+    axs[1].set_xlim(0, 1)
+
+    plt.tight_layout()
+    plt.show()
+
 
 
 
