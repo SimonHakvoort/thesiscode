@@ -41,9 +41,9 @@ distribution_2 = 'distr_log_normal'
 
 loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
-chain_function_mean = 11
-chain_function_std = 0.2
-chain_function_constant = 0.5
+chain_function_mean = 9
+chain_function_std = 2
+chain_function_constant = 0.2
 
 optimizer = 'adam'
 learning_rate = 0.0002
@@ -58,11 +58,11 @@ conv_5x5_units = 5
 conv_3x3_units = 5
 add_wind_conv = True
 
-metrics = ['CRPS']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
+metrics = ['CRPS', 'twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 
 saving = True
 
-epochs = 15
+epochs = 50
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -87,7 +87,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-# filepath += '_v4'
+filepath += '_v4'
 
 
 # make a folder
@@ -156,8 +156,9 @@ time_end = time.time()
 
 print("Time: ", time_end - time_start)
 
-print(nn.CRPS(test_data, 10000))
+print(nn.CRPS(test_data, 10000).numpy())
 
+print(nn.twCRPS(test_data, [12], 10000)[0].numpy())
 
 if saving:
     nn.save_weights(filepath)

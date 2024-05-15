@@ -417,7 +417,35 @@ class EMOS:
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
 
         return tf.reduce_mean(E_1 - 0.5 * E_2)
+    
+    def loss_cPIT(self, X, y):
+        # return self.calc_pit from t = 0 to t = 15
+        return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in range(16)])
+    
+    def calc_cPIT(self, X, y, t):
+        indices = tf.where(y > t)
+        indices = tf.reshape(indices, [-1])
 
+        y_greater = tf.gather(y, indices)
+        X_greater = tf.gather(X, indices)
+
+        cdf = self.forecast_distribution.get_distribution(X_greater).cdf
+
+        if t == 0:
+            probabilities = cdf(y_greater)
+        elif t > 0:
+            #probabilities = (cdf(observations) - cdf(t)) / (1 - cdf(t))
+            upper = cdf(y_greater) - cdf(t)
+            lower = 1 - cdf(t)
+            # remove the points where lower is 0
+            mask = tf.where(lower == 0, False, True)
+            upper = tf.boolean_mask(upper, mask)
+            lower = tf.boolean_mask(lower, mask)
+            probabilities = upper / lower
+
+        probabilities = tf.sort(probabilities)
+
+        return tf.reduce_mean(tf.abs(probabilities - tf.linspace(0.0, 1.0, tf.shape(probabilities)[0])))
 
     def loss_CRPS_sample(self, X, y):
         return self.CRPS(X, y, self.samples)
@@ -573,11 +601,11 @@ class EMOS:
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
     
-    @tf.function
+    #@tf.function
     def _train_step(self, X, y):
         loss_value, grads = self._compute_loss_and_gradient(X, y)
-        # if tf.math.reduce_any(tf.math.is_nan(grads[0])):
-        #     return -1.0
+        if tf.math.reduce_any(tf.math.is_nan(grads[0])):
+            return -1.0
         self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.parameter_dict.values()))
         return loss_value
     

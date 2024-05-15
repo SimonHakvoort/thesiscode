@@ -245,10 +245,27 @@ def comp_pit_score_tf(model, data, t = 0):
     if t == 0:
         probabilities = cdf(observations)
     elif t > 0:
-        probabilities = (cdf(observations) - cdf(t)) / (1 - cdf(t))
+        #probabilities = (cdf(observations) - cdf(t)) / (1 - cdf(t))
+        upper = cdf(observations) - cdf(t)
+        lower = 1 - cdf(t)
+        # remove the points where lower is 0
+        mask = tf.where(lower == 0, False, True)
+        upper = tf.boolean_mask(upper, mask)
+        lower = tf.boolean_mask(lower, mask)
+        probabilities = upper / lower
     else:
         raise ValueError('t needs to be greater than 0')
     
     probabilities = tf.sort(probabilities)
 
     return np.mean(np.abs(probabilities - np.linspace(0, 1, len(probabilities))))
+
+def comp_multiple_pit_scores(model_dict, data, t = 0, base_model = None):
+    scores = {}
+    for name, model in model_dict.items():
+        scores[name] = comp_pit_score_tf(model, data, t)
+    
+    if base_model is not None:
+        scores['base_model'] = comp_pit_score_tf(base_model, data, t)
+    
+    return scores

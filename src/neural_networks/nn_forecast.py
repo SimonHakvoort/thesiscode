@@ -199,9 +199,12 @@ class NNForecast:
         y_true = []
         y_pred = []
 
-        for X, y in dataset:
-            y_true.append(y)
-            y_pred.append(self.predict(X))
+        # for X, y in dataset:
+        #     y_true.append(y)
+        #     y_pred.append(self.predict(X))
+        X, y = next(iter(dataset))
+        y_pred.append(self.predict(X))
+        y_true.append(y)
             
         y_true = tf.concat(y_true, axis=0)
         y_pred = tf.concat(y_pred, axis=0)
@@ -410,7 +413,21 @@ class NNForecast:
 
         return nnforecast
 
+    @staticmethod
+    def load_history(filepath: str) -> tf.keras.callbacks.History:
+        """
+        Load the training history of a neural network forecast model from a file.
 
+        Parameters:
+        - filepath (str): The path to the directory containing the history file.
+
+        Returns:
+        - history (tf.keras.callbacks.History): The training history of the model.
+        """
+        with open(filepath + '/history.pickle', 'rb') as f:
+            history = pickle.load(f)
+
+        return history
 
     
     def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None) -> tf.keras.callbacks.History:

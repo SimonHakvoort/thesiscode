@@ -34,6 +34,8 @@ train_data = train_data.shuffle(len(train_data))
 
 train_data = train_data.batch(len(train_data))
 
+# train_data = train_data.repeat()
+
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 test_data = test_data.batch(len(test_data))
@@ -45,6 +47,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
 loss = "loss_CRPS_sample"
+loss = "loss_cPIT"
 samples = 100
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
@@ -93,7 +96,7 @@ setup = {'loss': loss,
          }
 
 
-epochs = 600
+epochs = 500
 
 ignore = ['229', '285', '323']
 
@@ -109,7 +112,7 @@ end = time.time()
 mydict = emos.to_dict()
 
 #save the model:
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/batching/crps_batch_none_epochs_600'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/pit_loss/test'
 # 
 
 with open(filepath, 'wb') as f:

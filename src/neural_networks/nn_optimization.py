@@ -2,7 +2,7 @@ from src.neural_networks.get_data import get_tf_data, stack_1d_features, normali
 from src.neural_networks.nn_forecast import NNForecast
 from src.visualization.twcrpss_plot import make_twcrpss_plot_tf
 from src.visualization.brier_score import make_brier_skill_plot_tf
-from src.visualization.pit import make_cpit_diagram_tf
+from src.visualization.pit import comp_multiple_pit_scores, make_cpit_diagram_tf
 from src.training.training import load_model
 
 import tensorflow as tf
@@ -56,6 +56,7 @@ emos_base = load_model(filepath + 'crps_batch_none_epochs_600')
 t = 15
 make_cpit_diagram_tf(nn_crps_e10_models, test_data_original, t=t, base_model=emos_base)
 
+pits_scores = comp_multiple_pit_scores(nn_crps_e10_models, test_data_original, t=t, base_model=emos_base)
 
     
 
