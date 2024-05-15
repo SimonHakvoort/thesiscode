@@ -42,8 +42,8 @@ distribution_2 = 'distr_log_normal'
 loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 11
-chain_function_std = 2
-chain_function_constant = 0.3
+chain_function_std = 0.2
+chain_function_constant = 0.5
 
 optimizer = 'adam'
 learning_rate = 0.0002
@@ -60,7 +60,7 @@ add_wind_conv = True
 
 metrics = ['CRPS']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 
-saving = False
+saving = True
 
 epochs = 15
 

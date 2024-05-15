@@ -105,9 +105,11 @@ def make_cpit_diagram(cdf_dict, y, title = "", t = 0.0, gev_shape = None):
                 if shape is not None:
                     probabilities = np.where(np.isnan(probabilities), 1 if shape < 0 else 0, probabilities)
 
-            # print contain nan if probabilities contains nan
-            if np.isnan(probabilities).any():
-                print("probabilities contain nan")
+            #remove the nan from probabilities
+            # these can occur if cdf(t) = 1, which occurs in the dataset for large t.
+            # therefore there is often one value removed from the diagram
+            probabilities = tf.boolean_mask(probabilities, tf.math.is_finite(probabilities))
+            probabilities = tf.sort(probabilities)
 
             plt.plot(np.sort(probabilities), np.linspace(0, 1, len(probabilities)), label = name)
 
@@ -191,34 +193,35 @@ def threshold(X, y, t):
 def threshold_tf(data, t):
     def filter_function(X, y):
         return y > t
-    
-    data = data.unbatch()
-    
+        
     filtered_data = data.filter(filter_function)
 
     filtered_data = filtered_data.batch(100000)
+    filtered_data = filtered_data.repeat()
+    X, y = next(iter(filtered_data))
+
     return filtered_data
 
-def make_cpit_diagram_tf(model_dict, test_data_greater, t = 0, base_model = None):
-    # we assume that the data is already thresholded
+def make_cpit_diagram_tf(model_dict, data, t = 0, base_model = None):
+    data = threshold_tf(data, t)
     
     cdf_dict = {}
     for name, model in model_dict.items():
         if type(model) == EMOS:
-            distribution, observations = model.get_prob_distribution(test_data_greater)
+            distribution, observations = model.get_prob_distribution(data)
             cdf_dict[name] = distribution.cdf
         elif type(model) == NNForecast:
-            distribution, observations = model.get_prob_distribution(test_data_greater)
+            distribution, observations = model.get_prob_distribution(data)
             cdf_dict[name] = distribution.cdf
         else:
             raise ValueError('Model type not recognized')
         
     if base_model is not None:
         if type(model) == EMOS:
-            distribution, observations = model.get_prob_distribution(test_data_greater)
+            distribution, observations = model.get_prob_distribution(data)
             cdf_dict['base_model'] = distribution.cdf
         elif type(model) == NNForecast:
-            distribution, observations = model.get_prob_distribution(test_data_greater)
+            distribution, observations = model.get_prob_distribution(data)
             cdf_dict['base_model'] = distribution.cdf
         else:
             raise ValueError('Model type not recognized')
