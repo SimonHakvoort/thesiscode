@@ -1,7 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 
+from src.models.emos import EMOS
 from src.models.forecast_distributions import Mixture, MixtureLinear
+from src.neural_networks.nn_forecast import NNForecast
+from src.visualization.pit import threshold_tf
 
 def plot_forecast_cdf(emos_dict, X, y, observation_value = 0, base_model = None, seed = None, plot_size = 3):
     """
@@ -205,3 +209,73 @@ def plot_weight_mixture(model_dict, values):
     plt.ylim(0, 1)
     plt.legend()
     plt.show()    
+
+
+def plot_forecast_pdf_tf(model_dict, data, observation_value=0, plot_size=5, base_model=None):
+    """
+    Plots the probability density function (PDF) of forecasted values for a given model or models.
+
+    Parameters:
+    - model_dict (dict): A dictionary containing the models to be plotted. The keys are the names of the models, and the values are the model objects.
+    - data (tf.data.Dataset): The input data used for forecasting.
+    - observation_value (float): The observed value used as a reference point for plotting.
+    - plot_size (float): The range of values to be plotted around the observation value.
+    - base_model: The base model to be plotted. If provided, it will be plotted in black color.
+
+    Returns:
+    None
+    """
+    # Function code goes here
+    pass
+def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5, base_model = None):
+
+    test_data_greater = threshold_tf(data, observation_value, repeat=False, batching = False)
+
+    test_data_greater = test_data_greater.shuffle(10000)
+    
+
+    sample = test_data_greater.take(1)
+    X, y = next(iter(sample))
+    # add an extra dimension to every tensor in X, add the beginning using
+    for key, value in X.items():
+        X[key] = tf.expand_dims(value, axis = 0)
+    y = tf.expand_dims(y, axis = 0)
+        
+
+
+    for name, model in model_dict.items():
+        if isinstance(model, EMOS):
+            distributions = model.forecast_distribution.get_distribution(X['features_emos'])
+        elif isinstance(model, NNForecast):
+            distributions = model.get_distribution(model.predict(X))
+
+
+        pdf = distributions.prob
+
+        x = np.linspace(y[0] - plot_size, y[0] + plot_size, 500)
+
+        y_values = pdf(x).numpy()
+
+        plt.plot(x, y_values, label = name)
+
+    if base_model is not None:
+        if isinstance(base_model, EMOS):
+            distributions = base_model.forecast_distribution.get_distribution(X['features_emos'])
+        elif isinstance(base_model, NNForecast):
+            distributions = base_model.get_distribution(model.predict(X))
+
+
+        pdf = distributions.prob
+
+        x = np.linspace(y[0] - plot_size, y[0] + plot_size, 500)
+
+        y_values = pdf(x).numpy()
+
+        plt.plot(x, y_values, label = 'base model', color = 'black')
+
+    plt.axvline(y[0], color = 'red', label = 'observation', linestyle = '--')
+    plt.xlabel('Value')
+    plt.ylabel('Probability density')
+    plt.legend()
+    plt.show()
+            

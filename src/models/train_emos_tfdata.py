@@ -112,7 +112,7 @@ end = time.time()
 mydict = emos.to_dict()
 
 #save the model:
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/pit_loss/test'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/pit_loss/test_multiple_of_5'
 # 
 
 with open(filepath, 'wb') as f:

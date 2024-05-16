@@ -448,7 +448,6 @@ class NNForecast:
     
 
     def predict(self, X):
-
         return self.model.predict(X)
     
     def get_prob_distribution(self, data):

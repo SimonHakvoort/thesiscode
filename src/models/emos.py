@@ -387,9 +387,11 @@ class EMOS:
         return distributions, observations
     
     def CRPS_tfdataset(self, data, samples):
-        total_crps = 0
-        for X, y in data:
-            total_crps += self.CRPS(X['features_emos'], y, samples)
+        # total_crps = 0
+        # for X, y in data:
+        #     total_crps += self.CRPS(X['features_emos'], y, samples)
+        X, y = next(iter(data))
+        total_crps = self.CRPS(X['features_emos'], y, samples)
         return total_crps
 
     
@@ -420,7 +422,9 @@ class EMOS:
     
     def loss_cPIT(self, X, y):
         # return self.calc_pit from t = 0 to t = 15
-        return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in range(16)])
+        # return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in range(16)])
+        # return self.calc_pit for t = 0, 5, 10, 15
+        return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in [0, 5, 10, 15]])
     
     def calc_cPIT(self, X, y, t):
         indices = tf.where(y > t)

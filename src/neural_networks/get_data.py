@@ -88,9 +88,6 @@ def get_tf_data(fold, feature_names, ignore = [], add_emos=True, features_emos_m
         output['features_1d_mean'] = features_1d_mean
         output['features_1d_std'] = features_1d_std
 
-
-
-
     output['data'] = data
     output['ignore'] = ignore
     output['feature_names'] = feature_names

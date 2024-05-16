@@ -1,5 +1,6 @@
 from src.neural_networks.get_data import get_tf_data, stack_1d_features, normalize_1d_features_with_mean_std, load_cv_data
 from src.neural_networks.nn_forecast import NNForecast
+from src.visualization.plot_forecasts import plot_forecast_pdf_tf
 from src.visualization.twcrpss_plot import make_twcrpss_plot_tf
 from src.visualization.brier_score import make_brier_skill_plot_tf
 from src.visualization.pit import comp_multiple_pit_scores, make_cpit_diagram_tf
@@ -28,23 +29,27 @@ train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 test_data_original = test_data
 
+test_data = test_data.batch(len(test_data))
+
+test_data = test_data.repeat()
+
+test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+# filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
+
+# crps_tn_e10 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10', train_data)
+
+# crps_tn_e10_2 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10_v2', train_data)
+
+# crps_tn_e10_3 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10_v3', train_data)
+
+# crps_tn_e10_4 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10_v4', train_data)
 
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
-
-crps_tn_e10 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10', train_data)
-
-crps_tn_e10_2 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10_v2', train_data)
-
-crps_tn_e10_3 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10_v3', train_data)
-
-crps_tn_e10_4 = NNForecast.my_load(filepath + 'CRPS_trunc_normal_epochs_10_v4', train_data)
-
-
-nn_crps_e10_models = {'CRPS_trunc_normal_epochs_10': crps_tn_e10,
-                      'CRPS_trunc_normal_epochs_10_v2': crps_tn_e10_2,
-                      'CRPS_trunc_normal_epochs_10_v3': crps_tn_e10_3,
-                      'CRPS_trunc_normal_epochs_10_v4': crps_tn_e10_4}
+# nn_crps_e10_models = {'CRPS_trunc_normal_epochs_10': crps_tn_e10,
+#                       'CRPS_trunc_normal_epochs_10_v2': crps_tn_e10_2,
+#                       'CRPS_trunc_normal_epochs_10_v3': crps_tn_e10_3,
+#                       'CRPS_trunc_normal_epochs_10_v4': crps_tn_e10_4}
 
 
 
@@ -52,11 +57,17 @@ filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/batching/'
 
 emos_base = load_model(filepath + 'crps_batch_none_epochs_600')
 
+test_file_path = '/net/pc200239/nobackup/users/hakvoort/models/emos/pit_loss/test'
 
-t = 15
-make_cpit_diagram_tf(nn_crps_e10_models, test_data_original, t=t, base_model=emos_base)
+emos_pit_loss = load_model(test_file_path)
 
-pits_scores = comp_multiple_pit_scores(nn_crps_e10_models, test_data_original, t=t, base_model=emos_base)
+emos_pit_loss_dict = {'cPIT_loss': emos_pit_loss}
+
+emos_base.CRPS_tfdataset(test_data, 1000)
+
+t = 0
+plot_forecast_pdf_tf(emos_pit_loss_dict, test_data_original, observation_value=t, base_model=emos_base)
+
 
     
 

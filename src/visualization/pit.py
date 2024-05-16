@@ -190,15 +190,17 @@ def threshold(X, y, t):
     #variance_greater = tf.gather(variance, indices)
     return X_greater, y_greater
 
-def threshold_tf(data, t):
+def threshold_tf(data, t, repeat = True, batching = True):
     def filter_function(X, y):
         return y > t
         
     filtered_data = data.filter(filter_function)
 
-    filtered_data = filtered_data.batch(100000)
-    filtered_data = filtered_data.repeat()
-    X, y = next(iter(filtered_data))
+    if batching:
+        filtered_data = filtered_data.batch(100000)
+    if repeat:
+        filtered_data = filtered_data.repeat()
+    #X, y = next(iter(filtered_data))
 
     return filtered_data
 
@@ -218,10 +220,10 @@ def make_cpit_diagram_tf(model_dict, data, t = 0, base_model = None):
         
     if base_model is not None:
         if type(model) == EMOS:
-            distribution, observations = model.get_prob_distribution(data)
+            distribution, observations = base_model.get_prob_distribution(data)
             cdf_dict['base_model'] = distribution.cdf
         elif type(model) == NNForecast:
-            distribution, observations = model.get_prob_distribution(data)
+            distribution, observations = base_model.get_prob_distribution(data)
             cdf_dict['base_model'] = distribution.cdf
         else:
             raise ValueError('Model type not recognized')
