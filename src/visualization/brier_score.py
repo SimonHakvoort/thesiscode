@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.climatology.climatology import Climatology
 from src.models.emos import EMOS
 from src.neural_networks.nn_forecast import NNForecast
 
@@ -55,6 +56,8 @@ def get_brier_scores_tf(model, data, values):
             brier_scores[i] = model.Brier_Score_tfdataset(data, threshold).numpy()
     elif type(model) == NNForecast:
         brier_scores = np.array(model.Brier_Score(data, values))
+    elif isinstance(model, Climatology):
+       brier_scores = model.get_Brier_scores(data, values)
     else:
         raise ValueError('Model type not recognized')
     return brier_scores

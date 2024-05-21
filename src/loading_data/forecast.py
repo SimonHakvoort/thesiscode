@@ -209,6 +209,9 @@ class ForecastSample():
             grid = X['wind_speed_grid']
             central_value = grid[grid.shape[0] // 2, grid.shape[1] // 2]
             X['wind_speed_forecast'] = central_value
+
+        X['station_code'] = self.station_code
+        
         return X
      
     def get_y(self):

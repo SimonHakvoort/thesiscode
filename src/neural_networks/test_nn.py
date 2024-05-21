@@ -20,8 +20,6 @@ features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
-# save_cv_data(features_names_dict, ignore = ignore)
-
 
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
@@ -39,11 +37,11 @@ forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
-chain_function_mean = 9
-chain_function_std = 2
-chain_function_constant = 0.2
+chain_function_mean = 10
+chain_function_std = 1
+chain_function_constant = 0.1
 
 optimizer = 'adam'
 learning_rate = 0.0002
@@ -60,9 +58,9 @@ add_wind_conv = True
 
 metrics = ['CRPS', 'twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 
-saving = True
+saving = False
 
-epochs = 50
+epochs = 5
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -87,7 +85,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += '_v4'
+filepath += '_v2'
 
 
 # make a folder

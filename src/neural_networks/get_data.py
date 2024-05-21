@@ -177,7 +177,7 @@ def load_cv_data(cv, feature_names):
 
 def stack_1d_features(features, label):
     
-    feature_names_1d = [key for key, value in features.items() if value.shape == () and key != 'wind_speed_forecast']
+    feature_names_1d = [key for key, value in features.items() if value.shape == () and key != 'wind_speed_forecast' and key != 'station_code']
     features_1d = [features[key] for key in feature_names_1d]
     features_1d = tf.stack(features_1d, axis=0)
     features['features_1d'] = features_1d
