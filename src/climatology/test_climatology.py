@@ -18,6 +18,8 @@ folder = '/net/pc200239/nobackup/users/hakvoort/models/climatology/climatology_c
 
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
+original_data = list(train_data.as_numpy_iterator())
+
 test_data = test_data.batch(len(test_data))
 
 

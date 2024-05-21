@@ -85,7 +85,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += '_v2'
+#filepath += '_v2'
 
 
 # make a folder

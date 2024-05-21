@@ -52,8 +52,7 @@ def get_brier_scores(emos, X, y, values):
 def get_brier_scores_tf(model, data, values):
     brier_scores = np.zeros(len(values))
     if type(model) == EMOS:
-        for i, threshold in enumerate(values):
-            brier_scores[i] = model.Brier_Score_tfdataset(data, threshold).numpy()
+        brier_scores = model.Brier_Score_tfdataset(data, values)
     elif type(model) == NNForecast:
         brier_scores = np.array(model.Brier_Score(data, values))
     elif isinstance(model, Climatology):

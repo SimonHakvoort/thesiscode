@@ -47,7 +47,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
 loss = "loss_CRPS_sample"
-loss = "loss_cPIT"
+#loss = "loss_cPIT"
 samples = 100
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
@@ -96,7 +96,7 @@ setup = {'loss': loss,
          }
 
 
-epochs = 500
+epochs = 200
 
 ignore = ['229', '285', '323']
 
@@ -109,6 +109,7 @@ loss = emos.fit_tfdataset(train_data, epochs, printing = printing)
 #end timing:
 end = time.time()
 
+print("Time elapsed: ", end - start)
 mydict = emos.to_dict()
 
 #save the model:
@@ -118,5 +119,4 @@ filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/pit_loss/test_mult
 with open(filepath, 'wb') as f:
     pkl.dump(mydict, f)
 
-
-print(emos.CRPS_tfdataset(test_data, 1000))
+print(emos.twCRPS_tfdataset(test_data,[0], 1000))

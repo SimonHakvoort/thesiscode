@@ -1,8 +1,12 @@
 import copy
+import os
+import pickle
+from typing import Callable
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from src.models.forecast_distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name, initialize_distribution 
+from src.models.forecast_distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name, initialize_distribution
+from src.neural_networks.get_data import load_cv_data 
 tfpd = tfp.distributions
 
 class EMOS:
@@ -472,43 +476,81 @@ class EMOS:
         cdf_values = self.forecast_distribution.comp_cdf(X, threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
     
-    def Brier_Score_tfdataset(self, data, threshold):
+    def Brier_Score_tfdataset(self, data, thresholds):
         """
         The loss function for the Brier score, based on the forecast distribution and observations, using a tf.dataset.
 
         Arguments:
         - data (tf.dataset): the dataset containing the input data and observations.
-        - threshold (float): the threshold for the Brier score.
+        - thresholds (list(float)): the threshold for the Brier score.
 
         Returns:
         - the Brier score at the given threshold.
         """
         # take 1 element from the data
         X, y = next(iter(data))
-        brier_score = self.Brier_Score(X['features_emos'], y, threshold)
-            
+        #brier_score = self.Brier_Score(X['features_emos'], y, threshold)
+        brier_scores = np.zeros(len(thresholds))
 
-        return brier_score
+        cdfs = self.forecast_distribution.comp_cdf(X['features_emos'], thresholds)  
 
-
+        for i, threshold in enumerate(thresholds):
+            brier_scores[i] = tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdfs[i]))
+        return brier_scores
 
     def twCRPS(self, X, y, threshold, samples):
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
         return self.loss_twCRPS_sample_general(X, y, chain_function, samples)
     
-    def twCRPS_tfdataset(self, data, threshold, samples):
-        chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
+    def twCRPS_tfdataset(self, data: tf.data.Dataset, thresholds: np.ndarray, samples: int) -> np.ndarray:
+        """
+        The loss function for the twCRPS, based on the forecast distribution and observations, using a tf.dataset.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            thresholds (np.ndarray): the thresholds for the twCRPS.
+            samples (int): the amount of samples used to estimate the expected value of the twCRPS.
+
+        Returns:
+            the twCRPS at the given thresholds.
+        """
         X, y = next(iter(data))
-        return self.loss_twCRPS_sample_general(X['features_emos'], y, chain_function, samples)
+        forecast_distribution = self.forecast_distribution.get_distribution(X['features_emos'])
+        twcrps = np.zeros(len(thresholds))
+
+        for i, threshold in enumerate(thresholds):
+            chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
+            X_1 = forecast_distribution.sample(samples)
+            X_2 = forecast_distribution.sample(samples)
+            vX_1 = chain_function(X_1)
+            vX_2 = chain_function(X_2)
+            E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
+            E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
+            twcrps[i] = tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
+
+        return twcrps
+
+
     
-    # def twCRPS_tfdataset(self, data, threshold, samples):
-    #     chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
-    #     return self.loss_twCRPS_tfdataset_general(data, chain_function, samples)
+
     
     def loss_twCRPS_sample(self, X, y):
         return self.loss_twCRPS_sample_general(X, y, self.chain_function, self.samples)
         
-    def loss_twCRPS_sample_general(self, X, y, chain_function, samples):
+    def loss_twCRPS_sample_general(self, X: tf.Tensor, y: tf.Tensor, chain_function: Callable[[tf.Tensor], tf.Tensor], samples: int) -> tf.Tensor:
+        """
+        The loss function for the twCRPS, based on the forecast distribution and observations. 
+        We use a sample based approach to estimate the expected value of the twCRPS.
+
+        Arguments:
+            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features
+            y (tf.Tensor): the observations of shape (n,)
+            chain_function (callable): the function used to compute the chain function
+            samples (int): the amount of samples used to estimate the expected value of the twCRPS
+
+        Returns:
+            the loss value
+        """	
         forecast_distribution = self.forecast_distribution.get_distribution(X)
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
@@ -605,7 +647,7 @@ class EMOS:
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
     
-    #@tf.function
+    @tf.function
     def _train_step(self, X, y):
         loss_value, grads = self._compute_loss_and_gradient(X, y)
         if tf.math.reduce_any(tf.math.is_nan(grads[0])):
@@ -681,7 +723,6 @@ class EMOS:
         print("Final loss: ", loss_value.numpy())	
         return hist
     
-    ### This function is currently slower than the fit function, except if we use batching
     def fit_tfdataset(self, data, epochs, printing = True):
         for epoch in range(epochs):
             epoch_losses = 0.0
@@ -701,20 +742,83 @@ class EMOS:
 
 
 class BootstrapEmos():
-    def __init__(self, setup):
+    def __init__(self, setup, filepath, epochs, batch_size, cv_number, features_names_dict):
         self.setup = setup
-        self.num_samples = setup['num_samples']
-        self.models = [EMOS(setup) for _ in range(self.num_samples)]
+        self.filepath = filepath
+        self.num_models = 0
 
-    def fit(self, X, y, steps, printing = True, subset_size = None):
-        for model in self.models:
-            # sample data from X, y
-            indices = np.random.choice(X.shape[0], X.shape[0], replace=True)
-            X_sample = tf.gather(X, indices)
-            y_sample = tf.gather(y, indices)
-            model.fit(X_sample, y_sample, steps, printing, subset_size)
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.cv_number = cv_number
+        self.features_names_dict = features_names_dict
+        self.models = None
 
-    # def Brier_Score_Bootstrap(self, X, y, threshold):
+    def save_bootstrap_info(self):
+        info = {'setup': self.setup,
+                'num_models': self.num_models,
+                'epochs': self.epochs,
+                'batch_size': self.batch_size,
+                'cv_number': self.cv_number,
+                'features_names_dict': self.features_names_dict,
+                'filepath': self.filepath}
+        
+        with open(os.path.join(self.filepath, 'bootstrap_info.pkl'), 'wb') as f:
+            pickle.dump(info, f)
+
+    def train_models(self, number):
+        train_data, test_data, data_info = load_cv_data(self.cv_number, self.features_names_dict)
+        train_data_list = list(train_data.as_numpy_iterator())
+
+        for _ in range(number):
+            model = EMOS(self.setup)
+            bootstrap_sample = self.make_bootstrap_sample(train_data_list)
+
+            bootstrap_sample = bootstrap_sample.shuffle(len(bootstrap_sample))
+            bootstrap_sample = bootstrap_sample.batch(self.batch_size)
+            bootstrap_sample = bootstrap_sample.prefetch(tf.data.experimental.AUTOTUNE)
+
+
+
+            model.fit_tfdataset(bootstrap_sample, self.epochs)
+            
+            model_dict = model.to_dict()
+            name = 'model_' + str(self.num_models) + '.pkl'
+            dir_path = os.path.join(self.filepath, 'models')
+            os.makedirs(dir_path, exist_ok=True)
+            path = os.path.join(dir_path, name)
+            with open(path, 'wb') as f:
+                pickle.dump(model_dict, f)
+
+            self.num_models += 1
+            print("Model ", self.num_models, " trained")
+
+    def load_models(self):
+        models = []
+        for i in range(self.num_models):
+            name = 'model_' + str(i) + '.pkl'
+            path = os.path.join(self.filepath, 'models', name)
+            with open(path, 'rb') as f:
+                model_dict = pickle.load(f)
+            model = EMOS(model_dict)
+            models.append(model)
+        self.models = models
+    
+
+    def make_bootstrap_sample(self, data_list):
+        indices = np.random.choice(len(data_list), len(data_list), replace=True)
+        data =  [data_list[i] for i in indices]
+        return tf.data.Dataset.from_tensor_slices(data)
+    
+    def Brier_Score(self, data, values):
+        if self.models is None:
+            self.load_models()
+
+        brier_scores = np.zeros(shape=(len(values), self.num_models))
+        for i, model in enumerate(self.models):
+            brier_scores[:, i] = model.Brier_Score_tfdataset(data, values)
+
+        return brier_scores
+
 
 
 
