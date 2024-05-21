@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.climatology.climatology import Climatology
 from src.models.emos import EMOS
 from src.neural_networks.nn_forecast import NNForecast
 
@@ -14,6 +15,8 @@ def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
             scores.append(model.twCRPS_tfdataset(data, threshold, sample_size).numpy())
     elif type(model) == NNForecast:
         scores = model.twCRPS(data, thresholds, sample_size)
+    elif isinstance(model, Climatology):
+        scores = model.get_twCRPS(data, thresholds)
     else:
         raise ValueError('Model type not recognized')
     return scores

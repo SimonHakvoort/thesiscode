@@ -27,4 +27,6 @@ values = [0, 5, 10, 15, 20]
 
 bier_scores = climatology.get_Brier_scores(test_data, values)
 
-x = 4
+twcrps = climatology.get_twCRPS(test_data, values, 10000)
+
+print(twcrps)
