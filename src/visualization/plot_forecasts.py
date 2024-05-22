@@ -229,19 +229,21 @@ def plot_forecast_pdf_tf(model_dict, data, observation_value=0, plot_size=5, bas
     pass
 def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5, base_model = None):
 
-    test_data_greater = threshold_tf(data, observation_value, repeat=False, batching = False)
+    test_data_greater = threshold_tf(data, observation_value, repeat=False, batching=False)
 
     test_data_greater = test_data_greater.shuffle(10000)
     
 
     sample = test_data_greater.take(1)
     X, y = next(iter(sample))
+
+    forecast = X['wind_speed_forecast']
     # add an extra dimension to every tensor in X, add the beginning using
     for key, value in X.items():
         X[key] = tf.expand_dims(value, axis = 0)
     y = tf.expand_dims(y, axis = 0)
         
-
+    
 
     for name, model in model_dict.items():
         if isinstance(model, EMOS):
@@ -273,6 +275,7 @@ def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5,
 
         plt.plot(x, y_values, label = 'base model', color = 'black')
 
+    plt.axvline(forecast, color = 'black', label = 'forecast', linestyle = 'dashed')
     plt.axvline(y[0], color = 'red', label = 'observation', linestyle = '--')
     plt.xlabel('Value')
     plt.ylabel('Probability density')

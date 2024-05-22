@@ -765,6 +765,24 @@ class BootstrapEmos():
         with open(os.path.join(self.filepath, 'bootstrap_info.pkl'), 'wb') as f:
             pickle.dump(info, f)
 
+    @classmethod 
+    def load(cls, filepath):
+        with open(os.path.join(filepath, 'bootstrap_info.pkl'), 'rb') as f:
+            info = pickle.load(f)
+        
+        instance = cls(
+            setup = info['setup'],
+            filepath = info['filepath'],
+            epochs = info['epochs'],
+            batch_size = info['batch_size'],
+            cv_number = info['cv_number'],
+            features_names_dict = info['features_names_dict']
+        )
+
+        instance.num_models = info['num_models']
+        return instance
+
+
     def train_models(self, number):
         train_data, test_data, data_info = load_cv_data(self.cv_number, self.features_names_dict)
         train_data_list = list(train_data.as_numpy_iterator())
@@ -818,6 +836,16 @@ class BootstrapEmos():
             brier_scores[:, i] = model.Brier_Score_tfdataset(data, values)
 
         return brier_scores
+    
+    def twCRPS(self, data, values, samples):
+        if self.models is None:
+            self.load_models()
+
+        twcrps = np.zeros(shape=(len(values), self.num_models))
+        for i, model in enumerate(self.models):
+            twcrps[:, i] = model.twCRPS_tfdataset(data, values, samples)
+
+        return twcrps
 
 
 

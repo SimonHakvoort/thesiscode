@@ -122,7 +122,10 @@ def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title
 
     plt.xlabel('wind speed threshold (m/s)')
     plt.ylabel('Brier skill score')
-    plt.xlim(values[0], values[-1])
+    if values[0] < 0.5:
+        plt.xlim(0, values[-1])
+    else:
+        plt.xlim(values[0], values[-1])
     if ylim != None:
         plt.ylim(ylim[0], ylim[1])
     plt.title(title)

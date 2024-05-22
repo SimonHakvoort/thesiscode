@@ -56,11 +56,11 @@ conv_5x5_units = 5
 conv_3x3_units = 5
 add_wind_conv = True
 
-metrics = ['CRPS', 'twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
+metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 
-saving = False
+saving = True
 
-epochs = 5
+epochs = 200
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 

@@ -96,7 +96,7 @@ setup = {'loss': loss,
          }
 
 
-epochs = 200
+epochs = 300
 
 ignore = ['229', '285', '323']
 

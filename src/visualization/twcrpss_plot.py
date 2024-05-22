@@ -11,11 +11,11 @@ def comp_twcrpss(model_ref, model, X, y, threshold, sample_size = 1000):
 def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
     scores = []
     if type(model) == EMOS:
-        scores = model.twCRPS_tfdataset(data, thresholds)
+        scores = model.twCRPS_tfdataset(data, thresholds, sample_size)
     elif type(model) == NNForecast:
         scores = model.twCRPS(data, thresholds, sample_size)
     elif isinstance(model, Climatology):
-        scores = model.get_twCRPS(data, thresholds)
+        scores = model.get_twCRPS(data, thresholds, sample_size)
     else:
         raise ValueError('Model type not recognized')
     return scores
