@@ -63,7 +63,7 @@ emos_pit_loss = load_model(test_file_path)
 
 emos_pit_loss_dict = {'cPIT_loss': emos_pit_loss}
 
-emos_base.CRPS_tfdataset(test_data, 1000)
+emos_base.CRPS(test_data, 1000)
 
 t = 0
 plot_forecast_pdf_tf(emos_pit_loss_dict, test_data_original, observation_value=t, base_model=emos_base)

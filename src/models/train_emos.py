@@ -30,7 +30,7 @@ def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup, ignore
 
     emos = EMOS(setup)
 
-    emos.fit(X, y, epochs, printing = printing, subset_size = subset_size)
+    emos.fit_old(X, y, epochs, printing = printing, subset_size = subset_size)
 
     return emos
 
@@ -48,7 +48,7 @@ def train_and_test_emos(neighbourhood_size, parameter_names, epochs, train_folds
     setup["neighbourhood_size"] = neighbourhood_size
 
     emos = EMOS(setup)
-    emos.fit(X, y, variances, epochs)
+    emos.fit_old(X, y, variances, epochs)
 
     X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_folds)
 

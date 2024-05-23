@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from src.neural_networks.get_data import get_tf_data, load_cv_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
 from src.models.train_emos import train_emos
-from src.models.emos import EMOS
+from src.models.emos import EMOS, BootstrapEmos
 from src.models.get_data import get_tensors
 from src.models.train_emos import train_and_test_emos
 from src.training.training import load_model
@@ -96,27 +96,30 @@ setup = {'loss': loss,
          }
 
 
-epochs = 300
 
-ignore = ['229', '285', '323']
-
-emos = EMOS(setup)
-#start timing:
-start = time.time()
-
-loss = emos.fit_tfdataset(train_data, epochs, printing = printing)
-
-#end timing:
-end = time.time()
-
-print("Time elapsed: ", end - start)
-mydict = emos.to_dict()
 
 #save the model:
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos/pit_loss/test_multiple_of_5'
-# 
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/crps_test'
 
-with open(filepath, 'wb') as f:
-    pkl.dump(mydict, f)
+epochs = 500
 
-print(emos.twCRPS_tfdataset(test_data,[0], 1000))
+cv = 3
+
+batch_size = None
+
+
+bootstrap = BootstrapEmos(setup, filepath, epochs, batch_size, cv, features_names_dict)
+
+bootstrap.train_models(1000)
+
+bootstrap.save_bootstrap_info()
+
+twCRPS = bootstrap.twCRPS(test_data, [0], 1000)
+
+print(twCRPS)
+
+print(np.mean(twCRPS))
+
+# bootstrap_model = BootstrapEmos.load(filepath)
+
+# print(bootstrap_model.twCRPS(test_data, [0], 1000))

@@ -390,16 +390,16 @@ class EMOS:
 
         return distributions, observations
     
-    def CRPS_tfdataset(self, data, samples):
+    def CRPS(self, data, samples):
         # total_crps = 0
         # for X, y in data:
         #     total_crps += self.CRPS(X['features_emos'], y, samples)
         X, y = next(iter(data))
-        total_crps = self.CRPS(X['features_emos'], y, samples)
+        total_crps = self.CRPS_old(X['features_emos'], y, samples)
         return total_crps
 
     
-    def CRPS(self, X, y, samples):
+    def CRPS_old(self, X, y, samples):
         """
         The loss function for the CRPS, based on the forecast distribution and observations.
         We use a sample based approach to estimate the expected value of the CRPS.
@@ -456,10 +456,10 @@ class EMOS:
         return tf.reduce_mean(tf.abs(probabilities - tf.linspace(0.0, 1.0, tf.shape(probabilities)[0])))
 
     def loss_CRPS_sample(self, X, y):
-        return self.CRPS(X, y, self.samples)
+        return self.CRPS_old(X, y, self.samples)
         
     
-    def Brier_Score(self, X, y, threshold):
+    def Brier_Score_old(self, X, y, threshold):
         """
         The loss function for the Brier score, based on the forecast distribution and observations.
 
@@ -476,7 +476,7 @@ class EMOS:
         cdf_values = self.forecast_distribution.comp_cdf(X, threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
     
-    def Brier_Score_tfdataset(self, data, thresholds):
+    def Brier_Score(self, data, thresholds):
         """
         The loss function for the Brier score, based on the forecast distribution and observations, using a tf.dataset.
 
@@ -498,11 +498,11 @@ class EMOS:
             brier_scores[i] = tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdfs[i]))
         return brier_scores
 
-    def twCRPS(self, X, y, threshold, samples):
+    def twCRPS_old(self, X, y, threshold, samples):
         chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
         return self.loss_twCRPS_sample_general(X, y, chain_function, samples)
     
-    def twCRPS_tfdataset(self, data: tf.data.Dataset, thresholds: np.ndarray, samples: int) -> np.ndarray:
+    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, samples: int) -> np.ndarray:
         """
         The loss function for the twCRPS, based on the forecast distribution and observations, using a tf.dataset.
 
@@ -671,7 +671,7 @@ class EMOS:
     # def fit_dataset(self, dataset, steps, printing = True, subset_size = None):
      
 
-    def fit(self, X, y, steps, printing = True, subset_size = None):
+    def fit_old(self, X, y, steps, printing = True, subset_size = None):
         """
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
 
@@ -723,7 +723,7 @@ class EMOS:
         print("Final loss: ", loss_value.numpy())	
         return hist
     
-    def fit_tfdataset(self, data, epochs, printing = True):
+    def fit(self, data, epochs, printing = True):
         for epoch in range(epochs):
             epoch_losses = 0.0
             batch_count = 0.0
@@ -780,24 +780,35 @@ class BootstrapEmos():
         )
 
         instance.num_models = info['num_models']
+
         return instance
 
 
     def train_models(self, number):
         train_data, test_data, data_info = load_cv_data(self.cv_number, self.features_names_dict)
-        train_data_list = list(train_data.as_numpy_iterator())
+        #train_data_list = list(train_data.as_numpy_iterator())
+        train_data = train_data.batch(len(train_data))
+
+        X, y = next(iter(train_data))
+
+        amount_of_data = y.shape[0]
 
         for _ in range(number):
             model = EMOS(self.setup)
-            bootstrap_sample = self.make_bootstrap_sample(train_data_list)
+            bootstrap_sample = self.make_bootstrap_sample(X, y)
 
-            bootstrap_sample = bootstrap_sample.shuffle(len(bootstrap_sample))
-            bootstrap_sample = bootstrap_sample.batch(self.batch_size)
+            bootstrap_sample = bootstrap_sample.shuffle(amount_of_data)
+
+            if self.batch_size is not None:
+                bootstrap_sample = bootstrap_sample.batch(self.batch_size)
+            else:
+                bootstrap_sample = bootstrap_sample.batch(amount_of_data)
+
             bootstrap_sample = bootstrap_sample.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
-            model.fit_tfdataset(bootstrap_sample, self.epochs)
+            model.fit(bootstrap_sample, self.epochs, printing=True)
             
             model_dict = model.to_dict()
             name = 'model_' + str(self.num_models) + '.pkl'
@@ -822,10 +833,45 @@ class BootstrapEmos():
         self.models = models
     
 
-    def make_bootstrap_sample(self, data_list):
-        indices = np.random.choice(len(data_list), len(data_list), replace=True)
-        data =  [data_list[i] for i in indices]
-        return tf.data.Dataset.from_tensor_slices(data)
+    def make_bootstrap_sample(self, X, y):
+        X = X['features_emos']
+
+        indices = np.random.choice(X.shape[0], X.shape[0], replace=True)
+
+        X = tf.gather(X, indices)
+
+        y = tf.gather(y, indices)
+
+        dataset = tf.data.Dataset.from_tensor_slices((X, y))
+
+        def mapping(X, y):
+            return {'features_emos': X}, y
+        
+        dataset = dataset.map(mapping)
+
+        return dataset
+
+        # def data_generator(data_list):
+        #     for sample, y in data_list:
+        #         # Convert each dictionary in sample to a tuple of tensors
+        #         yield ({k: tf.convert_to_tensor(v) for k, v in sample.items()}, tf.convert_to_tensor(y))
+
+        # output_signature = (
+        #     {
+        #     'station_code': tf.TensorSpec(shape=(), dtype=tf.string),
+        #     'features_1d': tf.TensorSpec(shape=(4,), dtype=tf.float32),
+        #     'features_emos': tf.TensorSpec(shape=(5,), dtype=tf.float32),
+        #     'wind_speed_grid': tf.TensorSpec(shape=(15, 15, 1), dtype=tf.float32),
+        #     'wind_speed_forecast': tf.TensorSpec(shape=(), dtype=tf.float32)
+        #     },
+        #     tf.TensorSpec(shape=(), dtype=tf.float32)
+        # )
+
+        # bootstrap_sample = tf.data.Dataset.from_generator(
+        #     lambda: data_generator(data_list),
+        #     output_signature=output_signature
+        # )
+        # return bootstrap_sample
     
     def Brier_Score(self, data, values):
         if self.models is None:
@@ -843,7 +889,7 @@ class BootstrapEmos():
 
         twcrps = np.zeros(shape=(len(values), self.num_models))
         for i, model in enumerate(self.models):
-            twcrps[:, i] = model.twCRPS_tfdataset(data, values, samples)
+            twcrps[:, i] = model.twCRPS(data, values, samples)
 
         return twcrps
 
