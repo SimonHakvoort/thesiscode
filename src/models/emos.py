@@ -834,15 +834,15 @@ class BootstrapEmos():
     
 
     def make_bootstrap_sample(self, X, y):
-        X = X['features_emos']
+        X_f = X['features_emos']
 
-        indices = np.random.choice(X.shape[0], X.shape[0], replace=True)
+        indices = np.random.choice(X_f.shape[0], X_f.shape[0], replace=True)
 
-        X = tf.gather(X, indices)
+        X_f = tf.gather(X_f, indices)
 
         y = tf.gather(y, indices)
 
-        dataset = tf.data.Dataset.from_tensor_slices((X, y))
+        dataset = tf.data.Dataset.from_tensor_slices((X_f, y))
 
         def mapping(X, y):
             return {'features_emos': X}, y

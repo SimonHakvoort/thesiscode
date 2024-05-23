@@ -99,7 +99,7 @@ setup = {'loss': loss,
 
 
 #save the model:
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/crps_test'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/crps'
 
 epochs = 500
 
@@ -110,16 +110,14 @@ batch_size = None
 
 bootstrap = BootstrapEmos(setup, filepath, epochs, batch_size, cv, features_names_dict)
 
-bootstrap.train_models(1000)
+bootstrap.train_models(3)
 
 bootstrap.save_bootstrap_info()
 
-twCRPS = bootstrap.twCRPS(test_data, [0], 1000)
+twCRPS = bootstrap.twCRPS(test_data, [19], 1000)
 
 print(twCRPS)
 
 print(np.mean(twCRPS))
 
-# bootstrap_model = BootstrapEmos.load(filepath)
 
-# print(bootstrap_model.twCRPS(test_data, [0], 1000))
