@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.layers import Dense, Concatenate, Conv2D, Flatten
@@ -301,9 +302,6 @@ class NNForecast:
         y_true = []
         y_pred = []
 
-        # for X, y in dataset:
-        #     y_true.append(y)
-        #     y_pred.append(self.predict(X))
         X, y = next(iter(dataset))
         y_pred.append(self.predict(X))
         y_true.append(y)
@@ -317,39 +315,17 @@ class NNForecast:
         return scores
     
 
-    
-    # def Brier_Score(self, X, y, threshold):
-    #     y_pred = self.predict(X)
-    #     distribution = self.get_distribution(y_pred)
-    #     cdf_values = distribution.cdf(threshold)
-    #     return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
-    
 
-    ### Checken of de distribution van de GEV distribution niet NaN geeft!!!!!!
-    # def Brier_Score(self, dataset, threshold):
-    #     y_true = []
-    #     y_pred = []
-
-    #     for X, y in dataset:
-    #         y_true.append(y)
-    #         y_pred.append(self.predict(X))
-            
-    #     y_true = tf.concat(y_true, axis=0)
-    #     y_pred = tf.concat(y_pred, axis=0)
-    #     distribution = self.get_distribution(y_pred)
-    #     cdf_values = distribution.cdf(threshold)
-    #     return tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
-
-    def Brier_Score(self, dataset: tf.data.Dataset, thresholds: list[float]) -> list[float]:
+    def Brier_Score(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
         """
         Calculates the Brier score for a given dataset and a list of thresholds.
 
         Args:
             dataset (tf.data.Dataset): The dataset containing input features and true labels.
-            thresholds (list[float]): A list of thresholds to calculate the Brier score.
+            thresholds (np.ndarray): A list of thresholds to calculate the Brier score.
 
         Returns:
-            list[float]: A list of Brier scores corresponding to each threshold.
+            np.ndarray: A list of Brier scores corresponding to each threshold.
         """
         y_true = []
         y_pred = []
@@ -365,10 +341,10 @@ class NNForecast:
         y_pred = tf.concat(y_pred, axis=0)
         distributions = self.get_distribution(y_pred)
         
-        scores = []
-        for threshold in thresholds:
+        scores = np.zeros(len(thresholds))
+        for i, threshold in enumerate(thresholds):
             cdf_values = distributions.cdf(threshold)
-            scores.append(tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values)))
+            scores[i] = tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
         return scores
 
     

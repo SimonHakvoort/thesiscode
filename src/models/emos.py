@@ -1,7 +1,7 @@
 import copy
 import os
 import pickle
-from typing import Callable
+from typing import Callable, List, Tuple
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -379,21 +379,23 @@ class EMOS:
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
     
     def get_prob_distribution(self, data):
-        # data is a tf.data.Dataset
-
-        # for X, y in data:
-        #     distributions = self.forecast_distribution.get_distribution(X['features_emos'])
-        #     observations = y
         X, y = next(iter(data))
         distributions = self.forecast_distribution.get_distribution(X['features_emos'])
         observations = y
 
         return distributions, observations
     
-    def CRPS(self, data, samples):
-        # total_crps = 0
-        # for X, y in data:
-        #     total_crps += self.CRPS(X['features_emos'], y, samples)
+    def CRPS(self, data: tf.data.Dataset, samples: int) -> float:
+        """
+        Compute the CRPS for the given data, using the specified sample size
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            samples (int): the amount of samples used to estimate the expected value of the CRPS.
+
+        Returns:
+            the CRPS value (float).
+        """
         X, y = next(iter(data))
         total_crps = self.CRPS_old(X['features_emos'], y, samples)
         return total_crps
@@ -476,7 +478,7 @@ class EMOS:
         cdf_values = self.forecast_distribution.comp_cdf(X, threshold)
         return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
     
-    def Brier_Score(self, data, thresholds):
+    def Brier_Score(self, data: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
         """
         The loss function for the Brier score, based on the forecast distribution and observations, using a tf.dataset.
 
@@ -549,40 +551,20 @@ class EMOS:
             samples (int): the amount of samples used to estimate the expected value of the twCRPS
 
         Returns:
-            the loss value
+            the loss value (tf.Tensor)
         """	
         forecast_distribution = self.forecast_distribution.get_distribution(X)
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
+
         vX_1 = chain_function(X_1)
         vX_2 = chain_function(X_2)
-        # E_1 = tf.norm(vX_1 - chain_function(y), axis=0)
-        # E_2 = tf.norm(vX_2 - vX_1, axis=0)
+ 
         E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
         E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
 
-        #checken of ik ook gemiddelde kan nemen ipv reduce_sum
-        #E_1_ = tf.sqrt(tf.reduce_mean(tf.square(vX_1 - chain_function(y)) + 1.0e-20))
-        #E_2_ = tf.sqrt(tf.reduce_mean(tf.square(vX_2 - vX_1) + 1.0e-20))
-
-
-
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
     
-    # def loss_twCRPS_tfdataset_general(self, data, chain_function, samples):
-    #     twcrps = 0
-    #     count = 0
-    #     for X, y in data:
-    #         forecast_distribution = self.forecast_distribution.get_distribution(X)
-    #         X_1 = forecast_distribution.sample(samples)
-    #         X_2 = forecast_distribution.sample(samples)
-    #         vX_1 = chain_function(X_1)
-    #         vX_2 = chain_function(X_2)
-    #         E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
-    #         E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
-    #         twcrps += tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
-    #         count += 1
-    #     return twcrps / count
         
 
     def chain_function_indicator(self, y):
@@ -600,47 +582,47 @@ class EMOS:
     def chain_function_indicator_general(self, y, threshold):
         return tf.maximum(y, threshold)
     
-    def chain_function_normal_cdf(self, y):
+    def chain_function_normal_cdf(self, y: tf.Tensor) -> tf.Tensor:
         """
         Implements the chain function in case the weight function is the normal cumulative distribution, with mean and standard deviation in the setup.
 
         Arguments:
-        - y: the input value.
+            y: the input value.
 
         Returns:
-        - (y - mean) * cdf(y) + std^2 * pdf(y)
+            (y - mean) * cdf(y) + std^2 * pdf(y)
         """
         first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
         return first_part + second_part  
     
-    def chain_function_normal_cdf_plus_constant(self, y):
+    def chain_function_normal_cdf_plus_constant(self, y: tf.Tensor) -> tf.Tensor:
         """
         Implements the chain function in case the weight function is the normal cumulative distribution, with mean and standard deviation in the setup, and a constant.
 
         Arguments:
-        - y: the input value.
+            y (tf.Tensor): the input value.
 
         Returns:
-        - (y - mean) * cdf(y) + std^2 * pdf(y) + constant
+            (y - mean) * cdf(y) + std^2 * pdf(y) + constant * y
         """
         first_part = (y - self.chain_function_mean) * self.chain_normal_distr.cdf(y)
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
         return first_part + second_part + self.chain_function_constant * y
 
-    def _compute_loss_and_gradient(self, X, y):
+    def _compute_loss_and_gradient(self, X: tf.Tensor, y: tf.Tensor) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Compute the loss and the gradient of the loss with respect to the parameters of the model, 
         which are the parameters of the forecast distribution.
 
         Arguments:
-        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
-        - y (tf.Tensor): the observations of shape (n,).
-        - variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
+            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+            y (tf.Tensor): the observations of shape (n,).
+            variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
 
         Returns:
-        - loss_value: the loss value.
-        - grads: the gradients of the loss with respect to the parameters of the model.
+            loss_value: the loss value.
+            grads: the gradients of the loss with respect to the parameters of the model.
         """
         with tf.GradientTape() as tape:
             loss_value = self.loss(X, y)
@@ -648,22 +630,32 @@ class EMOS:
         return loss_value, grads
     
     @tf.function
-    def _train_step(self, X, y):
+    def _train_step(self, X: tf.Tensor, y: tf.Tensor) -> float:
+        """
+        Perform a training step with the optimizer.
+
+        Arguments:
+            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+            y (tf.Tensor): the observations of shape (n,).
+
+        Returns:
+            the loss value.
+        """
         loss_value, grads = self._compute_loss_and_gradient(X, y)
         if tf.math.reduce_any(tf.math.is_nan(grads[0])):
             return -1.0
         self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.parameter_dict.values()))
         return loss_value
     
-    def predict(self, X):
+    def predict(self, X: tf.Tensor) -> tfp.distributions.Distribution:
         """
         Predict the forecast distribution for the given input data.
 
         Arguments:
-        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
 
         Returns:
-        - the forecast distribution.
+            the forecast distribution.
         """
         return self.forecast_distribution.get_distribution(X)
 
@@ -723,7 +715,10 @@ class EMOS:
         print("Final loss: ", loss_value.numpy())	
         return hist
     
-    def fit(self, data, epochs, printing = True):
+    def fit(self, data: tf.data.Dataset, epochs: int, printing: bool = True) -> List[float]:
+        """
+
+        """
         for epoch in range(epochs):
             epoch_losses = 0.0
             batch_count = 0.0
@@ -742,6 +737,7 @@ class EMOS:
 
 
 class BootstrapEmos():
+
     def __init__(self, setup, filepath, epochs, batch_size, cv_number, features_names_dict):
         self.setup = setup
         self.filepath = filepath
@@ -795,7 +791,7 @@ class BootstrapEmos():
 
         for _ in range(number):
             model = EMOS(self.setup)
-            bootstrap_sample = self.make_bootstrap_sample(X, y)
+            bootstrap_sample = self._make_bootstrap_sample(X, y)
 
             bootstrap_sample = bootstrap_sample.shuffle(amount_of_data)
 
@@ -833,7 +829,7 @@ class BootstrapEmos():
         self.models = models
     
 
-    def make_bootstrap_sample(self, X, y):
+    def _make_bootstrap_sample(self, X, y):
         X_f = X['features_emos']
 
         indices = np.random.choice(X_f.shape[0], X_f.shape[0], replace=True)
@@ -850,48 +846,60 @@ class BootstrapEmos():
         dataset = dataset.map(mapping)
 
         return dataset
-
-        # def data_generator(data_list):
-        #     for sample, y in data_list:
-        #         # Convert each dictionary in sample to a tuple of tensors
-        #         yield ({k: tf.convert_to_tensor(v) for k, v in sample.items()}, tf.convert_to_tensor(y))
-
-        # output_signature = (
-        #     {
-        #     'station_code': tf.TensorSpec(shape=(), dtype=tf.string),
-        #     'features_1d': tf.TensorSpec(shape=(4,), dtype=tf.float32),
-        #     'features_emos': tf.TensorSpec(shape=(5,), dtype=tf.float32),
-        #     'wind_speed_grid': tf.TensorSpec(shape=(15, 15, 1), dtype=tf.float32),
-        #     'wind_speed_forecast': tf.TensorSpec(shape=(), dtype=tf.float32)
-        #     },
-        #     tf.TensorSpec(shape=(), dtype=tf.float32)
-        # )
-
-        # bootstrap_sample = tf.data.Dataset.from_generator(
-        #     lambda: data_generator(data_list),
-        #     output_signature=output_signature
-        # )
-        # return bootstrap_sample
     
-    def Brier_Score(self, data, values):
+    def Brier_Score(self, data: tf.data.Dataset, values: np.ndarray) -> np.ndarray:
+        """
+        Computes the Brier score for the given data and values.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            values (np.ndarray): the values for the Brier score.
+
+        Returns:
+            the Brier score values for the given values.
+        """
         if self.models is None:
             self.load_models()
 
         brier_scores = np.zeros(shape=(len(values), self.num_models))
         for i, model in enumerate(self.models):
-            brier_scores[:, i] = model.Brier_Score_tfdataset(data, values)
+            brier_scores[:, i] = model.Brier_Score(data, values)
 
         return brier_scores
     
-    def twCRPS(self, data, values, samples):
+    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, samples: int) -> np.ndarray:
+        """
+        Computes the twCRPS for the given data and thresholds.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            thresholds (np.ndarray): the thresholds for the twCRPS.
+            samples (int): the amount of samples used to estimate the expected value of the twCRPS.
+
+        Returns:
+            the twCRPS values for the given thresholds.
+        """
         if self.models is None:
             self.load_models()
 
-        twcrps = np.zeros(shape=(len(values), self.num_models))
+        twcrps = np.zeros(shape=(len(thresholds), self.num_models))
         for i, model in enumerate(self.models):
-            twcrps[:, i] = model.twCRPS(data, values, samples)
+            twcrps[:, i] = model.twCRPS(data, thresholds, samples)
 
         return twcrps
+    
+    def CRPS(self, data: tf.data.Dataset, samples: int) -> float:
+        """
+        Compute the CRPS for the given data.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            samples (int): the amount of samples used to estimate the expected value of the CRPS.
+
+        Returns:
+            the CRPS value.
+        """
+        return self.twCRPS(data, np.array([0.0]), samples)[0]
 
 
 

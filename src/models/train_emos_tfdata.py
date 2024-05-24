@@ -46,7 +46,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_CRPS_sample"
+loss = "loss_twCRPS_sample"
 #loss = "loss_cPIT"
 samples = 100
 
@@ -55,9 +55,9 @@ samples = 100
 # if chain_function_normal_cdf is chosen, threshold is necessary
 chain_function = "chain_function_normal_cdf_plus_constant"
 threshold = 8
-chain_function_mean = 12
+chain_function_mean = 13
 chain_function_std = 2
-chain_function_constant = 0.1
+chain_function_constant = 0.07
 
 
 # possible optimizers: 'SGD', 'Adam'
@@ -65,7 +65,7 @@ optimizer = "Adam"
 learning_rate = 0.05
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_trunc_normal"
+forecast_distribution = "distr_mixture_linear"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -99,7 +99,7 @@ setup = {'loss': loss,
 
 
 #save the model:
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/crps'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
 
 epochs = 500
 
@@ -110,11 +110,11 @@ batch_size = None
 
 bootstrap = BootstrapEmos(setup, filepath, epochs, batch_size, cv, features_names_dict)
 
-bootstrap.train_models(3)
+bootstrap.train_models(1000)
 
 bootstrap.save_bootstrap_info()
 
-twCRPS = bootstrap.twCRPS(test_data, [19], 1000)
+twCRPS = bootstrap.CRPS(test_data, 1000)
 
 print(twCRPS)
 

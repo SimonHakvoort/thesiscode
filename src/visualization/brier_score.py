@@ -56,7 +56,7 @@ def get_brier_scores_tf(model, data, values):
     elif type(model) == NNForecast:
         brier_scores = np.array(model.Brier_Score(data, values))
     elif isinstance(model, Climatology):
-       brier_scores = model.get_Brier_scores(data, values)
+       brier_scores = model.Brier_Score(data, values)
     else:
         raise ValueError('Model type not recognized')
     return brier_scores
