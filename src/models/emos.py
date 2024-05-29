@@ -847,6 +847,35 @@ class BootstrapEmos():
 
         return dataset
     
+    def retrain_model_i(self, i):
+        train_data, test_data, data_info = load_cv_data(self.cv_number, self.features_names_dict)
+        train_data = train_data.batch(len(train_data))
+
+        X, y = next(iter(train_data))
+
+        amount_of_data = y.shape[0]
+
+        model = EMOS(self.setup)
+
+        bootstrap_sample = self._make_bootstrap_sample(X, y)
+
+        bootstrap_sample = bootstrap_sample.shuffle(amount_of_data)
+
+        if self.batch_size is not None:
+            bootstrap_sample = bootstrap_sample.batch(self.batch_size)
+        else:
+            bootstrap_sample = bootstrap_sample.batch(amount_of_data)
+
+        bootstrap_sample = bootstrap_sample.prefetch(tf.data.experimental.AUTOTUNE)
+
+        model.fit(bootstrap_sample, self.epochs, printing=True)
+
+        model_dict = model.to_dict()
+        name = 'model_' + str(i) + '.pkl'
+        path = os.path.join(self.filepath, 'models', name)
+        with open(path, 'wb') as f:
+            pickle.dump(model_dict, f)
+    
     def Brier_Score(self, data: tf.data.Dataset, values: np.ndarray) -> np.ndarray:
         """
         Computes the Brier score for the given data and values.

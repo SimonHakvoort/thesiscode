@@ -60,7 +60,7 @@ def make_forecast(year, month, day, initial_time, lead_time, variable_names):
     else:
         raise ValueError("File does not exist!")
 
-def validation_data(variable_names, initial_time = '0000', lead_time = '24'):
+def validation_data(variable_names, initial_time = '0000', lead_time = '48'):
     forecasts = []
     for year in range(2018, 2020):
         for month in range(1, 13):
@@ -72,7 +72,7 @@ def validation_data(variable_names, initial_time = '0000', lead_time = '24'):
                     continue
     return forecasts
 
-def fold1_data(variable_names, initial_time = '0000', lead_time = '24'):
+def fold1_data(variable_names, initial_time = '0000', lead_time = '48'):
     forecasts = []
     year = 2015
     for month in range(10, 13):
@@ -94,7 +94,7 @@ def fold1_data(variable_names, initial_time = '0000', lead_time = '24'):
 
     return forecasts
 
-def fold2_data(variable_names, initial_time = '0000', lead_time = '24'):
+def fold2_data(variable_names, initial_time = '0000', lead_time = '48'):
     forecasts = []
     year = 2016
     for month in range(10, 13):
@@ -116,7 +116,7 @@ def fold2_data(variable_names, initial_time = '0000', lead_time = '24'):
 
     return forecasts
 
-def fold3_data(variable_names, initial_time = '0000', lead_time = '24'):
+def fold3_data(variable_names, initial_time = '0000', lead_time = '48'):
     forecasts = []
     year = 2017
     for month in range(10, 13):

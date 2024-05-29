@@ -3,7 +3,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.layers import Dense, Concatenate, Conv2D, Flatten
 from tensorflow.keras.models import Model
-from sklearn.preprocessing import StandardScaler
 from tensorflow.keras import regularizers
 from tensorflow.keras.utils import register_keras_serializable
 
@@ -245,7 +244,7 @@ class NNForecast:
         return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 15))
 
     
-    def _compute_twCRPS(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable):
+    def _compute_twCRPS(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable) -> tf.Tensor:
         """
         Internal method that is used to compute the twCRPS for given sample size and a chaining function
 
@@ -258,6 +257,7 @@ class NNForecast:
         Returns:
             tf.Tensor: The twCRPS score.
         """
+        # distribution is a tfp distribution object
         distribution = self.get_distribution(y_pred)
 
         X_1 = distribution.sample(sample_size)

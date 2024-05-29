@@ -107,17 +107,20 @@ cv = 3
 
 batch_size = None
 
+bootstrap = BootstrapEmos.load(filepath)
 
-bootstrap = BootstrapEmos(setup, filepath, epochs, batch_size, cv, features_names_dict)
+#bootstrap = BootstrapEmos(setup, filepath, epochs, batch_size, cv, features_names_dict)
 
-bootstrap.train_models(1000)
+bootstrap.num_models = 1000
 
 bootstrap.save_bootstrap_info()
 
-twCRPS = bootstrap.CRPS(test_data, 1000)
+# bootstrap.train_models(1000 - bootstrap.num_models)
 
-print(twCRPS)
+# twCRPS = bootstrap.CRPS(test_data, 1000)
 
-print(np.mean(twCRPS))
+# print(twCRPS)
+
+# print(np.mean(twCRPS))
 
 
