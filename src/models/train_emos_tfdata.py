@@ -46,7 +46,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_twCRPS_sample"
+loss = "loss_CRPS_sample"
 #loss = "loss_cPIT"
 samples = 100
 
@@ -65,7 +65,7 @@ optimizer = "Adam"
 learning_rate = 0.05
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture_linear"
+forecast_distribution = "distr_trunc_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -99,7 +99,8 @@ setup = {'loss': loss,
 
 
 #save the model:
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
+# filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/tn_crps.pkl'
 
 epochs = 500
 
@@ -107,13 +108,24 @@ cv = 3
 
 batch_size = None
 
-bootstrap = BootstrapEmos.load(filepath)
+emos = EMOS(setup)
+
+emos.fit(train_data, epochs)
+
+mydict = emos.to_dict()
+
+with open(filepath, 'wb') as f:
+    pkl.dump(mydict, f)
+
+
+
+# bootstrap = BootstrapEmos.load(filepath)
 
 #bootstrap = BootstrapEmos(setup, filepath, epochs, batch_size, cv, features_names_dict)
 
-bootstrap.num_models = 1000
+# bootstrap.num_models = 1000
 
-bootstrap.save_bootstrap_info()
+# bootstrap.save_bootstrap_info()
 
 # bootstrap.train_models(1000 - bootstrap.num_models)
 
