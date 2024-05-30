@@ -5,9 +5,12 @@ from src.models.emos import EMOS
 from src.neural_networks.get_data import load_cv_data
 
 class Objective:
-    def __init__(self, feature_names_dict, twCRPS = False):
+    def __init__(self, feature_names_dict, objectives, twCRPS = False):
         self.twCRPS = twCRPS
         self.feature_names_dict = feature_names_dict
+        self.feature_names_list = list(feature_names_dict.keys())
+        print(self.feature_names_list)
+        self.objectives = objectives
 
     def get_data_i(self, i):
         train_data, test_data, data_info = load_cv_data(i, self.features_names_dict)
@@ -23,6 +26,7 @@ class Objective:
         test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
         return train_data, test_data
+    
 
     def __call__(self, trial):
         chain_function = "chain_function_normal_cdf_plus_constant"
@@ -73,6 +77,9 @@ class Objective:
                 'random_init': random_init,
                 'subset_size': subset_size,
                 'printing': printing,
+                'all_features': self.feature_names_list,
+                'location_features': self.feature_names_list,
+                'scale_features': self.feature_names_list
                     }
         
         emos = EMOS(setup)
