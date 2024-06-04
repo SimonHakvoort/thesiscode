@@ -644,7 +644,10 @@ class EMOS:
         loss_value, grads = self._compute_loss_and_gradient(X, y)
         if tf.math.reduce_any(tf.math.is_nan(grads[0])):
             return -1.0
-        self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.parameter_dict.values()))
+        
+        clipped_grads = [tf.clip_by_value(grad, -1.0, 1.0) for grad in grads]
+
+        self.optimizer.apply_gradients(zip(clipped_grads, self.forecast_distribution.parameter_dict.values()))
         return loss_value
     
     def predict(self, X: tf.Tensor) -> tfp.distributions.Distribution:
@@ -728,7 +731,7 @@ class EMOS:
                 batch_count += 1.0
             epoch_mean_loss = epoch_losses / batch_count
             self.hist.append(epoch_mean_loss)
-            if printing:
+            if printing and epoch % 10 == 0:
                 tf.print("Epoch: ", epoch, " Loss: ", epoch_mean_loss)
         return self.hist
                 

@@ -114,8 +114,8 @@ emos.fit(train_data, epochs)
 
 mydict = emos.to_dict()
 
-with open(filepath, 'wb') as f:
-    pkl.dump(mydict, f)
+# with open(filepath, 'wb') as f:
+#     pkl.dump(mydict, f)
 
 
 

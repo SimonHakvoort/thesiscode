@@ -1,3 +1,5 @@
+import string
+import numpy as np
 import optuna
 import tensorflow as tf
 
@@ -12,14 +14,21 @@ class Objective:
         print(self.feature_names_list)
         self.objectives = objectives
 
+        # check if objectives is correct
+        for objective in objectives:
+            if objective != 'CRPS' and objective[:6] != 'twCRPS':
+                raise ValueError('The objective is not valid. Please use either CRPS or twCRPS')
+
     def get_data_i(self, i):
-        train_data, test_data, data_info = load_cv_data(i, self.features_names_dict)
+        train_data, test_data, data_info = load_cv_data(i, self.feature_names_dict)
 
         train_data = train_data.shuffle(len(train_data))
 
-        train_data = train_data.batch(len(train_data))
-
-        train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+        def mapping(X, y):
+            X_emos = {'features_emos': X['features_emos']}
+            return X_emos, y
+        
+        train_data = train_data.map(mapping)
 
         test_data = test_data.batch(len(test_data))
 
@@ -27,6 +36,36 @@ class Objective:
 
         return train_data, test_data
     
+    def compute_objective(self, emos: EMOS, objective: string, test_data: tf.data.Dataset):
+        if objective == 'CRPS':
+            return emos.CRPS(test_data, 2000)
+        # check if the first 6 characters are 'twCRPS'
+        elif objective[:6] == 'twCRPS':
+            # get the numbers after 'twCRPS'
+            twCRPS_num = objective[6:]
+            return emos.twCRPS(test_data, [int(twCRPS_num)], 2000)[0]
+        
+    def train_emos_i(self, setup, fold, epochs, perform_batching, batch_size = None):
+        emos = EMOS(setup)
+
+        train_data, test_data = self.get_data_i(fold)
+
+        if perform_batching:
+            train_data = train_data.batch(batch_size)
+        else:
+            train_data = train_data.batch(len(train_data))
+
+        train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+        emos.fit(train_data, epochs=epochs, printing=False)
+
+        objective_values = np.zeros(len(self.objectives))
+        for i, objective in enumerate(self.objectives):
+            objective_values[i] = self.compute_objective(emos, objective, test_data)
+
+        print('Objective values for fold', fold, ':', objective_values)
+
+        return objective_values
 
     def __call__(self, trial):
         chain_function = "chain_function_normal_cdf_plus_constant"
@@ -36,15 +75,15 @@ class Objective:
 
         if self.twCRPS:
             loss = "loss_twCRPS_sample"
-            chain_function_mean = trial.suggest_uniform('chain_function_mean', -1, 15)
-            chain_function_std = trial.suggest_uniform('chain_function_std', 0.001, 5)
-            chain_function_constant = trial.suggest_uniform('chain_function_constant', 0.0001, 1)
+            chain_function_mean = trial.suggest_float('chain_function_mean', -1, 15)
+            chain_function_std = trial.suggest_float('chain_function_std', 0.001, 5)
+            chain_function_constant = trial.suggest_float('chain_function_constant', 0.0001, 1)
         else:
             loss = "loss_CRPS_sample"
 
         samples = 100
         optimizer = trial.suggest_categorical('optimizer', ['SGD', 'Adam'])
-        learning_rate = trial.suggest_uniform('learning_rate', 0.0001, 0.1)
+        learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.1)
 
         forecast_distribution = trial.suggest_categorical('forecast_distribution', ['distr_trunc_normal', 
                                                                                     'distr_log_normal', 
@@ -81,6 +120,27 @@ class Objective:
                 'location_features': self.feature_names_list,
                 'scale_features': self.feature_names_list
                     }
+
+        perform_batching = trial.suggest_categorical('perform_batching', [True, False])
+
+        if perform_batching:
+            batch_size = trial.suggest_categorical('batch_size', [32, 64, 128, 256, 512, 1024])
+        else:
+            batch_size = None
+
+
+        epochs = trial.suggest_int('epochs', 1, 600)
+
+        folds = [1,2,3]
+        objective_values = np.zeros(len(self.objectives))
+
+        for fold in folds:
+            objective_values += self.train_emos_i(setup, fold, epochs, perform_batching, batch_size)
+
+        return objective_values
+
         
-        emos = EMOS(setup)
+
+
+
 
