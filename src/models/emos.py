@@ -11,18 +11,10 @@ tfpd = tfp.distributions
 
 class EMOS:
     """
-    Class for the EMOS model
+    Class for the EMOS model with linear regression
 
-    This class contains the EMOS model, which is used to calibrate ensemble forecasts. The model is initialized with a setup, and can be fitted to data using the fit method.
+    This class contains the EMOS model, which is used to calibrate forecasts. The model is initialized with a setup, and can be fitted to data using the fit method.
     In case we want to save the model, we can use the to_dict method to get a dictionary containing the parameters and additional settings of the model.
-
-    Attributes:
-    - loss: the loss function used to fit the model
-    - samples: the amount of samples used in the loss function
-    - forecast_distribution: the distribution used to model the forecast
-    - feature_names: the names of the features used in the model
-    - num_features: the amount of features used in the model
-    - neighbourhood_size: the size of the neighbourhood used in the model
     """
     def __init__(self, setup):
         """
@@ -31,18 +23,36 @@ class EMOS:
         We initialize the model with the given setup. This is done using the getattr function.
 
         Arguments:
-        - setup: a dictionary containing the setup for the model.
+            setup: a dictionary containing the setup for the model
 
         The setup should contain the following keys:
-        - loss: the loss function used to fit the model
-        - samples: the amount of samples used in the loss function in case we use a sample based loss function
-        - optimizer: the optimizer used to fit the model
-        - learning_rate: the learning rate used in the optimizer
-        - forecast_distribution: the distribution used to model the forecast
+            all_features: a list containing the names of all features used in the model
+            loss: the loss function used to fit the model
+            optimizer: the optimizer used to fit the model
+            learning_rate: the learning rate of the optimizer
+            forecast_distribution: the forecast distribution used in the model
+
+        Optionally, the setup can contain the following keys:
+            location_features: a list containing the names of the location features used in the model, used to determine the mean
+            scale_features: a list containing the names of the scale features used in the model, used to determine the standard deviation
+            neighbourhood_size: the size of the neighbourhood used in the model to determine the spatial variance
+            feature_mean: the mean of the features used in the model
+            feature_std: the standard deviation of the features used in the model
+            chain_function: the chain function used in the model, with the corresponding as separate keys
+            samples: the amount of samples used in the loss function in case we use a sample based loss function
         """
         self.all_features = copy.deepcopy(setup['all_features'])
-        self.location_features = copy.deepcopy(setup['location_features'])
-        self.scale_features = copy.deepcopy(setup['scale_features'])
+
+        if 'location_features' in setup:
+            self.location_features = copy.deepcopy(setup['location_features'])
+        else:
+            self.location_features = copy.deepcopy(setup['all_features'])
+
+        if 'scale_features' in setup:
+            self.scale_features = copy.deepcopy(setup['scale_features'])
+        else:
+            self.scale_features = copy.deepcopy(setup['all_features'])
+        
 
         self.num_features = len(self.all_features)
         
@@ -720,7 +730,15 @@ class EMOS:
     
     def fit(self, data: tf.data.Dataset, epochs: int, printing: bool = True) -> List[float]:
         """
+        Fit EMOS with linear regression to the given data.
 
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            epochs (int): the amount of epochs to train the model.
+            printing (bool): whether to print the loss value at each epoch.
+
+        Returns:
+            a list containing the loss value at each epoch.
         """
         for epoch in range(epochs):
             epoch_losses = 0.0

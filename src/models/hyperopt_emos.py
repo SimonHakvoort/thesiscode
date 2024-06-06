@@ -75,15 +75,15 @@ class Objective:
 
         if self.twCRPS:
             loss = "loss_twCRPS_sample"
-            chain_function_mean = trial.suggest_float('chain_function_mean', -1, 15)
-            chain_function_std = trial.suggest_float('chain_function_std', 0.001, 5)
-            chain_function_constant = trial.suggest_float('chain_function_constant', 0.0001, 1)
+            chain_function_mean = trial.suggest_float('chain_function_mean', -10, 15)
+            chain_function_std = trial.suggest_float('chain_function_std', 0.0001, 10, log=True)
+            chain_function_constant = trial.suggest_float('chain_function_constant', 0.00001, 2, log=True)
         else:
             loss = "loss_CRPS_sample"
 
         samples = 100
         optimizer = trial.suggest_categorical('optimizer', ['SGD', 'Adam'])
-        learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.1)
+        learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.1, log=True)
 
         forecast_distribution = trial.suggest_categorical('forecast_distribution', ['distr_trunc_normal', 
                                                                                     'distr_log_normal', 
@@ -129,7 +129,7 @@ class Objective:
             batch_size = None
 
 
-        epochs = trial.suggest_int('epochs', 1, 600)
+        epochs = trial.suggest_int('epochs', 100, 500)
 
         folds = [1,2,3]
         objective_values = np.zeros(len(self.objectives))
@@ -137,7 +137,7 @@ class Objective:
         for fold in folds:
             objective_values += self.train_emos_i(setup, fold, epochs, perform_batching, batch_size)
 
-        return objective_values
+        return objective_values.tolist()
 
         
 
