@@ -268,7 +268,7 @@ class TruncatedNormal(ForecastDistribution):
             self._parameter_dict['b_tn'] = tf.Variable(tf.ones(len(self.location_features_indices), dtype=tf.float32), name="b_tn")
             self._parameter_dict['c_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_tn")
             self._parameter_dict['d_tn'] = tf.Variable(tf.ones(len(self.scale_features_indices), dtype=tf.float32), name="d_tn")
-            print("Using default parameters for truncated normal distribution")
+            # print("Using default parameters for truncated normal distribution")
 
     def get_distribution(self, X):
         # mu = self._parameter_dict['a_tn'] + tf.tensordot(X, self._parameter_dict['b_tn'], axes=1)
@@ -329,7 +329,7 @@ class LogNormal(ForecastDistribution):
             self._parameter_dict['b_ln'] = tf.Variable(tf.zeros(len(self.location_features_indices), dtype=tf.float32), name="b_ln")
             self._parameter_dict['c_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_ln")
             self._parameter_dict['d_ln'] = tf.Variable(tf.zeros(len(self.scale_features_indices), dtype=tf.float32), name="d_ln")
-            print("Using default parameters for Log Normal distribution")
+            # print("Using default parameters for Log Normal distribution")
 
     def get_distribution(self, X):
         m = self._parameter_dict['a_ln'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_ln'], axes=1)
@@ -393,7 +393,7 @@ class GEV(ForecastDistribution):
             self._parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_gev")
             self._parameter_dict['d_gev'] = tf.Variable(tf.zeros(len(self.scale_features_indices), dtype=tf.float32), name="d_gev")
             self._parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_gev")
-            print("Using default parameters for Generalized Extreme Value distribution")
+            # print("Using default parameters for Generalized Extreme Value distribution")
 
     def get_distribution(self, X):
         # location = self._parameter_dict['a_gev'] + tf.tensordot(X, self._parameter_dict['b_gev'], axes=1)
@@ -671,7 +671,7 @@ class Mixture(ForecastDistribution):
             print("Using given weight parameter for Mixture distribution")
         else:
             self._parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
-            print("Using default weight parameter for Mixture distribution")
+            # print("Using default weight parameter for Mixture distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict
         self._parameter_dict.update(self.distribution_1.parameter_dict)
@@ -762,7 +762,7 @@ class MixtureLinear(ForecastDistribution):
             self._parameter_dict['weight_a'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="weight_a", trainable=True)
             self._parameter_dict['weight_b'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="weight_b", trainable=True)
             #self.parameter_dict['weight_c'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="weight_c")
-            print("Using default weight parameters for weights in Mixture Linear distribution")
+            # print("Using default weight parameters for weights in Mixture Linear distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict
         self._parameter_dict.update(self.distribution_1.parameter_dict)

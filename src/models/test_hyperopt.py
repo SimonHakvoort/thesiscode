@@ -13,7 +13,7 @@ import logging
 
 
 
-study_name = "crps_obj_CRPS_twCRPS12_MOTPE.pkl"
+study_name = "twcrps_obj_CRPS_twCRPS12_MOTPE.pkl"
 filepath = '/net/pc200239/nobackup/users/hakvoort/hyperopt/hyperopt_emos/'
 
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -26,43 +26,48 @@ objectives = ['CRPS', 'twCRPS12']
 
 saving = True
 
-if len(objectives) == 1:
-    sampler = optuna.samplers.TPESampler(multivariate=True, group=True, n_startup_trials=15)
-    if saving:
-        study = optuna.create_study(sampler=sampler, direction='minimize')
-    else:
-        study = optuna.create_study(sampler=sampler, direction='minimize')
-else:
-    sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
-    directions = ['minimize' for _ in range(len(objectives))]
-    if saving:
-        study = optuna.create_study(sampler=sampler, directions=directions)
-    else:
-        study = optuna.create_study(sampler=sampler, directions=directions)
-
-
-objective = Objective(features_names_dict, objectives, twCRPS=True)
+# if len(objectives) == 1:
+#     sampler = optuna.samplers.TPESampler(multivariate=True, group=True, n_startup_trials=15)
+#     if saving:
+#         study = optuna.create_study(sampler=sampler, direction='minimize')
+#     else:
+#         study = optuna.create_study(sampler=sampler, direction='minimize')
+# else:
+#     sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
+#     directions = ['minimize' for _ in range(len(objectives))]
+#     if saving:
+#         study = optuna.create_study(sampler=sampler, directions=directions)
+#     else:
+#         study = optuna.create_study(sampler=sampler, directions=directions)
 
 # study.optimize(objective, n_trials=50)
 
-directory = os.path.join(filepath, study_name)
+# directory = os.path.join(filepath, study_name)
+
+directory = filepath
 
 # make study2 where we save it with a storage in filepath, with name study_name
+if len(objectives) == 1:
+    sampler = optuna.samplers.TPESampler(multivariate=True, group=True, n_startup_trials=3)
+    study = optuna.create_study(sampler=sampler, direction='minimize', study_name='twcrps_obj_CRPS_twCRPS12_MOTPE', storage=f'sqlite:///{directory}/study.db')
+else:
+    sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
+    directions = ['minimize' for _ in range(len(objectives))]
+    study = optuna.create_study(sampler=sampler, directions=directions, study_name='twcrps_obj_CRPS_twCRPS12_MOTPE', storage=f'sqlite:///{directory}/study.db')
 
-# study2 = optuna.create_study(sampler=sampler, direction='minimize', study_name='my_study', storage=f'sqlite:///{directory}/study.db')
+
+
+# set train_amount to 2
+objective = Objective(features_names_dict, objectives, twCRPS=True)
 
 # study2 = optuna.load_study(study_name='my_study', storage=f'sqlite:///{directory}/study.db')
 
-with open(directory, 'wb') as file:
-    pkl.dump(study, file)
+# with open(directory, 'wb') as file:
+#     pkl.dump(study, file)
 
-for i in range(0, 50):
-    study.optimize(objective, n_trials=5)
+study.optimize(objective, 200)
 
-    with open(directory, 'wb') as file:
-        pkl.dump(study, file)
 
-        print("Finished iteration ", i)
 
 # with open(directory, 'wb') as file:
 #     pkl.dump(study, file)

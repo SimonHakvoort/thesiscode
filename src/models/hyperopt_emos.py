@@ -7,12 +7,13 @@ from src.models.emos import EMOS
 from src.neural_networks.get_data import load_cv_data
 
 class Objective:
-    def __init__(self, feature_names_dict, objectives, twCRPS = False):
+    def __init__(self, feature_names_dict, objectives, twCRPS = False, train_amount = 1):
         self.twCRPS = twCRPS
         self.feature_names_dict = feature_names_dict
         self.feature_names_list = list(feature_names_dict.keys())
         print(self.feature_names_list)
         self.objectives = objectives
+        self.train_amount = train_amount
 
         # check if objectives is correct
         for objective in objectives:
@@ -38,16 +39,14 @@ class Objective:
     
     def compute_objective(self, emos: EMOS, objective: string, test_data: tf.data.Dataset):
         if objective == 'CRPS':
-            return emos.CRPS(test_data, 2000)
+            return emos.CRPS(test_data, 10000)
         # check if the first 6 characters are 'twCRPS'
         elif objective[:6] == 'twCRPS':
             # get the numbers after 'twCRPS'
             twCRPS_num = objective[6:]
-            return emos.twCRPS(test_data, [int(twCRPS_num)], 2000)[0]
+            return emos.twCRPS(test_data, [int(twCRPS_num)], 10000)[0]
         
     def train_emos_i(self, setup, fold, epochs, perform_batching, batch_size = None):
-        emos = EMOS(setup)
-
         train_data, test_data = self.get_data_i(fold)
 
         if perform_batching:
@@ -56,6 +55,21 @@ class Objective:
             train_data = train_data.batch(len(train_data))
 
         train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+        if setup['forecast_distribution'] == 'distr_mixture' or setup['forecast_distribution'] == 'distr_mixture_linear':
+            distribution = setup['forecast_distribution']
+            setup['forecast_distribution'] = setup['distribution_1']
+            emos1 = EMOS(setup)
+            emos1.fit(train_data, epochs=100, printing=False)
+
+            setup['forecast_distribution'] = setup['distribution_2']
+            emos2 = EMOS(setup)
+            emos2.fit(train_data, epochs=100, printing=False)
+
+            setup['parameters'] = {**emos1.get_parameters(), **emos2.get_parameters()}
+            setup['forecast_distribution'] = distribution
+
+        emos = EMOS(setup)
 
         emos.fit(train_data, epochs=epochs, printing=False)
 
@@ -75,7 +89,7 @@ class Objective:
 
         if self.twCRPS:
             loss = "loss_twCRPS_sample"
-            chain_function_mean = trial.suggest_float('chain_function_mean', -10, 15)
+            chain_function_mean = trial.suggest_float('chain_function_mean', -5, 15)
             chain_function_std = trial.suggest_float('chain_function_std', 0.0001, 10, log=True)
             chain_function_constant = trial.suggest_float('chain_function_constant', 0.00001, 2, log=True)
         else:
@@ -135,7 +149,21 @@ class Objective:
         objective_values = np.zeros(len(self.objectives))
 
         for fold in folds:
-            objective_values += self.train_emos_i(setup, fold, epochs, perform_batching, batch_size)
+            losses = np.zeros(len(self.objectives))
+            
+            for _ in range(self.train_amount):
+                losses += self.train_emos_i(setup, fold, epochs, perform_batching, batch_size)
+
+            objective_values += losses / self.train_amount
+            trial.set_user_attr('loss_fold_' + str(i), losses.to_list())
+
+        objective_values /= 3
+
+        for i in range(len(objective_values)):
+            if objective_values[i] < 0:
+                objective_values[i] = 10
+            if objective_values[i] > 20:
+                objective_values[i] = 20
 
         return objective_values.tolist()
 
