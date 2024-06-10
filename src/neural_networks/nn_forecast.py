@@ -45,7 +45,7 @@ class NNForecast:
                 return
 
         self.metrics = []
-        if 'metrics' in kwargs:
+        if 'metrics' in kwargs and kwargs['metrics'] is not None:
             if 'CRPS' in kwargs['metrics']:
                 self.metrics.append(self._loss_CRPS_sample)
             if 'twCRPS_10' in kwargs['metrics']:
@@ -406,7 +406,7 @@ class NNForecast:
         return history
 
     
-    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None) -> tf.keras.callbacks.History:
+    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None) -> tf.keras.callbacks.History:
         """
         Fits the neural network model to the given dataset.
 
@@ -418,7 +418,7 @@ class NNForecast:
         Returns:
             history (tf.keras.callbacks.History): The history of the training process.
         """
-        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data)
+        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=[early_stopping])
 
         return history
     

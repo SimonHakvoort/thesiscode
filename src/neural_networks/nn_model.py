@@ -162,6 +162,7 @@ class NNConvModel(NNBaseModel):
     def call(self, inputs):
         grid_input = inputs['wind_speed_grid']
         features_1d = inputs['features_1d']
+        wind_speed_forecast = inputs['wind_speed_forecast']
 
         x = grid_input
 
@@ -190,10 +191,14 @@ class NNConvModel(NNBaseModel):
         for layer in self.hidden_layers:
             x = layer(x)
 
+        x = Concatenate()([x, Flatten()(features_1d)])
+
         outputs = self.concatenate([layer(x) for layer in self.output_layers])
 
-        if self.add_nwp_forecast:
-            return self._forecast_distribution.add_forecast(outputs, inputs)
+        # if self.add_nwp_forecast:
+        #     return self._forecast_distribution.add_forecast(outputs, inputs)
+
+
         
         return outputs
     

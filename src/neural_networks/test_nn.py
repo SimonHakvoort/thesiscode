@@ -57,10 +57,10 @@ conv_3x3_units = 5
 add_wind_conv = True
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
-
+metrics = None
 saving = True
 
-epochs = 200
+epochs = 50
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -85,7 +85,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-#filepath += '_v2'
+filepath += '_early_stopping_2'
 
 
 # make a folder
@@ -147,7 +147,13 @@ nn = NNForecast(**setup)
 #start the time
 time_start = time.time()
 
-history = nn.fit(train_data, epochs=epochs, validation_data=test_data)
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+history = nn.fit(train_data, epochs=epochs, validation_data=test_data, early_stopping=early_stopping)
+
+best_epoch = early_stopping.stopped_epoch - early_stopping.patience
+
+print(f'Best epoch: {best_epoch}')
 
 #end the time
 time_end = time.time()
@@ -167,6 +173,8 @@ if saving:
     with open(filepath + '/history.pickle', 'wb') as f:
         pickle.dump(history.history, f)
         print("History saved")
+
+
 
 
 

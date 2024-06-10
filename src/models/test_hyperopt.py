@@ -49,16 +49,17 @@ directory = filepath
 # make study2 where we save it with a storage in filepath, with name study_name
 if len(objectives) == 1:
     sampler = optuna.samplers.TPESampler(multivariate=True, group=True, n_startup_trials=3)
-    study = optuna.create_study(sampler=sampler, direction='minimize', study_name='twcrps_obj_CRPS_twCRPS12_MOTPE', storage=f'sqlite:///{directory}/study.db')
+    study = optuna.create_study(sampler=sampler, direction='minimize', study_name='twcrps_obj_CRPS_twCRPS12_MOTPE_pretrain_train_amoount_2_true', storage=f'sqlite:///{directory}/study.db')
 else:
     sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
     directions = ['minimize' for _ in range(len(objectives))]
-    study = optuna.create_study(sampler=sampler, directions=directions, study_name='twcrps_obj_CRPS_twCRPS12_MOTPE', storage=f'sqlite:///{directory}/study.db')
+    study = optuna.create_study(sampler=sampler, directions=directions, study_name='twcrps_obj_CRPS_twCRPS12_MOTPE_pretrain_train_amount_1_final', storage=f'sqlite:///{directory}/study.db')
 
+# study3 = optuna.load_study(study_name='twcrps_obj_CRPS_twCRPS12_MOTPE_pretrain_train_amount_2_final', storage=f'sqlite:///{filepath}/study.db')
 
 
 # set train_amount to 2
-objective = Objective(features_names_dict, objectives, twCRPS=True)
+objective = Objective(features_names_dict, objectives, twCRPS=True, train_amount=1)
 
 # study2 = optuna.load_study(study_name='my_study', storage=f'sqlite:///{directory}/study.db')
 

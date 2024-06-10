@@ -60,11 +60,11 @@ class Objective:
             distribution = setup['forecast_distribution']
             setup['forecast_distribution'] = setup['distribution_1']
             emos1 = EMOS(setup)
-            emos1.fit(train_data, epochs=100, printing=False)
+            emos1.fit(train_data, epochs=50, printing=False)
 
             setup['forecast_distribution'] = setup['distribution_2']
             emos2 = EMOS(setup)
-            emos2.fit(train_data, epochs=100, printing=False)
+            emos2.fit(train_data, epochs=50, printing=False)
 
             setup['parameters'] = {**emos1.get_parameters(), **emos2.get_parameters()}
             setup['forecast_distribution'] = distribution
@@ -72,6 +72,9 @@ class Objective:
         emos = EMOS(setup)
 
         emos.fit(train_data, epochs=epochs, printing=False)
+
+        if setup['forecast_distribution'] == 'distr_mixture' or setup['forecast_distribution'] == 'distr_mixture_linear':
+            setup.pop('parameters')
 
         objective_values = np.zeros(len(self.objectives))
         for i, objective in enumerate(self.objectives):
@@ -91,13 +94,13 @@ class Objective:
             loss = "loss_twCRPS_sample"
             chain_function_mean = trial.suggest_float('chain_function_mean', -5, 15)
             chain_function_std = trial.suggest_float('chain_function_std', 0.0001, 10, log=True)
-            chain_function_constant = trial.suggest_float('chain_function_constant', 0.00001, 2, log=True)
+            chain_function_constant = trial.suggest_float('chain_function_constant', 0.0001, 2, log=True)
         else:
             loss = "loss_CRPS_sample"
 
         samples = 100
         optimizer = trial.suggest_categorical('optimizer', ['SGD', 'Adam'])
-        learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.1, log=True)
+        learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1, log=True)
 
         forecast_distribution = trial.suggest_categorical('forecast_distribution', ['distr_trunc_normal', 
                                                                                     'distr_log_normal', 
@@ -151,11 +154,12 @@ class Objective:
         for fold in folds:
             losses = np.zeros(len(self.objectives))
             
-            for _ in range(self.train_amount):
+            for x in range(self.train_amount):
                 losses += self.train_emos_i(setup, fold, epochs, perform_batching, batch_size)
+                trial.set_user_attr('run_' + str(x) + 'loss_fold_' + str(fold) + '_', losses.tolist())
+
 
             objective_values += losses / self.train_amount
-            trial.set_user_attr('loss_fold_' + str(i), losses.to_list())
 
         objective_values /= 3
 
@@ -164,6 +168,8 @@ class Objective:
                 objective_values[i] = 10
             if objective_values[i] > 20:
                 objective_values[i] = 20
+
+        
 
         return objective_values.tolist()
 
