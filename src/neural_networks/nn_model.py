@@ -191,7 +191,7 @@ class NNConvModel(NNBaseModel):
         for layer in self.hidden_layers:
             x = layer(x)
 
-        x = Concatenate()([x, Flatten()(features_1d)])
+        x = Concatenate()([x, Flatten()(wind_speed_forecast)])
 
         outputs = self.concatenate([layer(x) for layer in self.output_layers])
 
