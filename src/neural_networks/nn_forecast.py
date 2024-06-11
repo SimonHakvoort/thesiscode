@@ -414,11 +414,16 @@ class NNForecast:
             dataset (tf.data.Dataset): The dataset to train the model on.
             epochs (int): The number of epochs to train the model (default: 100).
             validation_data (tf.data.Dataset): The validation dataset to evaluate the model on.
+            early_stopping (tf.keras.callbacks.EarlyStopping): Early stopping callback (default: None).
 
         Returns:
             history (tf.keras.callbacks.History): The history of the training process.
         """
-        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=[early_stopping])
+        callbacks = []
+        if early_stopping is not None:
+            callbacks.append(early_stopping)
+            
+        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=callbacks)
 
         return history
     

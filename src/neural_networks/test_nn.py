@@ -37,11 +37,11 @@ forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_CRPS_sample'
+loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 10
-chain_function_std = 1
-chain_function_constant = 0.1
+chain_function_std = 0.01
+chain_function_constant = 0.001
 
 optimizer = 'adam'
 learning_rate = 0.0002
@@ -60,7 +60,7 @@ metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
 saving = True
 
-epochs = 50
+epochs = 80
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -85,7 +85,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += '_early_stopping_2'
+filepath += '_early_stopping_1'
 
 
 # make a folder
@@ -149,7 +149,7 @@ time_start = time.time()
 
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-history = nn.fit(train_data, epochs=epochs, validation_data=test_data, early_stopping=early_stopping)
+history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping)
 
 best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 

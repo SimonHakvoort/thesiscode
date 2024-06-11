@@ -82,7 +82,16 @@ class Objective:
 
         print('Objective values for fold', fold, ':', objective_values)
 
-        return objective_values
+        additional_metrics = {}
+        if 'CRPS' not in self.objectives:
+            crps = self.compute_objective(emos, 'CRPS', test_data).numpy()
+            additional_metrics['CRPS'] = crps
+
+        if 'twCRPS12' not in self.objectives:
+            twcrps12 = self.compute_objective(emos, 'twCRPS12', test_data).numpy()
+            additional_metrics['twCRPS12'] = twcrps12
+
+        return objective_values, additional_metrics
 
     def __call__(self, trial):
         chain_function = "chain_function_normal_cdf_plus_constant"
@@ -150,18 +159,25 @@ class Objective:
 
         folds = [1,2,3]
         objective_values = np.zeros(len(self.objectives))
-
+        metrics = {'CRPS': 0, 'twCRPS12': 0}
         for fold in folds:
             losses = np.zeros(len(self.objectives))
             
             for x in range(self.train_amount):
-                losses += self.train_emos_i(setup, fold, epochs, perform_batching, batch_size)
+                loss, additional_metrics =  self.train_emos_i(setup, fold, epochs, perform_batching, batch_size)
+                losses += loss
                 trial.set_user_attr('run_' + str(x) + 'loss_fold_' + str(fold) + '_', losses.tolist())
+                for key, value in additional_metrics.items():
+                    metrics[key] += value / self.train_amount
+
 
 
             objective_values += losses / self.train_amount
 
         objective_values /= 3
+
+        for key, value in metrics.items():
+            trial.set_user_attr(key, value)
 
         for i in range(len(objective_values)):
             if objective_values[i] < 0:
