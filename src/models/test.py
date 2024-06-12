@@ -1,89 +1,57 @@
-import numpy as np
-import tensorflow as tf
-from src.models.train_emos import train_emos
-from src.models.emos import EMOS
-from src.models.get_data import get_tensors
-from src.models.train_emos import train_and_test_emos
+from src.neural_networks.get_data import get_tf_data, stack_1d_features, normalize_1d_features_with_mean_std, load_cv_data
+from src.neural_networks.nn_forecast import NNForecast
+from src.visualization.twcrpss_plot import make_twcrpss_plot_tf
+from src.visualization.brier_score import make_brier_skill_plot_tf, make_bootstrap_bss
+from src.visualization.pit import make_cpit_diagram_tf, comp_multiple_pit_scores
+from src.visualization.reliability_diagram import make_reliability_and_sharpness_tf
 from src.training.training import load_model
-from src.visualization.brier_score import make_brier_skill_plot
-from src.visualization.pit import make_cpit_hist_emos
-from src.visualization.reliability_diagram import make_reliability_and_sharpness
-from src.visualization.scoring_tables import make_table
-from src.models.probability_distributions import TruncGEV
-import pickle as pkl
-import time
+from src.visualization.plot_forecasts import plot_forecast_pdf_tf
+from src.climatology.climatology import Climatology
+from src.visualization.brier_score import get_brier_scores_tf
+from src.models.emos import BootstrapEmos, EMOS
 
 
-all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot', 'spatial_variance']
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import pickle
+import optuna
 
-location_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
+features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
-scale_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
+features_names_dict = {name: 1 for name in features_names}
 
+features_names_dict['wind_speed'] = 15
 
-
-
-# possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_CRPS_sample"
-samples = 100
-
-# possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
-# if chain_function_indicator is chosen, threshold is not necessary
-# if chain_function_normal_cdf is chosen, threshold is necessary
-chain_function = "chain_function_normal_cdf_plus_constant"
-threshold = 8
-chain_function_mean = 13
-chain_function_std = 2
-chain_function_constant = 0.07
-
-
-# possible optimizers: 'SGD', 'Adam'
-optimizer = "Adam"
-learning_rate = 0.05
-
-# possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_trunc_normal"
-
-# necessary in case of a mixture distribution
-distribution_1 = "distr_trunc_normal"
-distribution_2 = "distr_log_normal"
-
-random_init = False
-printing = False
-subset_size = None
-
-setup = {'loss': loss,
-         'samples': samples, 
-         'optimizer': optimizer, 
-         'learning_rate': learning_rate, 
-         'forecast_distribution': forecast_distribution,
-         'chain_function': chain_function,
-         'threshold': threshold,
-         'distribution_1': distribution_1,
-         'distribution_2': distribution_2,
-         'chain_function_mean': chain_function_mean,
-         'chain_function_std': chain_function_std,
-         'chain_function_constant': chain_function_constant,
-         'location_features': location_features,
-         'scale_features': scale_features,
-         'random_init': random_init,
-         'subset_size': subset_size,
-        'printing': printing,
-         }
-
-
-neighbourhood_size = 11
-epochs = 20
-test_fold = 3
-folds = [1,2]
 ignore = ['229', '285', '323']
 
-# tf.debugging.enable_check_numerics()
-folder = '/net/pc200239/nobackup/users/hakvoort/models/emos/test'
+train_data_original, test_data, data_info = load_cv_data(3, features_names_dict)
 
-# time the length that train_emos takes
-start = time.time()
+train_data = train_data_original.shuffle(len(train_data_original))
 
-model = load_model(folder)
+train_data = train_data.batch(32)
 
-x = 3
+train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+test_data = test_data.batch(len(test_data))
+
+test_data = test_data.repeat()
+
+test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/tn_crps.pkl'
+
+with open(filepath, 'rb') as f:
+    model_1 = EMOS(pickle.load(f))
+
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/tn_ln_M13_STD2_C07.pkl'
+
+with open(filepath, 'rb') as f:
+    model_2 = EMOS(pickle.load(f))
+
+mydict = {'model_2': model_2}
+
+values = np.array([1, 10, 15])
+
+make_bootstrap_bss(model_1, mydict, test_data, values, bootstrap_size=8)

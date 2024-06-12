@@ -149,78 +149,71 @@ def make_bootstrap_sample(X, y):
     # Create a tf.data.Dataset from the dictionary and y
     dataset = tf.data.Dataset.from_tensor_slices((X_bootstrap, y_bootstrap))
     
-    def mapping(X, y):
-        # Return the entire dictionary as the first element
-        return X, y
-    
-    dataset = dataset.map(mapping)
+    dataset = dataset.batch(len(dataset))
     
     return dataset
 
-def make_bootstrap_bss(basemodel, models, data, values, ylim = None, bootstrap_size = 1000):
-    data = data.batch(len(data))
-
+def make_bootstrap_bss(basemodel, models, data, values, ylim=None, bootstrap_size=1000):
+    # data = data.batch(len(data))
     X, y = next(iter(data))
 
     base_values = [np.zeros((bootstrap_size, len(values))) for _ in range(len(models))]
-
+    
     if isinstance(basemodel, Climatology):
         base_means = basemodel.Brier_Score(data, values)
         plt.plot([0, 20], [0, 0], 'k--', label='climatology')
         for shift in range(len(models)):
             new_values = values + 0.1 * (shift + 1)
-            base_values[shift] = basemodel.Brier_Score(data, values)
+            brier_scores_base_shifted = basemodel.Brier_Score(data, new_values)
+            base_values[shift] = brier_scores_base_shifted[:, np.newaxis]
     else:
         base_model_values = np.zeros((bootstrap_size, len(values)))
 
         for i in range(bootstrap_size):
             dataset = make_bootstrap_sample(X, y)
-
-            if is_emos:
-                def mapping(X, y):
-                    return {'features_emos': X['features_emos']}, y
-                dataset = dataset.map(mapping)
-            
-            base_model_values[i,:] = basemodel.Brier_Score(data, values)
+            base_model_values[i, :] = basemodel.Brier_Score(dataset, values)
 
             for shift in range(len(models)):
                 new_values = values + 0.1 * (shift + 1)
-                base_values[shift][i,:] = basemodel.Brier_Score(data, new_values)
-                
-
+                base_values[shift][i, :] = basemodel.Brier_Score(dataset, new_values)
 
         base_means = np.mean(base_model_values, axis=0)
-        base_means_extra_dim = base_means[:, np.newaxis]
-        bss_base = base_model_values / base_means_extra_dim
+        base_means_extra_dim = base_means[np.newaxis, :]
+        bss_base = 1 - base_model_values / base_means_extra_dim
 
         base_bss_mean = np.mean(bss_base, axis=0)
         base_bss_std = np.std(bss_base, axis=0)
-        
 
         plt.errorbar(values, y=base_bss_mean, yerr=base_bss_std, capsize=2, label='Reference Model')
 
         for shift in range(len(models)):
-            means = np.mean(base_values[i], axis=0)
-            base_values[i] = means[:, np.newaxis]
-
-
-
+            means = np.mean(base_values[shift], axis=0)
+            base_values[shift] = means[np.newaxis, :]
 
     for index, (key, model) in enumerate(models.items()):
         new_values = values + 0.1 * (index + 1)
-        values = np.zeros((bootstrap_size, len(values)))
+        brier_scores = np.zeros((bootstrap_size, len(values)))
         is_emos = isinstance(model, EMOS)
+        
         for i in range(bootstrap_size):
             dataset = make_bootstrap_sample(X, y)
-
             if is_emos:
-                def mapping(X, y):
-                    return {'features_emos': X['features_emos']}, y
-                dataset = dataset.map(mapping)
+                dataset = dataset.map(lambda X, y: ({'features_emos': X['features_emos']}, y))
             
-            values[i,:] = model.Brier_Score(data, values)
+            brier_scores[i, :] = model.Brier_Score(dataset, values)
 
-            # compare the values to base_values[index]
+        bss_scores = 1 - brier_scores / base_values[index]
+        bss_mean = np.mean(bss_scores, axis=0)
+        bss_std = np.std(bss_scores, axis=0)
+
+        plt.errorbar(new_values, y=bss_mean, yerr=bss_std, capsize=2, label=key)
+
+    plt.xlim(0, 20)
+    plt.xlabel('Threshold')
+    plt.ylabel('Brier Skill Scores')
+    plt.legend()
+    plt.show()
+
 
 
 
