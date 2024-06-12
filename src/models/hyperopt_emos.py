@@ -39,12 +39,12 @@ class Objective:
     
     def compute_objective(self, emos: EMOS, objective: string, test_data: tf.data.Dataset):
         if objective == 'CRPS':
-            return emos.CRPS(test_data, 10000)
+            return emos.CRPS(test_data, 50000)
         # check if the first 6 characters are 'twCRPS'
         elif objective[:6] == 'twCRPS':
             # get the numbers after 'twCRPS'
             twCRPS_num = objective[6:]
-            return emos.twCRPS(test_data, [int(twCRPS_num)], 10000)[0]
+            return emos.twCRPS(test_data, [int(twCRPS_num)], 50000)[0]
         
     def train_emos_i(self, setup, fold, epochs, perform_batching, batch_size = None):
         train_data, test_data = self.get_data_i(fold)
@@ -103,13 +103,15 @@ class Objective:
             loss = "loss_twCRPS_sample"
             chain_function_mean = trial.suggest_float('chain_function_mean', -5, 15)
             chain_function_std = trial.suggest_float('chain_function_std', 0.0001, 10, log=True)
-            chain_function_constant = trial.suggest_float('chain_function_constant', 0.0001, 2, log=True)
+            chain_function_constant = trial.suggest_float('chain_function_constant', 0.0001, 1, log=True)
         else:
             loss = "loss_CRPS_sample"
 
         samples = 100
-        optimizer = trial.suggest_categorical('optimizer', ['SGD', 'Adam'])
-        learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1, log=True)
+        # optimizer = trial.suggest_categorical('optimizer', ['SGD', 'Adam'])
+        optimizer = 'Adam'
+        # learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1, log=True)
+        learning_rate = 0.01
 
         forecast_distribution = trial.suggest_categorical('forecast_distribution', ['distr_trunc_normal', 
                                                                                     'distr_log_normal', 
@@ -118,8 +120,8 @@ class Objective:
                                                                                     'distr_mixture_linear'])
 
         if forecast_distribution == 'distr_mixture' or forecast_distribution == 'distr_mixture_linear':
-            distribution_1 = trial.suggest_categorical('distribution_1', ['distr_trunc_normal', 'distr_log_normal', 'distr_gev'])
-            distribution_2 = trial.suggest_categorical('distribution_2', ['distr_trunc_normal', 'distr_log_normal', 'distr_gev'])
+            distribution_1 = 'distr_trunc_normal'
+            distribution_2 = trial.suggest_categorical('distribution_2', ['distr_log_normal', 'distr_gev'])
         else:
             distribution_1 = None
             distribution_2 = None
@@ -147,15 +149,16 @@ class Objective:
                 'scale_features': self.feature_names_list
                     }
 
-        perform_batching = trial.suggest_categorical('perform_batching', [True, False])
+        perform_batching = True# trial.suggest_categorical('perform_batching', [True, False])
 
-        if perform_batching:
-            batch_size = trial.suggest_categorical('batch_size', [32, 64, 128, 256, 512, 1024])
-        else:
-            batch_size = None
+        # if perform_batching:
+        #     batch_size = trial.suggest_categorical('batch_size', [32, 64, 128, 256, 512, 1024])
+        # else:
+        #     batch_size = None
+        batch_size = 256
 
-
-        epochs = trial.suggest_int('epochs', 100, 500)
+        # epochs = trial.suggest_int('epochs', 100, 500)
+        epochs = 450
 
         folds = [1,2,3]
         objective_values = np.zeros(len(self.objectives))

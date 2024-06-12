@@ -753,17 +753,17 @@ class MixtureLinear(ForecastDistribution):
         
         self.distribution_2 = initialize_distribution(distribution_2, all_features, location_features, scale_features, parameters, random_init)
 
-        constraint = tf.keras.constraints.MinMaxNorm(min_value=0.1, max_value=1.0)
-
+        constraint_a = tf.keras.constraints.MinMaxNorm(min_value=4, max_value=12)
+        constraint_b = tf.keras.constraints.MinMaxNorm(min_value=-6, max_value=-0.6)
         
         if "weight_a" in parameters and "weight_b" in parameters: # and "weight_c" in parameters:
-            self._parameter_dict['weight_a'] = tf.Variable(parameters['weight_a'], dtype = tf.float32, name="weight_a")
-            self._parameter_dict['weight_b'] = tf.Variable(parameters['weight_b'], dtype = tf.float32, name="weight_b")
+            self._parameter_dict['weight_a'] = tf.Variable(parameters['weight_a'], dtype = tf.float32, name="weight_a", constraint=constraint_a)
+            self._parameter_dict['weight_b'] = tf.Variable(parameters['weight_b'], dtype = tf.float32, name="weight_b", constraint=constraint_b)
             #self.parameter_dict['weight_c'] = tf.Variable(parameters['weight_c'], dtype = tf.float32, name="weight_c")
             print("Using given weight parameters for weights in Mixture Linear distribution")
         else:
-            self._parameter_dict['weight_a'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="weight_a", trainable=True)
-            self._parameter_dict['weight_b'] = tf.Variable(tf.zeros(1, dtype=tf.float32), name="weight_b", trainable=True)
+            self._parameter_dict['weight_a'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 5, name="weight_a", trainable=True, constraint=constraint_a)
+            self._parameter_dict['weight_b'] = tf.Variable(tf.ones(1, dtype=tf.float32) * -1, name="weight_b", trainable=True, constraint=constraint_b)
             print("Using default weight parameters for weights in Mixture Linear distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict

@@ -22,23 +22,9 @@ features_names_dict = {name: 1 for name in features_names}
 
 features_names_dict['wind_speed'] = 15
 
-objectives = ['twCRPS12']
+objectives = ['CRPS', 'twCRPS12']
 
 saving = True
-
-# if len(objectives) == 1:
-#     sampler = optuna.samplers.TPESampler(multivariate=True, group=True, n_startup_trials=15)
-#     if saving:
-#         study = optuna.create_study(sampler=sampler, direction='minimize')
-#     else:
-#         study = optuna.create_study(sampler=sampler, direction='minimize')
-# else:
-#     sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
-#     directions = ['minimize' for _ in range(len(objectives))]
-#     if saving:
-#         study = optuna.create_study(sampler=sampler, directions=directions)
-#     else:
-#         study = optuna.create_study(sampler=sampler, directions=directions)
 
 # study.optimize(objective, n_trials=50)
 
@@ -46,16 +32,16 @@ saving = True
 
 directory = filepath
 
-# # make study2 where we save it with a storage in filepath, with name study_name
-# if len(objectives) == 1:
-#     sampler = optuna.samplers.TPESampler(multivariate=True, group=True, n_startup_trials=20)
-#     study = optuna.create_study(sampler=sampler, direction='minimize', study_name='twcrps_obj_twCRPS12_MOTPE_pretrain_train_amount_1_final', storage=f'sqlite:///{directory}/study.db')
-# else:
-#     sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
-#     directions = ['minimize' for _ in range(len(objectives))]
-#     study = optuna.create_study(sampler=sampler, directions=directions, study_name='twcrps_obj_CRPS_twCRPS12_MOTPE_pretrain_train_amount_1_final', storage=f'sqlite:///{directory}/study.db')
+# make study2 where we save it with a storage in filepath, with name study_name
+if len(objectives) == 1:
+    sampler = optuna.samplers.TPESampler(multivariate=True, group=True, n_startup_trials=20)
+    study = optuna.create_study(sampler=sampler, direction='minimize', study_name='twcrps_obj_twCRPS12_MOTPE_pretrain_train_amount_1_final', storage=f'sqlite:///{directory}/study.db')
+else:
+    sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
+    directions = ['minimize' for _ in range(len(objectives))]
+    study = optuna.create_study(sampler=sampler, directions=directions, study_name='MOTPE_CRPS_CRPS12_no_print', storage=f'sqlite:///{directory}/study.db')
 
-study3 = optuna.load_study(study_name='twcrps_obj_twCRPS12_MOTPE_pretrain_train_amount_1_final', storage=f'sqlite:///{filepath}/study.db')
+# study3 = optuna.load_study(study_name='twcrps_obj_twCRPS12_MOTPE_pretrain_train_amount_1_final', storage=f'sqlite:///{filepath}/study.db')
 
 
 # set train_amount to 2
@@ -66,7 +52,7 @@ objective = Objective(features_names_dict, objectives, twCRPS=True, train_amount
 # with open(directory, 'wb') as file:
 #     pkl.dump(study, file)
 
-study3.optimize(objective, 100)
+study.optimize(objective, 100)
 
 
 
