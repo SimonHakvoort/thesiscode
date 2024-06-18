@@ -40,7 +40,9 @@ def initialize_distribution(distribution, all_features, location_features, scale
     elif distribution_name(distribution) == "distr_mixture":
         return Mixture(all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters)
     elif distribution_name(distribution) == "distr_mixture_linear":
-        return MixtureLinear(all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters)      
+        return MixtureLinear(all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters) 
+    elif distribution_name(distribution) == "distr_trunc_sqrt":
+        return TruncatedNormalSqrt(all_features, location_features, scale_features, random_init, parameters)     
     else:
         raise ValueError("Unknown distribution")
     
@@ -77,6 +79,8 @@ def distribution_name(distribution):
         return "distr_trunc_gev"
     elif distribution.lower() in ["distr_mixture_linear", "mixture_linear", "mixturelinear"]:
         return "distr_mixture_linear"
+    elif distribution.lower() in ["distr_trunc_sqrt"]:
+        return "distr_trunc_sqrt"
     else:
         raise ValueError("Unknown distribution")
     
@@ -274,8 +278,78 @@ class TruncatedNormal(ForecastDistribution):
         # mu = self._parameter_dict['a_tn'] + tf.tensordot(X, self._parameter_dict['b_tn'], axes=1)
         # sigma = tf.sqrt(self._parameter_dict['c_tn'] + self._parameter_dict['d_tn'] * variance)
         mu = self._parameter_dict['a_tn'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_tn'], axes=1)
-        sigma = self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1)
-        sigma = tf.sqrt(tf.math.softplus(sigma))
+        sigma_squared = self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1)
+        sigma = tf.sqrt(tf.math.softplus(sigma_squared))
+        return tfpd.TruncatedNormal(mu, sigma, 0, 1000)
+    
+    def __str__(self):
+        info = "Truncated Normal distribution with parameters:\n"
+        for key, value in self._parameter_dict.items():
+            info += "{0}: {1}\n".format(key, value)
+        return info
+    
+    def name(self):
+        return "distr_trunc_normal"
+    
+    def folder_name(self):
+        return "trunc_normal"
+    
+    def distribution_name(self):
+        return "tn"
+    
+class TruncatedNormalSqrt(ForecastDistribution):
+    """
+    Forecast distribution representing a truncated normal EMOS distribution.
+
+    This class implements a truncated normal distribution model for forecasting.
+    It inherits from the ForecastDistribution base class and provides functionality
+    for generating truncated normal distribution objects based on input data and variance.
+    It assumes linear relationship between the distribution parameters and the input data.
+
+    Attributes:
+        num_features (int): Number of features used in the model.
+        parameter_dict (dict): Dictionary containing the parameters of the distribution.
+    """
+    def __init__(self, all_features, location_features, scale_features, random_init, parameters: Dict[str, float] = {}):
+        """
+        Constructor for the TruncatedNormal class. Initializes the parameters of the distribution.
+        In case parameters is provided, it sets the parameters to the given values. Otherwise, it
+        initializes the parameters to default values.
+
+        Args:
+        - num_features (int): Number of features used in the model.
+        - parameters (dict): Dictionary containing the parameters of the distribution.
+
+        Returns:
+        - None
+        """
+        super().__init__(all_features, location_features, scale_features)
+
+        if "a_tn" in parameters and "b_tn" in parameters and "c_tn" in parameters and "d_tn" in parameters:
+            self._parameter_dict["a_tn"] = tf.Variable(parameters["a_tn"], dtype = tf.float32, name="a_tn")
+            self._parameter_dict["b_tn"] = tf.Variable(parameters["b_tn"], dtype = tf.float32, name="b_tn")
+            self._parameter_dict["c_tn"] = tf.Variable(parameters["c_tn"], dtype = tf.float32, name="c_tn")
+            self._parameter_dict["d_tn"] = tf.Variable(parameters["d_tn"], dtype = tf.float32, name="d_tn")
+            print("Using given parameters for Truncated Normal distribution")
+        elif random_init:
+            # initialize using random_initialization
+            self._parameter_dict['a_tn'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="a_tn")
+            self._parameter_dict['b_tn'] = tf.Variable(random_initialization(len(self.location_features_indices), 'standard_normal'), dtype = tf.float32, name="b_tn")
+            self._parameter_dict['c_tn'] = tf.Variable(random_initialization(1, 'standard_normal'), dtype = tf.float32, name="c_tn")
+            self._parameter_dict['d_tn'] = tf.Variable(random_initialization(len(self.scale_features_indices), 'standard_normal'), dtype = tf.float32, name="d_tn")
+            print("Using random initialization for Truncated Normal distribution")
+        else:
+            self._parameter_dict['a_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_tn"))
+            self._parameter_dict['b_tn'] = tf.Variable(tf.ones(len(self.location_features_indices), dtype=tf.float32), name="b_tn")
+            self._parameter_dict['c_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_tn")
+            self._parameter_dict['d_tn'] = tf.Variable(tf.ones(len(self.scale_features_indices), dtype=tf.float32), name="d_tn")
+            # print("Using default parameters for truncated normal distribution")
+
+    def get_distribution(self, X):
+        # mu = self._parameter_dict['a_tn'] + tf.tensordot(X, self._parameter_dict['b_tn'], axes=1)
+        # sigma = tf.sqrt(self._parameter_dict['c_tn'] + self._parameter_dict['d_tn'] * variance)
+        mu = self._parameter_dict['a_tn'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_tn'], axes=1)
+        sigma = tf.math.softplus(self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1))
         return tfpd.TruncatedNormal(mu, sigma, 0, 1000)
     
     def __str__(self):

@@ -143,7 +143,7 @@ def save_cv_data(feature_names, ignore = []):
     # save the data in /net/pc200239/nobackup/users/hakvoort/cv_data where there is a folder containing the grid size of wind speed forecast, and in that folder there are the files for the different folds.
     # The files should contain the data in the format of the output of load_train_test_data
 
-    for fold in [1,2,3]:
+    for fold in [0,1,2,3]:
         train_data, test_data, data_info = load_train_test_data(fold, feature_names, ignore = ignore)
         # make a folder 
         filepath = '/net/pc200239/nobackup/users/hakvoort/cv_data/'  + str(feature_names['wind_speed']) + '/' + str(fold) + '/'

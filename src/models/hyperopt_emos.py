@@ -39,12 +39,12 @@ class Objective:
     
     def compute_objective(self, emos: EMOS, objective: string, test_data: tf.data.Dataset):
         if objective == 'CRPS':
-            return emos.CRPS(test_data, 50000)
+            return emos.CRPS(test_data, 90000)
         # check if the first 6 characters are 'twCRPS'
         elif objective[:6] == 'twCRPS':
             # get the numbers after 'twCRPS'
             twCRPS_num = objective[6:]
-            return emos.twCRPS(test_data, [int(twCRPS_num)], 50000)[0]
+            return emos.twCRPS(test_data, [int(twCRPS_num)], 90000)[0]
         
     def train_emos_i(self, setup, fold, epochs, perform_batching, batch_size = None):
         train_data, test_data = self.get_data_i(fold)
@@ -103,11 +103,11 @@ class Objective:
             loss = "loss_twCRPS_sample"
             chain_function_mean = trial.suggest_float('chain_function_mean', -5, 15)
             chain_function_std = trial.suggest_float('chain_function_std', 0.0001, 10, log=True)
-            chain_function_constant = trial.suggest_float('chain_function_constant', 0.0001, 1, log=True)
+            chain_function_constant = trial.suggest_float('chain_function_constant', 0.000001, 1, log=False)
         else:
             loss = "loss_CRPS_sample"
 
-        samples = 100
+        samples = 200
         # optimizer = trial.suggest_categorical('optimizer', ['SGD', 'Adam'])
         optimizer = 'Adam'
         # learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1, log=True)

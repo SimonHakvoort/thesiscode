@@ -407,11 +407,11 @@ class EMOS:
             the CRPS value (float).
         """
         X, y = next(iter(data))
-        total_crps = self.CRPS_old(X['features_emos'], y, samples)
+        total_crps = self._crps_computation(X['features_emos'], y, samples)
         return total_crps
 
     
-    def CRPS_old(self, X, y, samples):
+    def _crps_computation(self, X, y, samples):
         """
         The loss function for the CRPS, based on the forecast distribution and observations.
         We use a sample based approach to estimate the expected value of the CRPS.
@@ -442,7 +442,18 @@ class EMOS:
         # return self.calc_pit for t = 0, 5, 10, 15
         return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in [0, 5, 10, 15]])
     
-    def calc_cPIT(self, X, y, t):
+    def calc_cPIT(self, X: tf.Tensor, y: tf.Tensor, t: float) -> tf.Tensor:
+        """
+        Function used for computing cPIT scores.
+
+        Arguments:
+            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+            y (tf.Tensor): the observations of shape (n,).
+            t (float): threshold for which the cPIT score should be computed.
+
+        Returns:
+            tf.Tensor containing the cPIT scores.
+        """
         indices = tf.where(y > t)
         indices = tf.reshape(indices, [-1])
 
@@ -468,9 +479,9 @@ class EMOS:
         return tf.reduce_mean(tf.abs(probabilities - tf.linspace(0.0, 1.0, tf.shape(probabilities)[0])))
 
     def loss_CRPS_sample(self, X, y):
-        return self.CRPS_old(X, y, self.samples)
+        return self._crps_computation(X, y, self.samples)
         
-    
+    ### CURRENTLY NOT USED ANYMORE
     def Brier_Score_old(self, X, y, threshold):
         """
         The loss function for the Brier score, based on the forecast distribution and observations.
@@ -672,10 +683,8 @@ class EMOS:
         """
         return self.forecast_distribution.get_distribution(X)
 
-
-    # def fit_dataset(self, dataset, steps, printing = True, subset_size = None):
      
-
+    ### CURRENTLY NOT USED ANYMORE  
     def fit_old(self, X, y, steps, printing = True, subset_size = None):
         """
         Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
@@ -756,7 +765,7 @@ class EMOS:
             
 
 
-
+### Can be used as example for bagging estimator for CNNs
 class BootstrapEmos():
 
     def __init__(self, setup, filepath, epochs, batch_size, cv_number, features_names_dict):

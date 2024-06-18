@@ -94,7 +94,7 @@ ignore = ['229', '285', '323']
 X_test, y_test = get_tensors(model.neighbourhood_size, model.all_features, test_fold, ignore)
 X_test = (X_test - model.feature_mean) / model.feature_std
 
-print(model.CRPS_old(X_test, y_test, 20000))
+print(model._crps_computation(X_test, y_test, 20000))
 
 mydict = model.to_dict()
 
