@@ -1,3 +1,6 @@
+import os
+# Set environment variable to suppress TensorFlow warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 import tensorflow as tf
 from src.neural_networks.get_data import get_tf_data, load_cv_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
@@ -32,7 +35,7 @@ train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 train_data = train_data.shuffle(len(train_data))
 
-train_data = train_data.batch(len(train_data))
+train_data = train_data.batch(256)
 
 # train_data = train_data.repeat()
 
@@ -48,7 +51,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
 loss = "loss_CRPS_sample"
 #loss = "loss_cPIT"
-samples = 100
+samples = 200
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
@@ -62,10 +65,10 @@ chain_function_constant = 0.07
 
 # possible optimizers: 'SGD', 'Adam'
 optimizer = "Adam"
-learning_rate = 0.05
+learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_trunc_sqrt"
+forecast_distribution = "distr_trunc_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -100,11 +103,10 @@ setup = {'loss': loss,
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/test_sqrt'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/base_emos_fold_3'
 
 epochs = 500
 
-cv = 3
 
 batch_size = None
 
@@ -117,7 +119,7 @@ mydict = emos.to_dict()
 with open(filepath, 'wb') as f:
     pkl.dump(mydict, f)
 
-
+print(emos.CRPS(test_data, 10000))
 
 # bootstrap = BootstrapEmos.load(filepath)
 
