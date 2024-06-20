@@ -7,6 +7,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from src.models.forecast_distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name, initialize_distribution
 from src.neural_networks.get_data import load_cv_data 
+import time
 tfpd = tfp.distributions
 
 class EMOS:
@@ -737,7 +738,7 @@ class EMOS:
         print("Final loss: ", loss_value.numpy())	
         return hist
     
-    def fit(self, data: tf.data.Dataset, epochs: int, printing: bool = True) -> List[float]:
+    def fit(self, data: tf.data.Dataset, epochs: int, printing: bool = True) -> dict:
         """
         Fit EMOS with linear regression to the given data.
 
@@ -747,20 +748,47 @@ class EMOS:
             printing (bool): whether to print the loss value at each epoch.
 
         Returns:
-            a list containing the loss value at each epoch.
+            a dictionary with two keys, hist which contains the history of losses per epoch, and time_hist, which contains the losses at intervals of 0.1 seconds.
         """
+        start = time.time()
+        time_losses = 0
+        interval = 0.5
+        num_iter = 0
+        time_hist = {}
         for epoch in range(epochs):
             epoch_losses = 0.0
             batch_count = 0.0
             for X, y in data:
                 loss_value = self._train_step(X['features_emos'], y)
+
+                # Save the loss value for each epoch
                 epoch_losses += loss_value
                 batch_count += 1.0
+
+                # Save the loss value for each time interval
+                time_losses += loss_value
+                current_time = time.time()
+
+                # Check wheter more than 0.2 second has passed
+                if current_time - start > interval:
+                    if num_iter > 0:
+                        time_hist[interval] = (time_losses / num_iter).numpy()
+                        interval += 0.5
+                        time_losses = 0
+                        num_iter = 0
+                    else:
+                        num_iter += 1
+                        interval += 0.5
+                else:
+                    num_iter += 1
+
             epoch_mean_loss = epoch_losses / batch_count
             self.hist.append(epoch_mean_loss)
             if printing and epoch % 10 == 0:
                 tf.print("Epoch: ", epoch, " Loss: ", epoch_mean_loss)
-        return self.hist
+
+        output_dict = {'hist': self.hist, 'time_hist': time_hist}
+        return output_dict
                 
             
 

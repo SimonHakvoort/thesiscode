@@ -35,7 +35,7 @@ train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 train_data = train_data.shuffle(len(train_data))
 
-train_data = train_data.batch(256)
+train_data = train_data.batch(32)
 
 # train_data = train_data.repeat()
 
@@ -105,21 +105,24 @@ setup = {'loss': loss,
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/base_emos_fold_3'
 
-epochs = 500
+epochs = 30
 
 
 batch_size = None
 
 emos = EMOS(setup)
 
-emos.fit(train_data, epochs)
+my_dict = emos.fit(train_data, epochs)
 
-mydict = emos.to_dict()
 
-with open(filepath, 'wb') as f:
-    pkl.dump(mydict, f)
+# mydict = emos.to_dict()
 
+# with open(filepath, 'wb') as f:
+#     pkl.dump(mydict, f)
+print(my_dict['time_hist'].values())
+print(len(my_dict))
 print(emos.CRPS(test_data, 10000))
+print(emos.twCRPS(test_data, [12], 10000))
 
 # bootstrap = BootstrapEmos.load(filepath)
 

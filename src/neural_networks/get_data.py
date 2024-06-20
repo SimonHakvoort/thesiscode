@@ -241,6 +241,34 @@ def normalize_1d_features_with_mean_std(dataset, mean, std):
     
     return dataset.map(normalize)
 
+def make_importance_sampling_dataset(data: tf.data.Dataset) -> tf.data.Dataset:
+    def filter_func(X, y, lower, upper):
+        return (lower <= y) & (y < upper)
+    
+    data_less_than_9 = data.filter(lambda X, y: filter_func(X, y, 0, 9))
+    data_9_12 = data.filter(lambda X, y: filter_func(X, y, 9, 12))
+    data_12_15 = data.filter(lambda X, y: filter_func(X, y, 12, 15))
+    data_greater_than_15 = data.filter(lambda X, y: filter_func(X, y, 15, 1000))
+
+    data_9_12 = data_9_12.repeat(4)
+    data_12_15 = data_12_15.repeat(8)
+    data_greater_than_15 = data_greater_than_15.repeat(12)
+
+    def weight_func(X, y, weight):
+        return X, y, tf.constant(weight, dtype=tf.float32)
+
+    data_less_than_9 = data_less_than_9.map(lambda X, y: weight_func(X, y, 1))
+    data_9_12 = data_9_12.map(lambda X, y: weight_func(X, y, 1/4))
+    data_12_15 = data_12_15.map(lambda X, y: weight_func(X, y, 1/8))
+    data_greater_than_15 = data_greater_than_15.map(lambda X, y: weight_func(X, y, 1/12))
+
+    output_data = data_less_than_9.concatenate(data_9_12).concatenate(data_12_15).concatenate(data_greater_than_15)
+
+    return output_data
+
+
+
+    
 
 
             
