@@ -297,14 +297,19 @@ class EMOS:
         Set the parameters of the model to the given values.
 
         Arguments:
-        - parameters: a dictionary containing the parameters of the model.
+            parameters: a dictionary containing the parameters of the model.
+
+
         """
         self.forecast_distribution.parameters = parameters
     
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """
         Return the model as a dictionary, including the settings and parameters.
-        Can be used to save the settings and parameters of the model.
+        Can be used to save the settings and parameters of the model and load it back in.
+
+        Returns:
+            dictionary containing the setup for the class and the parameters.
         """
         model_dict = {
             'loss' : self.loss.__name__,
@@ -351,10 +356,10 @@ class EMOS:
         Normalize the features of the model.
 
         Arguments:
-        - X: the input data of shape (n, m), where n is the number of samples and m is the number of features.
+            X: the input data of shape (n, m), where n is the number of samples and m is the number of features.
 
         Returns:
-        - the normalized input data.
+            the normalized input data.
         """
         if self.feature_mean is None or self.feature_std is None:
             raise ValueError("Feature mean and standard deviation not set")
@@ -366,11 +371,11 @@ class EMOS:
         The indicator function, which returns 1 if y <= t, and 0 otherwise.
 
         Arguments:
-        - y: the input value.
-        - t: the threshold.
+            y: the input value.
+            t: the threshold.
 
         Returns:
-        - 1 if y <= t, 0 otherwise.
+            1 if y <= t, 0 otherwise.
         """
         return tf.cast(y <= t, tf.float32)
  
@@ -379,9 +384,8 @@ class EMOS:
         The loss fuction for the log likelihood, based on the forecast distribution and observations.
 
         Arguments:
-        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
-        - y (tf.Tensor): the observations of shape (n,).
-        - variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
+            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+            y (tf.Tensor): the observations of shape (n,).
 
         Returns:
         - the loss value.
@@ -389,7 +393,7 @@ class EMOS:
         forecast_distribution = self.forecast_distribution.get_distribution(X)
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
     
-    def get_prob_distribution(self, data):
+    def get_prob_distribution(self, data: tf.data.Dataset):
         X, y = next(iter(data))
         distributions = self.forecast_distribution.get_distribution(X['features_emos'])
         observations = y
@@ -408,25 +412,25 @@ class EMOS:
             the CRPS value (float).
         """
         X, y = next(iter(data))
-        total_crps = self._crps_computation(X['features_emos'], y, samples)
+        total_crps = tf.reduce_mean(self._crps_computation(X['features_emos'], y, samples)).numpy()
         return total_crps
 
     
-    def _crps_computation(self, X, y, samples):
+    def _crps_computation(self, X: tf.Tensor, y: tf.Tensor, samples: int) -> tf.Tensor:
         """
         The loss function for the CRPS, based on the forecast distribution and observations.
         We use a sample based approach to estimate the expected value of the CRPS.
 
         Arguments:
-        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
-        - y (tf.Tensor): the observations of shape (n,).
-        - variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
-        - samples (int): the amount of samples used to estimate the expected value of the CRPS.
+            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
+            y (tf.Tensor): the observations of shape (n,).
+            samples (int): the amount of samples used to estimate the expected value of the CRPS.
 
         Returns:
-        - the loss value.
+            an array of shape (n,) containing the losses
         """
         forecast_distribution = self.forecast_distribution.get_distribution(X)
+
         #X_1 has shape (samples, n), where n is the number of observations
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
@@ -435,12 +439,9 @@ class EMOS:
         E_1 = tf.reduce_mean(tf.abs(X_1 - y), axis=0)
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
 
-        return tf.reduce_mean(E_1 - 0.5 * E_2)
+        return E_1 - 0.5 * E_2
     
     def loss_cPIT(self, X, y):
-        # return self.calc_pit from t = 0 to t = 15
-        # return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in range(16)])
-        # return self.calc_pit for t = 0, 5, 10, 15
         return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in [0, 5, 10, 15]])
     
     def calc_cPIT(self, X: tf.Tensor, y: tf.Tensor, t: float) -> tf.Tensor:
@@ -479,41 +480,31 @@ class EMOS:
 
         return tf.reduce_mean(tf.abs(probabilities - tf.linspace(0.0, 1.0, tf.shape(probabilities)[0])))
 
-    def loss_CRPS_sample(self, X, y):
-        return self._crps_computation(X, y, self.samples)
-        
-    ### CURRENTLY NOT USED ANYMORE
-    def Brier_Score_old(self, X, y, threshold):
+    def loss_CRPS_sample(self, X: tf.Tensor, y: tf.Tensor) -> tf.Tensor:
         """
-        The loss function for the Brier score, based on the forecast distribution and observations.
+        Function that is used in the constructor to set as loss function, with sample size self.samples.
 
         Arguments:
-        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
-        - y (tf.Tensor): the observations of shape (n,).
-        - variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
-        - threshold (float): the threshold for the Brier score.
-
-        Returns:
-        - the Brier score at the given threshold.
+            X (tf.Tensor): input features
+            y (tf.Tensor): observations
         """
+        return self._crps_computation(X, y, self.samples)
         
-        cdf_values = self.forecast_distribution.comp_cdf(X, threshold)
-        return tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdf_values))
     
     def Brier_Score(self, data: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
         """
         The loss function for the Brier score, based on the forecast distribution and observations, using a tf.dataset.
+        We compute the Brier score for a single batch of the dataset, meaning that in case we want to compute the Brier score over the entire
+        dataset, we should put it in a single batch.
 
         Arguments:
-        - data (tf.dataset): the dataset containing the input data and observations.
-        - thresholds (list(float)): the threshold for the Brier score.
+            data (tf.dataset): the dataset containing the input data and observations.
+            thresholds (list(float)): the threshold for the Brier score.
 
         Returns:
-        - the Brier score at the given threshold.
+            an array containing the Brier scores for the specified thresholds.
         """
-        # take 1 element from the data
         X, y = next(iter(data))
-        #brier_score = self.Brier_Score(X['features_emos'], y, threshold)
         brier_scores = np.zeros(len(thresholds))
 
         cdfs = self.forecast_distribution.comp_cdf(X['features_emos'], thresholds)  
@@ -585,7 +576,7 @@ class EMOS:
         E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
         E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
 
-        return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
+        return E_1 - 0.5 * E_2
     
         
 
@@ -632,7 +623,7 @@ class EMOS:
         second_part = self.chain_function_std ** 2 * self.chain_normal_distr.prob(y)
         return first_part + second_part + self.chain_function_constant * y
 
-    def _compute_loss_and_gradient(self, X: tf.Tensor, y: tf.Tensor) -> Tuple[tf.Tensor, List[tf.Tensor]]:
+    def _compute_loss_and_gradient(self, X: tf.Tensor, y: tf.Tensor, w: tf.Tensor) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Compute the loss and the gradient of the loss with respect to the parameters of the model, 
         which are the parameters of the forecast distribution.
@@ -640,30 +631,32 @@ class EMOS:
         Arguments:
             X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
             y (tf.Tensor): the observations of shape (n,).
-            variance (tf.Tensor): the variance of the forecast distribution around the grid point of shape (n,).
+            w (tf.Tensor): the weights of the samples with shape (n,)
 
         Returns:
             loss_value: the loss value.
             grads: the gradients of the loss with respect to the parameters of the model.
         """
         with tf.GradientTape() as tape:
-            loss_value = self.loss(X, y)
+            weighted_loss = self.loss(X, y) * w
+            loss_value = tf.reduce_mean(weighted_loss)
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
     
-    @tf.function
-    def _train_step(self, X: tf.Tensor, y: tf.Tensor) -> float:
+    #@tf.function
+    def _train_step(self, X: tf.Tensor, y: tf.Tensor, w: tf.Tensor) -> tf.Tensor:
         """
         Perform a training step with the optimizer.
 
         Arguments:
             X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
             y (tf.Tensor): the observations of shape (n,).
+            w (tf.Tensor): the weights of shape (n,)
 
         Returns:
             the loss value.
         """
-        loss_value, grads = self._compute_loss_and_gradient(X, y)
+        loss_value, grads = self._compute_loss_and_gradient(X, y, w)
         if tf.math.reduce_any(tf.math.is_nan(grads[0])):
             return -1.0
         
@@ -684,66 +677,13 @@ class EMOS:
         """
         return self.forecast_distribution.get_distribution(X)
 
-     
-    ### CURRENTLY NOT USED ANYMORE  
-    def fit_old(self, X, y, steps, printing = True, subset_size = None):
-        """
-        Fit the EMOS model to the given data, using the loss function and optimizer specified in the setup.
-
-        Arguments:
-        - X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
-        - y (tf.Tensor): the observations of shape (n,).
-        - steps: the amount of steps to take with the optimizer.
-        - printing: whether to print the loss value at each step.
-        - subset_size: the size of the random subset used to compute the loss and gradient. If None, the full dataset is used for each step.
-
-        Returns:
-        - hist: a list containing the loss value at each step.
-        """
-        hist = []
-        self.steps_made += steps
-
-        if subset_size is not None:
-            if subset_size > X.shape[0]:
-                raise ValueError("Subset size is larger than the dataset size")
-            
-        num_steps = steps
-        if subset_size is not None:
-            num_steps = steps * X.shape[0] // subset_size
-
-        for step in range(num_steps):
-
-            if subset_size is not None:
-                indices = np.random.choice(X.shape[0], subset_size, replace=False)
-                X_subset = tf.gather(X, indices)
-                y_subset = tf.gather(y, indices)
-            else:
-                X_subset = X
-                y_subset = y
-
-            loss_value, grads = self._compute_loss_and_gradient(X_subset, y_subset)
-
-            # check if gradient contains nan
-            if tf.math.reduce_any(tf.math.is_nan(grads[0])):
-                print("Gradient contains NaN")
-                continue
-            hist.append(loss_value)
-
-            self.optimizer.apply_gradients(zip(grads, self.forecast_distribution.parameter_dict.values()))
-
-            if printing:
-                if "weight" in self.forecast_distribution.parameter_dict:
-                    print("Weight: ", self.forecast_distribution.parameter_dict['weight'].numpy())
-                print("Step: {}, Loss: {}".format(step, loss_value))
-        print("Final loss: ", loss_value.numpy())	
-        return hist
     
     def fit(self, data: tf.data.Dataset, epochs: int, printing: bool = True) -> dict:
         """
         Fit EMOS with linear regression to the given data.
 
         Arguments:
-            data (tf.data.Dataset): the dataset containing the input data and observations.
+            data (tf.data.Dataset): the dataset containing the input data (X), the observations (y) and the corresponding weights (w).
             epochs (int): the amount of epochs to train the model.
             printing (bool): whether to print the loss value at each epoch.
 
@@ -758,8 +698,8 @@ class EMOS:
         for epoch in range(epochs):
             epoch_losses = 0.0
             batch_count = 0.0
-            for X, y in data:
-                loss_value = self._train_step(X['features_emos'], y)
+            for X, y, w in data:
+                loss_value = self._train_step(X['features_emos'], y, w)
 
                 # Save the loss value for each epoch
                 epoch_losses += loss_value

@@ -3,7 +3,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 import tensorflow as tf
-from src.neural_networks.get_data import get_tf_data, load_cv_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
+from src.neural_networks.get_data import get_tf_data, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
 from src.models.train_emos import train_emos
 from src.models.emos import EMOS, BootstrapEmos
 from src.models.get_data import get_tensors
@@ -33,7 +33,9 @@ ignore = ['229', '285', '323']
 
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
-train_data = train_data.shuffle(len(train_data))
+train_data = make_importance_sampling_dataset(train_data)
+
+train_data = train_data.shuffle(30000)
 
 train_data = train_data.batch(32)
 

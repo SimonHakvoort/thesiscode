@@ -242,25 +242,47 @@ def normalize_1d_features_with_mean_std(dataset, mean, std):
     return dataset.map(normalize)
 
 def make_importance_sampling_dataset(data: tf.data.Dataset) -> tf.data.Dataset:
+    """
+    Implements importance sampling, by upsampling and downweighting from the samples with larger observations.
+
+    Arguments:
+        data (tf.data.Dataset): dataset on which importance sampling is performed.
+
+    Returns:
+        tf.data.Dataset with where weights are included.
+    """
     def filter_func(X, y, lower, upper):
+        """
+        Filters the data based on whether y is in between upper and lower.
+        """
         return (lower <= y) & (y < upper)
     
+    less_than_9_factor = 1
+    between_9_12_factor = 4
+    between_12_15_factor = 8
+    greater_than_15_factor = 12
+
+    # filter the data that falls in a specific range
     data_less_than_9 = data.filter(lambda X, y: filter_func(X, y, 0, 9))
     data_9_12 = data.filter(lambda X, y: filter_func(X, y, 9, 12))
     data_12_15 = data.filter(lambda X, y: filter_func(X, y, 12, 15))
     data_greater_than_15 = data.filter(lambda X, y: filter_func(X, y, 15, 1000))
 
-    data_9_12 = data_9_12.repeat(4)
-    data_12_15 = data_12_15.repeat(8)
-    data_greater_than_15 = data_greater_than_15.repeat(12)
+    data_9_12 = data_9_12.repeat(between_9_12_factor)
+    data_12_15 = data_12_15.repeat(between_12_15_factor)
+    data_greater_than_15 = data_greater_than_15.repeat(greater_than_15_factor)
 
     def weight_func(X, y, weight):
+        """
+        Attaches a uniform weight to each sample in the dataset.
+        """
         return X, y, tf.constant(weight, dtype=tf.float32)
 
-    data_less_than_9 = data_less_than_9.map(lambda X, y: weight_func(X, y, 1))
-    data_9_12 = data_9_12.map(lambda X, y: weight_func(X, y, 1/4))
-    data_12_15 = data_12_15.map(lambda X, y: weight_func(X, y, 1/8))
-    data_greater_than_15 = data_greater_than_15.map(lambda X, y: weight_func(X, y, 1/12))
+    # attach weights to the data based on the factor on which it is upsampled.
+    data_less_than_9 = data_less_than_9.map(lambda X, y: weight_func(X, y, less_than_9_factor))
+    data_9_12 = data_9_12.map(lambda X, y: weight_func(X, y, 1 / between_9_12_factor))
+    data_12_15 = data_12_15.map(lambda X, y: weight_func(X, y, 1 / between_12_15_factor))
+    data_greater_than_15 = data_greater_than_15.map(lambda X, y: weight_func(X, y, 1 / greater_than_15_factor))
 
     output_data = data_less_than_9.concatenate(data_9_12).concatenate(data_12_15).concatenate(data_greater_than_15)
 

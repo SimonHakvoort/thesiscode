@@ -14,6 +14,11 @@ import pickle
 import os
 
 class NNForecast:
+    """
+    Class of a EMOS with a CNN to model the relation between the input features and the distibution parameters.
+    One attribute of this class is model, which is an instance of a NNConvModel. 
+    This class contains multiple methods to easily compute the scores and forecast distributions for a given dataset.  
+    """
     def __init__(self, **kwargs):
         if not kwargs:
             return
@@ -115,25 +120,6 @@ class NNForecast:
         else:
             raise ValueError("Invalid optimizer")
 
-
-    def _init_chain_function(self, **kwargs):
-        """
-        Initializes the chain function for the neural network forecast.
-
-        Parameters:
-            kwargs (dict): Keyword arguments containing the chain function and its parameters.
-
-        Raises:
-            ValueError: If the chain_function argument is not provided.
-            ValueError: If the chain_function_threshold argument is not provided when using the 'chain_function_indicator' option.
-            ValueError: If the chain_function_constant argument is not provided when using the 'chain_function_normal_cdf_plus_constant' option.
-            ValueError: If the chain_function_mean argument is not provided when using the 'chain_function_normal_cdf' or 'chain_function_normal_cdf_plus_constant' options.
-            ValueError: If the chain_function_std argument is not provided when using the 'chain_function_normal_cdf' or 'chain_function_normal_cdf_plus_constant' options.
-
-        Returns:
-            None
-        """
-        # Implementation code...
     def _init_chain_function(self, **kwargs):
 
         if 'chain_function' not in kwargs:
@@ -177,13 +163,13 @@ class NNForecast:
 
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
         
-    def _loss_CRPS_sample(self, y_true, y_pred):
+    def _loss_CRPS_sample(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+        """
+        Private method that can be used as a loss function.
+        """
         return self._compute_CRPS(y_true, y_pred, self.sample_size)
 
-    
-    # def CRPS(self, X, y, sample_size):
-    #     y_pred = self.predict(X)
-    #     return self._compute_CRPS(y, y_pred, sample_size)
+
     
     def CRPS(self, dataset: tf.data.Dataset, sample_size: int) -> float:
         """
@@ -199,9 +185,6 @@ class NNForecast:
         y_true = []
         y_pred = []
 
-        # for X, y in dataset:
-        #     y_true.append(y)
-        #     y_pred.append(self.predict(X))
         X, y = next(iter(dataset))
         y_pred.append(self.predict(X))
         y_true.append(y)
@@ -271,7 +254,7 @@ class NNForecast:
 
         return tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2)
     
-    def _loss_twCRPS_sample(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+    def _loss_twCRPS_sample(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
         """
         Internal method that can be used as a loss function for training the model.
         It calculates the threshold-weighted Continuous Ranked Probability Score (twCRPS) for a given sample size and chain function.
@@ -297,7 +280,6 @@ class NNForecast:
 
         Returns:
             list[float]: A list of twCRPS scores corresponding to each threshold value.
-
         """
         y_true = []
         y_pred = []
@@ -319,6 +301,7 @@ class NNForecast:
     def Brier_Score(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
         """
         Calculates the Brier score for a given dataset and a list of thresholds.
+        It computes the Brier score for a single batch.
 
         Args:
             dataset (tf.data.Dataset): The dataset containing input features and true labels.
@@ -331,9 +314,7 @@ class NNForecast:
         y_pred = []
 
         X, y = next(iter(dataset))
-        # for X, y in dataset:
-        #     y_true.append(y)
-        #     y_pred.append(self.predict(X))
+
         y_pred.append(self.predict(X))
         y_true.append(y)
             
@@ -428,15 +409,16 @@ class NNForecast:
         return history
     
 
-    def predict(self, X):
+    def predict(self, X: dict) -> tf.Tensor:
+        """
+        Makes a prediction and returns the distribution's parameters
+        """
         return self.model.predict(X)
     
     def get_prob_distribution(self, data):
         y_pred = []
         y_true = []
-        # for X, y in data:
-        #     y_pred.append(self.predict(X))
-        #     y_true.append(y)
+
         X, y = next(iter(data))
         y_pred.append(self.predict(X))
         y_true.append(y)
@@ -445,7 +427,7 @@ class NNForecast:
         y_true = tf.concat(y_true, axis=0)
         return self.model._forecast_distribution.get_distribution(y_pred), y_true
     
-    def save_weights(self, filepath):
+    def save_weights(self, filepath: str) -> None:
         self.model.save_weights(filepath + '/model.weights.h5')
 
 
