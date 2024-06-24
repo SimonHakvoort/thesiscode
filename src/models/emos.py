@@ -678,7 +678,7 @@ class EMOS:
         return self.forecast_distribution.get_distribution(X)
 
     
-    def fit(self, data: tf.data.Dataset, epochs: int, printing: bool = True) -> dict:
+    def fit(self, data: tf.data.Dataset, epochs: int, printing: bool = True, validation_data: tf.data.Dataset = None) -> dict:
         """
         Fit EMOS with linear regression to the given data.
 
@@ -686,15 +686,22 @@ class EMOS:
             data (tf.data.Dataset): the dataset containing the input data (X), the observations (y) and the corresponding weights (w).
             epochs (int): the amount of epochs to train the model.
             printing (bool): whether to print the loss value at each epoch.
+            validation_data (tf.data.Dataset): dataset on which the validation is performed at the end of every epoch.
 
         Returns:
             a dictionary with two keys, hist which contains the history of losses per epoch, and time_hist, which contains the losses at intervals of 0.1 seconds.
         """
+        if validation_data is not None:
+            X_val, y_val = next(iter(validation_data))
+            X_val = X_val['features_emos']
+
         start = time.time()
         time_losses = 0
         interval = 0.5
-        num_iter = 0
-        time_hist = {}
+
+        num_batches = 0
+
+        validation_loss = {}
         for epoch in range(epochs):
             epoch_losses = 0.0
             batch_count = 0.0
@@ -709,28 +716,30 @@ class EMOS:
                 time_losses += loss_value
                 current_time = time.time()
 
-                # Check wheter more than 0.2 second has passed
-                if current_time - start > interval:
-                    if num_iter > 0:
-                        time_hist[interval] = (time_losses / num_iter).numpy()
+                if validation_data is not None:
+                    # Check wheter more than 0.2 second has passed
+                    if current_time - start > interval and num_batches > 1:
+                        val_loss = self.loss(X_val, y_val)
+                        total_loss = tf.reduce_mean(val_loss).numpy()
+                        validation_loss[current_time - start] = total_loss
                         interval += 0.5
-                        time_losses = 0
-                        num_iter = 0
+                        print(num_batches)
+                        num_batches = 0
                     else:
-                        num_iter += 1
-                        interval += 0.5
-                else:
-                    num_iter += 1
+                        num_batches += 1
 
             epoch_mean_loss = epoch_losses / batch_count
             self.hist.append(epoch_mean_loss)
-            if printing and epoch % 10 == 0:
+            if printing and epoch % 1 == 0:
                 tf.print("Epoch: ", epoch, " Loss: ", epoch_mean_loss)
 
-        output_dict = {'hist': self.hist, 'time_hist': time_hist}
+        output_dict = {'hist': self.hist, 'validation_loss': validation_loss}
         return output_dict
                 
             
+
+
+
 
 
 ### Can be used as example for bagging estimator for CNNs
