@@ -643,7 +643,7 @@ class EMOS:
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
     
-    #@tf.function
+    @tf.function
     def _train_step(self, X: tf.Tensor, y: tf.Tensor, w: tf.Tensor) -> tf.Tensor:
         """
         Perform a training step with the optimizer.
@@ -691,9 +691,14 @@ class EMOS:
         Returns:
             a dictionary with two keys, hist which contains the history of losses per epoch, and time_hist, which contains the losses at intervals of 0.1 seconds.
         """
+        validation_loss = {}
+
         if validation_data is not None:
             X_val, y_val = next(iter(validation_data))
             X_val = X_val['features_emos']
+            val_loss = self.loss(X_val, y_val)
+            validation_loss[0] = total_loss = tf.reduce_mean(val_loss).numpy()
+
 
         start = time.time()
         time_losses = 0
@@ -701,7 +706,6 @@ class EMOS:
 
         num_batches = 0
 
-        validation_loss = {}
         for epoch in range(epochs):
             epoch_losses = 0.0
             batch_count = 0.0
@@ -723,7 +727,6 @@ class EMOS:
                         total_loss = tf.reduce_mean(val_loss).numpy()
                         validation_loss[current_time - start] = total_loss
                         interval += 0.5
-                        print(num_batches)
                         num_batches = 0
                     else:
                         num_batches += 1

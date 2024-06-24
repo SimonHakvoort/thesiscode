@@ -1,7 +1,9 @@
 import os
+import numpy as np
 import tensorflow as tf
 import pickle
 
+from typing import Dict, Tuple
 from src.models.get_data import get_fold_i, get_station_info
 
 def get_tf_data(fold, feature_names, ignore = [], add_emos=True, features_emos_mean = None, features_emos_std = None, normalize_features = True, features_1d_mean = None, features_1d_std = None):
@@ -241,7 +243,7 @@ def normalize_1d_features_with_mean_std(dataset, mean, std):
     
     return dataset.map(normalize)
 
-def make_importance_sampling_dataset(data: tf.data.Dataset) -> tf.data.Dataset:
+def make_importance_sampling_dataset(data: tf.data.Dataset, factors: list[int] = [1,10,20,30]) -> tf.data.Dataset:
     """
     Implements importance sampling, by upsampling and downweighting from the samples with larger observations.
 
@@ -257,10 +259,13 @@ def make_importance_sampling_dataset(data: tf.data.Dataset) -> tf.data.Dataset:
         """
         return (lower <= y) & (y < upper)
     
-    less_than_9_factor = 1
-    between_9_12_factor = 4
-    between_12_15_factor = 8
-    greater_than_15_factor = 12
+    if len(factors) != 4:
+        raise Exception("Invalid list of factors!")
+    
+    less_than_9_factor = factors[0]
+    between_9_12_factor = factors[1]
+    between_12_15_factor = factors[2]
+    greater_than_15_factor = factors[3]
 
     # filter the data that falls in a specific range
     data_less_than_9 = data.filter(lambda X, y: filter_func(X, y, 0, 9))
@@ -288,6 +293,86 @@ def make_importance_sampling_dataset(data: tf.data.Dataset) -> tf.data.Dataset:
 
     return output_data
 
+
+def get_fold_is(features_names_dict: Dict, fold: int, factors: float, batch_size: int) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+    """
+    Prepares the training and testing datasets with and without importance sampling for a given fold.
+
+    Args:
+        features_names_dict (Dict): A dictionary of feature names.
+        fold (int): The fold number for cross-validation.
+        factors (float): Factors used for importance sampling.
+        batch_size (int): The batch size for the datasets.
+
+    Returns:
+        Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]: The standard training dataset,
+        the importance sampling training dataset, and the testing dataset.
+    """
+
+    train_data, test_data, data_info = load_cv_data(fold, features_names_dict)
+
+    def remove_other_info(X, y):
+        return {'features_emos': X['features_emos']}, y
+
+    def remove_label(X, y):
+        return X['features_emos'], y
+
+    train_data = train_data.map(remove_other_info)
+
+    train_data_is = train_data.map(remove_label)
+
+    train_data_is = make_importance_sampling_dataset(train_data_is, factors)
+
+    data_list = list(train_data_is.as_numpy_iterator())
+
+    features = np.array([x[0] for x in data_list])
+    targets = np.array([x[1] for x in data_list])
+    sample_weights = np.array([x[2] for x in data_list])
+
+    dataset_dict = {
+        'features_emos': features,
+        'y': targets,
+        'w': sample_weights
+    }
+
+    train_data_is = tf.data.Dataset.from_tensor_slices(dataset_dict)
+
+    def correct_map(sample_dict):
+        return {'features_emos': sample_dict['features_emos']}, sample_dict['y'], sample_dict['w']
+
+    train_data_is = train_data_is.map(correct_map)
+
+    dataset_length_is = train_data_is.cardinality()
+
+    print(dataset_length_is)
+
+    train_data_is = train_data_is.shuffle(dataset_length_is)
+
+    train_data_is = train_data_is.batch(batch_size)
+
+    train_data_is = train_data_is.prefetch(tf.data.experimental.AUTOTUNE)
+
+    def const_weight_func(X, y):
+        """
+        Attaches a uniform weight to each sample in the dataset.
+        """
+        return X, y, tf.constant(1, dtype=tf.float32)
+
+    train_data = train_data.map(const_weight_func)
+
+    dataset_length = train_data.cardinality()
+
+    train_data = train_data.shuffle(dataset_length)
+
+    print(dataset_length)
+
+    train_data = train_data.batch(batch_size)
+
+    train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+    test_data = test_data.batch(test_data.cardinality())
+
+    return train_data, train_data_is, test_data
 
 
     

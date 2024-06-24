@@ -33,13 +33,14 @@ ignore = ['229', '285', '323']
 
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
-train_data = make_importance_sampling_dataset(train_data)
+def addweight(X, y):
+    return X, y, tf.constant(1, dtype=tf.float32)
 
-train_data = train_data.shuffle(30000)
+train_data = train_data.map(addweight)
 
-train_data = train_data.batch(32)
+train_data = train_data.shuffle(train_data.cardinality())
 
-# train_data = train_data.repeat()
+train_data = train_data.batch(256)
 
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
@@ -51,9 +52,9 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_CRPS_sample"
+loss = "loss_twCRPS_sample"
 #loss = "loss_cPIT"
-samples = 200
+samples = 250
 
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
@@ -70,7 +71,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_trunc_normal"
+forecast_distribution = "distr_mixture_linear"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -100,14 +101,28 @@ setup = {'loss': loss,
         'printing': printing,
          }
 
+if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == 'distr_mixture':
+    setup['forecast_distribution'] = distribution_1
 
+    emos1 = EMOS(setup)
 
+    setup['forecast_distribution'] = distribution_2
+
+    emos2 = EMOS(setup)
+
+    emos1.fit(train_data, 75, False)
+    emos2.fit(train_data, 75, False)
+
+    setup['forecast_distribution'] = forecast_distribution
+    print(setup['forecast_distribution'])
+
+    setup['parameters'] = {**emos1.get_parameters(), **emos2.get_parameters()}
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/base_emos_fold_3'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/tn_ln_M13_STD2_C07.pkl'
 
-epochs = 30
+epochs = 450
 
 
 batch_size = None
@@ -117,12 +132,11 @@ emos = EMOS(setup)
 my_dict = emos.fit(train_data, epochs)
 
 
-# mydict = emos.to_dict()
+mydict = emos.to_dict()
 
-# with open(filepath, 'wb') as f:
-#     pkl.dump(mydict, f)
-print(my_dict['time_hist'].values())
-print(len(my_dict))
+with open(filepath, 'wb') as f:
+    pkl.dump(mydict, f)
+
 print(emos.CRPS(test_data, 10000))
 print(emos.twCRPS(test_data, [12], 10000))
 
