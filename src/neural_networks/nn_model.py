@@ -172,9 +172,6 @@ class NNConvModel(NNBaseModel):
         x = Concatenate()([x, Flatten()(wind_speed_forecast)])
 
         outputs = self.concatenate([layer(x) for layer in self.output_layers])
-
-        # if self.add_nwp_forecast:
-        #     return self._forecast_distribution.add_forecast(outputs, inputs)
         
         return outputs
     

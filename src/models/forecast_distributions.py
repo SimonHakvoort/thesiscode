@@ -180,7 +180,6 @@ class ForecastDistribution(ABC):
 
         Args:
         - X (tf.Tensor): Input data
-        - variance (tf.Tensor): Variance around each gridpoint
         - values (np.array): Values for which to compute the cdf
 
         Returns:
@@ -275,8 +274,6 @@ class TruncatedNormal(ForecastDistribution):
             # print("Using default parameters for truncated normal distribution")
 
     def get_distribution(self, X):
-        # mu = self._parameter_dict['a_tn'] + tf.tensordot(X, self._parameter_dict['b_tn'], axes=1)
-        # sigma = tf.sqrt(self._parameter_dict['c_tn'] + self._parameter_dict['d_tn'] * variance)
         mu = self._parameter_dict['a_tn'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_tn'], axes=1)
         sigma_squared = self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1)
         sigma = tf.sqrt(tf.math.softplus(sigma_squared))

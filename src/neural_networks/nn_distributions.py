@@ -63,15 +63,6 @@ class NNDistribution(ABC):
     def get_config(self):
         return {'name': self.__str__()}
 
-    # def save(self, filepath):
-    #     with open(filepath, 'wb') as f:
-    #         pickle.dump(self, f)
-
-    # @staticmethod
-    # def load(filepath):
-    #     with open(filepath, 'rb') as f:
-    #         return pickle.load(f)
-
     
 @register_keras_serializable(package='Custom')
 class NNTruncNormal(NNDistribution):
@@ -108,7 +99,13 @@ class NNLogNormal(NNDistribution):
     def get_distribution(self, y_pred):
         loc = y_pred[:, 0]
         scale = y_pred[:, 1]
-        return tfp.distributions.LogNormal(loc=loc, scale=scale)
+
+        mean = tf.math.log(loc ** 2) - 0.5 * tf.math.log(scale + loc ** 2)
+
+        # We add a small value to avoid numerical instability
+        sigma = tf.sqrt(tf.math.log(1 + scale / loc ** 2) + 1e-6)
+
+        return tfp.distributions.LogNormal(loc=mean, scale=sigma)
     
     def build_output_layers(self):
         mu = Dense(1, activation='linear')
