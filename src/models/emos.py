@@ -504,13 +504,18 @@ class EMOS:
         Returns:
             an array containing the Brier scores for the specified thresholds.
         """
+        # Extract a batch of data
         X, y = next(iter(data))
-        brier_scores = np.zeros(len(thresholds))
 
+        # Predict the CDF values for all thresholds
         cdfs = self.forecast_distribution.comp_cdf(X['features_emos'], thresholds)  
 
-        for i, threshold in enumerate(thresholds):
-            brier_scores[i] = tf.reduce_mean(tf.square(self.indicator_function(y, threshold) - cdfs[i]))
+        # Compute the indicator values for all thresholds
+        indicator_matrix = np.array([self.indicator_function(y, t) for t in thresholds])
+
+        # Calculate the Brier scores vectorized
+        brier_scores = np.mean((indicator_matrix - cdfs) ** 2, axis=1)
+
         return brier_scores
 
     def twCRPS_old(self, X, y, threshold, samples):

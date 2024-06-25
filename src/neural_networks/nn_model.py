@@ -175,4 +175,6 @@ class NNConvModel(NNBaseModel):
         
         return outputs
     
-
+    def has_gev(self):
+        return self._forecast_distribution.has_gev()
+    

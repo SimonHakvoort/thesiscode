@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.layers import Dense
@@ -34,6 +35,14 @@ class SymmetricClipConstraint(Constraint):
     def __call__(self, w):
         return tf.clip_by_value(w, -self.clip_value, self.clip_value)
     
+class MinMaxConstraint(Constraint):
+    def __init__(self, min, max):
+        self.min = min
+        self.max = max
+
+    def __call__(self, w):
+        return tf.clip_by_value(w, self.min, self.max)
+        
 @register_keras_serializable(package='Custom')
 class NNDistribution(ABC):
     @abstractmethod
@@ -62,6 +71,30 @@ class NNDistribution(ABC):
         
     def get_config(self):
         return {'name': self.__str__()}
+    
+    def has_gev(self):
+        return False
+    
+    def is_mixture(self):
+        return False
+    
+    def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+        """
+        Computes the cumulative distribution function of the forecast distribution for a range of values.
+        
+        Args:
+        - X (tf.Tensor): Input data
+        - values (np.ndarray): Values for which to compute the cdf
+
+        Returns:
+        - np.ndarray: The cdf values for each value in the input array, with shape (len(values), num_samples)
+        """
+        output = np.zeros((len(values), y_pred.shape[0]))
+        distr = self.get_distribution(y_pred)
+        for i, value in enumerate(values):
+            output[i] = distr.cdf(value).numpy()
+
+        return output
 
     
 @register_keras_serializable(package='Custom')
@@ -131,9 +164,10 @@ class NNGEV(NNDistribution):
         return tfp.distributions.GeneralizedExtremeValue(loc=loc, scale=scale, concentration=concentration)
     
     def build_output_layers(self):
-        loc = Dense(1, activation='linear')
-        scale = Dense(1, activation='softplus')
-        shape = Dense(1, activation='linear', kernel_constraint=SymmetricClipConstraint(1.0))
+        # Setting these constraint results in better convergence.
+        loc = Dense(1, activation='linear', kernel_constraint=MinMaxConstraint(-10, 30))
+        scale = Dense(1, activation='softplus', kernel_constraint=SymmetricClipConstraint(5))
+        shape = Dense(1, activation='linear', kernel_constraint=SymmetricClipConstraint(0.5))
         return loc, scale, shape
     
     def add_forecast(self, outputs, inputs):
@@ -144,6 +178,30 @@ class NNGEV(NNDistribution):
     
     def short_name(self):
         return "gev"
+    
+    def has_gev(self):
+        return True
+    
+    def get_gev_shape(self, y_pred):
+        return y_pred[:, 2]
+    
+    def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+        shape = self.get_gev_shape(y_pred)
+
+        output = np.zeros((len(values), y_pred.shape[0]))
+        distr = self.get_distribution(y_pred)
+
+        for i, value in enumerate(values):
+            cdf_value = distr.cdf(value).numpy()
+            nan_indices = np.isnan(cdf_value)  # Find NaN indices
+            shape_less_than_zero = shape < 0  # Find shape < 0 indices
+            output[i] = cdf_value
+
+            # Update NaN values based on the condition
+            output[i, nan_indices & shape_less_than_zero] = 1
+            output[i, nan_indices & ~shape_less_than_zero] = 0
+
+        return output
 
 class NNMixture(NNDistribution):
     def __init__(self, distribution_1, distribution_2):
@@ -188,3 +246,40 @@ class NNMixture(NNDistribution):
     
     def short_name(self):
         return f"mix_{self.distribution_1.short_name()}_{self.distribution_2.short_name()}"
+    
+    def has_gev(self):
+        return self.distribution_1.has_gev() or self.distribution_2.has_gev()
+    
+    def get_gev_shape(self, y_pred):
+        if self.distribution_1.has_gev():
+            return self.distribution_1.get_gev_shape(y_pred[:, 1:1+self.num_params_distribution_1])
+        elif self.distribution_2.has_gev():
+            return self.distribution_2.get_gev_shape(y_pred[:, 1+self.num_params_distribution_1:])
+        
+    def is_mixture(self):
+        return True
+    
+    def get_weight(self, y_pred):
+        return y_pred[:, 0]
+    
+    def get_shape_and_weight(self, y_pred):
+        if not self.has_gev():
+            return False
+        
+        gev_shape = None
+        if self.distribution_1.has_gev():
+            gev_shape = self.distribution_1.get_gev_shape(y_pred[:, 1:1+self.num_params_distribution_1])
+        elif self.distribution_2.has_gev():
+            gev_shape = self.distribution_2.get_gev_shape(y_pred[:, 1+self.num_params_distribution_1:])
+
+        weight = y_pred[:, 0]
+
+        return gev_shape, weight
+    
+    def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+        weight = self.get_weight(y_pred).numpy()
+
+        values_1 = self.distribution_1.comp_cdf(y_pred, values)
+        values_2 = self.distribution_2.comp_cdf(y_pred, values)
+
+        return weight * values_1 + (1 - weight) * values_2

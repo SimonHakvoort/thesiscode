@@ -71,11 +71,11 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_gev"
+forecast_distribution = "distr_mixture_linear"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
-distribution_2 = "distr_log_normal"
+distribution_2 = "distr_gev"
 
 random_init = False
 printing = True
@@ -130,6 +130,18 @@ batch_size = None
 emos = EMOS(setup)
 
 my_dict = emos.fit(train_data, epochs)
+
+values = np.linspace(0,20 ,200)
+
+brierscores = emos.Brier_Score(test_data, values)
+
+brierscores2 = emos.Brier_Score_new(test_data, values)
+
+diff = brierscores - brierscores2
+
+print(diff.min())
+print(diff.max())
+
 
 print(emos.CRPS(test_data, 10000))
 

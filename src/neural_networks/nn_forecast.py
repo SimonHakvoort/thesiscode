@@ -225,6 +225,15 @@ class NNForecast:
     
     def _twCRPS_15(self, y_true: tf.Tensor, y_pred: tf.Tensor):
         return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 15))
+    
+    def get_gev_shape(self, X):
+        if not self.model.has_gev():
+            return None
+
+        y_pred = self.predict(X)
+
+        return self.model._forecast_distribution.get_gev_shape(y_pred)
+        
 
     
     def _compute_twCRPS(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable) -> tf.Tensor:
@@ -327,6 +336,36 @@ class NNForecast:
             cdf_values = distributions.cdf(threshold)
             scores[i] = tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
         return scores
+    
+    def Brier_Score_new(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
+        """
+        Calculates the Brier score for a given dataset and a list of thresholds.
+        It computes the Brier score for a single batch.
+
+        Args:
+            dataset (tf.data.Dataset): The dataset containing input features and true labels.
+            thresholds (np.ndarray): A list of thresholds to calculate the Brier score.
+
+        Returns:
+            np.ndarray: A list of Brier scores corresponding to each threshold.
+        """
+
+        # Extract a batch of data
+        X, y = next(iter(dataset))
+
+        # Predict the output using the model
+        y_pred = self.predict(X)
+
+        # Compute the CDF values for all thresholds
+        cdf_values = self.model._forecast_distribution.comp_cdf(y_pred, thresholds)
+
+        # Compute the indicator values for all thresholds
+        indicator_values = np.array([self.indicator_function(y, t) for t in thresholds])
+
+        # Calculate the Brier scores vectorized
+        brier_scores = np.mean((indicator_values - cdf_values) ** 2, axis=1)
+
+        return brier_scores
 
     
     def indicator_function(self, y: tf.Tensor, threshold: float) -> tf.Tensor:

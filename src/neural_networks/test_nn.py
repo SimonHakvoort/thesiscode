@@ -34,7 +34,7 @@ test_data = test_data.batch(len(test_data))
 
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-forecast_distribution = 'distr_gev'
+forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
@@ -148,7 +148,7 @@ nn = NNForecast(**setup)
 #start the time
 time_start = time.time()
 
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
 
 history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping)
 
@@ -169,7 +169,11 @@ values = np.linspace(0, 20, 40)
 
 brierscores = nn.Brier_Score(test_data, values)
 
-print(brierscores)
+brierscores_2 = nn.Brier_Score_new(test_data, values)
+
+X, y = next(iter(test_data))
+
+shape = nn.get_gev_shape(X)
 
 if saving:
     nn.save_weights(filepath)

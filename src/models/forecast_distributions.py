@@ -174,16 +174,16 @@ class ForecastDistribution(ABC):
     def has_negative_scale(self, X):
         return False
     
-    def comp_cdf(self, X, values):
+    def comp_cdf(self, X: tf.Tensor, values: np.ndarray) -> np.ndarray:
         """
         Computes the cumulative distribution function of the forecast distribution for a range of values.
 
         Args:
         - X (tf.Tensor): Input data
-        - values (np.array): Values for which to compute the cdf
+        - values (np.ndarray): Values for which to compute the cdf
 
         Returns:
-        - np.array: The cdf values for each value in the input array
+        - np.ndarray: The cdf values for each value in the input array
         """
         if not isinstance(values, collections.abc.Iterable):
             values = [values]
