@@ -23,11 +23,16 @@ class Objective:
     def get_data_i(self, i):
         train_data, test_data, data_info = load_cv_data(i, self.feature_names_dict)
 
+        def addweight(X, y):
+            return X, y, tf.constant(1, dtype=tf.float32)
+
+        train_data = train_data.map(addweight)
+
         train_data = train_data.shuffle(len(train_data))
 
-        def mapping(X, y):
+        def mapping(X, y, w):
             X_emos = {'features_emos': X['features_emos']}
-            return X_emos, y
+            return X_emos, y, w
         
         train_data = train_data.map(mapping)
 
@@ -107,7 +112,7 @@ class Objective:
         else:
             loss = "loss_CRPS_sample"
 
-        samples = 200
+        samples = 250
         # optimizer = trial.suggest_categorical('optimizer', ['SGD', 'Adam'])
         optimizer = 'Adam'
         # learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1, log=True)

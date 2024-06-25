@@ -400,9 +400,9 @@ class LogNormal(ForecastDistribution):
             print("Using random initialization for Log Normal distribution")
         else:
             self._parameter_dict['a_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_ln"))
-            self._parameter_dict['b_ln'] = tf.Variable(tf.zeros(len(self.location_features_indices), dtype=tf.float32), name="b_ln")
+            self._parameter_dict['b_ln'] = tf.Variable(tf.ones(len(self.location_features_indices), dtype=tf.float32), name="b_ln")
             self._parameter_dict['c_ln'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_ln")
-            self._parameter_dict['d_ln'] = tf.Variable(tf.zeros(len(self.scale_features_indices), dtype=tf.float32), name="d_ln")
+            self._parameter_dict['d_ln'] = tf.Variable(tf.ones(len(self.scale_features_indices), dtype=tf.float32), name="d_ln")
             # print("Using default parameters for Log Normal distribution")
 
     def get_distribution(self, X):
@@ -463,9 +463,9 @@ class GEV(ForecastDistribution):
             print("Using random initialization for Generalized Extreme Value distribution")
         else:
             self._parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="a_gev")
-            self._parameter_dict['b_gev'] = tf.Variable(tf.zeros(len(self.location_features_indices), dtype=tf.float32), name="b_gev")
+            self._parameter_dict['b_gev'] = tf.Variable(tf.ones(len(self.location_features_indices), dtype=tf.float32), name="b_gev")
             self._parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_gev")
-            self._parameter_dict['d_gev'] = tf.Variable(tf.zeros(len(self.scale_features_indices), dtype=tf.float32), name="d_gev")
+            self._parameter_dict['d_gev'] = tf.Variable(tf.ones(len(self.scale_features_indices), dtype=tf.float32), name="d_gev")
             self._parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_gev")
             # print("Using default parameters for Generalized Extreme Value distribution")
 

@@ -71,7 +71,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture_linear"
+forecast_distribution = "distr_gev"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -122,7 +122,7 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/tn_ln_M13_STD2_C07.pkl'
 
-epochs = 450
+epochs = 100
 
 
 batch_size = None
@@ -131,14 +131,17 @@ emos = EMOS(setup)
 
 my_dict = emos.fit(train_data, epochs)
 
-
-mydict = emos.to_dict()
-
-with open(filepath, 'wb') as f:
-    pkl.dump(mydict, f)
-
 print(emos.CRPS(test_data, 10000))
-print(emos.twCRPS(test_data, [12], 10000))
+
+print(emos.forecast_distribution.get_gev_shape())
+
+# mydict = emos.to_dict()
+
+# with open(filepath, 'wb') as f:
+#     pkl.dump(mydict, f)
+
+# print(emos.CRPS(test_data, 10000))
+# print(emos.twCRPS(test_data, [12], 10000))
 
 # bootstrap = BootstrapEmos.load(filepath)
 

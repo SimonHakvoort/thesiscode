@@ -1,7 +1,7 @@
 from src.neural_networks.get_data import get_tf_data, stack_1d_features, normalize_1d_features_with_mean_std, load_cv_data
 from src.neural_networks.nn_forecast import NNForecast
 from src.visualization.twcrpss_plot import make_twcrpss_plot_tf
-from src.visualization.brier_score import make_brier_skill_plot_tf, make_bootstrap_bss
+from src.visualization.brier_score import make_bootstrap_sample, make_brier_skill_plot_tf
 from src.visualization.pit import make_cpit_diagram_tf, comp_multiple_pit_scores
 from src.visualization.reliability_diagram import make_reliability_and_sharpness_tf
 from src.training.training import load_model
@@ -39,6 +39,10 @@ test_data = test_data.batch(len(test_data))
 test_data = test_data.repeat()
 
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+X, y = next(iter(test_data))
+
+new_data = make_bootstrap_sample(X, y)
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/tn_crps.pkl'
 
