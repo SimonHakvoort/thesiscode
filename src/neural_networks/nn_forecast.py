@@ -426,7 +426,7 @@ class NNForecast:
         return history
 
     
-    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None) -> tf.keras.callbacks.History:
+    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None, steps_per_epoch = None) -> tf.keras.callbacks.History:
         """
         Fits the neural network model to the given dataset.
 
@@ -443,7 +443,7 @@ class NNForecast:
         if early_stopping is not None:
             callbacks.append(early_stopping)
             
-        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=callbacks)
+        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=callbacks, steps_per_epoch=steps_per_epoch)
 
         return history
     

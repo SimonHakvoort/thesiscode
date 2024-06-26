@@ -243,15 +243,16 @@ def normalize_1d_features_with_mean_std(dataset, mean, std):
     
     return dataset.map(normalize)
 
-def make_importance_sampling_dataset(data: tf.data.Dataset, factors: list[int] = [1,10,20,30]) -> tf.data.Dataset:
+def make_importance_sampling_dataset(data: tf.data.Dataset, factors: dict) -> tf.data.Dataset:
     """
     Implements importance sampling, by upsampling and downweighting from the samples with larger observations.
 
     Arguments:
         data (tf.data.Dataset): dataset on which importance sampling is performed.
+        factors (dict): a dictionary where keys are upper bounds and values are corresponding factors.
 
     Returns:
-        tf.data.Dataset with where weights are included.
+        tf.data.Dataset where weights are included.
     """
     def filter_func(X, y, lower, upper):
         """
@@ -259,49 +260,40 @@ def make_importance_sampling_dataset(data: tf.data.Dataset, factors: list[int] =
         """
         return (lower <= y) & (y < upper)
     
-    if len(factors) != 4:
-        raise Exception("Invalid list of factors!")
-    
-    less_than_9_factor = factors[0]
-    between_9_12_factor = factors[1]
-    between_12_15_factor = factors[2]
-    greater_than_15_factor = factors[3]
+    # Sort bounds
+    bounds = sorted(factors.keys())
 
-    # filter the data that falls in a specific range
-    data_less_than_9 = data.filter(lambda X, y: filter_func(X, y, 0, 9))
-    data_9_12 = data.filter(lambda X, y: filter_func(X, y, 9, 12))
-    data_12_15 = data.filter(lambda X, y: filter_func(X, y, 12, 15))
-    data_greater_than_15 = data.filter(lambda X, y: filter_func(X, y, 15, 1000))
+    # Check if the first bound is greater than 0
+    if bounds[0] <= 0:
+        raise Exception("The smallest bound should be greater than 0!")
 
-    data_9_12 = data_9_12.repeat(between_9_12_factor)
-    data_12_15 = data_12_15.repeat(between_12_15_factor)
-    data_greater_than_15 = data_greater_than_15.repeat(greater_than_15_factor)
+    datasets = []
+    previous_bound = 0
 
-    def weight_func(X, y, weight):
-        """
-        Attaches a uniform weight to each sample in the dataset.
-        """
-        return X, y, tf.constant(weight, dtype=tf.float32)
+    for bound in bounds:
+        factor = factors[bound]
+        filtered_data = data.filter(lambda X, y, lb=previous_bound, ub=bound: filter_func(X, y, lb, ub))
+        repeated_data = filtered_data.repeat(factor)
+        weighted_data = repeated_data.map(lambda X, y, w=factor: (X, y, tf.constant(1 / w, dtype=tf.float32)))
+        datasets.append(weighted_data)
+        previous_bound = bound
 
-    # attach weights to the data based on the factor on which it is upsampled.
-    data_less_than_9 = data_less_than_9.map(lambda X, y: weight_func(X, y, less_than_9_factor))
-    data_9_12 = data_9_12.map(lambda X, y: weight_func(X, y, 1 / between_9_12_factor))
-    data_12_15 = data_12_15.map(lambda X, y: weight_func(X, y, 1 / between_12_15_factor))
-    data_greater_than_15 = data_greater_than_15.map(lambda X, y: weight_func(X, y, 1 / greater_than_15_factor))
-
-    output_data = data_less_than_9.concatenate(data_9_12).concatenate(data_12_15).concatenate(data_greater_than_15)
+    # Concatenate all the datasets
+    output_data = datasets[0]
+    for ds in datasets[1:]:
+        output_data = output_data.concatenate(ds)
 
     return output_data
 
 
-def get_fold_is(features_names_dict: Dict, fold: int, factors: float, batch_size: int) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+def get_fold_is(features_names_dict: Dict, fold: int, factors: dict, batch_size: int, get_info: bool = True) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     """
     Prepares the training and testing datasets with and without importance sampling for a given fold.
 
     Args:
         features_names_dict (Dict): A dictionary of feature names.
         fold (int): The fold number for cross-validation.
-        factors (float): Factors used for importance sampling.
+        factors (dict): Factors used for importance sampling.
         batch_size (int): The batch size for the datasets.
 
     Returns:
@@ -371,6 +363,9 @@ def get_fold_is(features_names_dict: Dict, fold: int, factors: float, batch_size
     train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
     test_data = test_data.batch(test_data.cardinality())
+
+    if get_info:
+       return train_data, train_data_is, test_data, data_info 
 
     return train_data, train_data_is, test_data
 

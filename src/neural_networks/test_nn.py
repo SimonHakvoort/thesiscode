@@ -2,7 +2,7 @@
 import time
 import keras
 import numpy as np
-from src.neural_networks.get_data import load_cv_data, load_train_test_data, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
+from src.neural_networks.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
 from src.neural_networks.nn_model import NNModel
 from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import NNForecast
@@ -20,23 +20,48 @@ features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
-# save_cv_data(features_names_dict, ignore)
+bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
-train_data = train_data.shuffle(len(train_data))
+batch_size = 32
 
-train_data = train_data.batch(32)
+# train_data = make_importance_sampling_dataset(train_data, bounds)
+
+# train_data = train_data.cache()
+
+# # dataset_length = [i for i,_ in enumerate(train_data)][-1] + 1
+
+# dataset_length = 28595
+
+# train_data = train_data.shuffle(dataset_length)
+
+# steps_per_epoch = dataset_length // batch_size
+
+# print(dataset_length)
+
+# print(steps_per_epoch)
+
+train_data = train_data.shuffle(train_data.cardinality())
+
+train_data = train_data.batch(batch_size)
 
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+# train_data = train_data.repeat()
 
 test_data = test_data.batch(len(test_data))
 
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
+
+
+
+
+
 forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
-distribution_2 = 'distr_log_normal'
+distribution_2 = 'distr_gev'
 
 loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
@@ -86,7 +111,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += '_early_stopping_1'
+filepath += 'importance_sampling_1'
 
 
 # make a folder
@@ -148,9 +173,9 @@ nn = NNForecast(**setup)
 #start the time
 time_start = time.time()
 
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping)
+history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping) #, steps_per_epoch=steps_per_epoch)
 
 best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 

@@ -44,15 +44,13 @@ train_data = train_data.batch(256)
 
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-test_data = test_data.batch(len(test_data))
+test_data = test_data.batch(test_data.cardinality())
 
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
-
-
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_twCRPS_sample"
+loss = "loss_CRPS_sample"
 #loss = "loss_cPIT"
 samples = 250
 
@@ -71,7 +69,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture_linear"
+forecast_distribution = "distr_trunc_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -120,9 +118,9 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/tn_ln_M13_STD2_C07.pkl'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/base_emos_fold_3'
 
-epochs = 100
+epochs = 20
 
 
 batch_size = None
@@ -135,12 +133,6 @@ values = np.linspace(0,20 ,200)
 
 brierscores = emos.Brier_Score(test_data, values)
 
-brierscores2 = emos.Brier_Score_new(test_data, values)
-
-diff = brierscores - brierscores2
-
-print(diff.min())
-print(diff.max())
 
 
 print(emos.CRPS(test_data, 10000))
