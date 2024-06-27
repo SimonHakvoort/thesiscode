@@ -120,9 +120,9 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/top_twcrps_tn_1'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/testing'
 
-epochs = 450
+epochs = 20
 
 
 batch_size = None
@@ -134,7 +134,7 @@ my_dict = emos.fit(train_data, epochs)
 
 print(emos.CRPS(test_data, 10000))
 
-# print(emos.forecast_distribution.get_gev_shape())
+print(emos.forecast_distribution.get_gev_shape())
 
 mydict = emos.to_dict()
 

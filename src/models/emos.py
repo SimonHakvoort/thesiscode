@@ -91,22 +91,24 @@ class EMOS:
         else:
             self.steps_made = 0
 
+        # to save on which fold the model is trained.
         if 'folds' in setup:
             self.folds = setup['folds']
 
-    def _init_loss(self, setup):
+    def _init_loss(self, setup: dict) -> None:
         """
         Setup the loss function of the model.
 
         Arguments:
-        - setup: a dictionary containing the setup for the model.
+            setup (dict): a dictionary containing the setup for the model.
 
         The setup should contain the following keys:
-        - loss: the loss function used to fit the model
-        - samples: the amount of samples used in the loss function in case we use a sample based loss function
+            loss: the loss function used to fit the model
+            samples: the amount of samples used in the loss function in case we use a sample based loss function
         """
         self.need_chain = False
         try:
+            # We set the loss to either CRPS or twCRPS
             self.loss = getattr(self, setup['loss'])
             if self.loss == self.loss_CRPS_sample or self.loss == self.loss_twCRPS_sample:
                 if 'samples' not in setup:
@@ -118,7 +120,20 @@ class EMOS:
         except AttributeError:
             raise ValueError("Invalid loss function: " + setup['loss'])   
 
-    def _init_chain_function(self, setup):
+    def _init_chain_function(self, setup: dict) -> None:
+        """
+        Setup the chaining function of the model.
+
+        Arguments:
+            setup (dict): a dictionary containing the setup for the model.
+
+        The setup should contain the following keys:
+            chain_function: the selected chaining function.
+            chain_function_threshold (optional): the threshold in case of indicator weight function.
+            chain_function_mean (optional): the mean of the Gaussian cdf.
+            chain_function_std (optional): the std of the Gaussian cdf.
+            chain_function_constant (optional): the constant added to the Gaussian cdf.
+        """
         try:
             if setup['chain_function'] == 'chain_function_indicator':
                 self.chain_function = self.chain_function_indicator
@@ -155,7 +170,17 @@ class EMOS:
         except AttributeError:
             raise ValueError("Invalid chain function: " + setup['chain_function'])  
 
-    def _init_optimizer(self, setup):
+    def _init_optimizer(self, setup: dict) -> None:
+        """
+        Initialization of the optimizer. 
+
+        Arguments:
+            setup (dict): dictionary containing the setup of the model.
+
+        The setup should contain the following keys:
+            learning_rate: the learning rate of the optimizer.
+            optimizer: the name of a tf.optimizer.
+        """
         try:
             if 'learning_rate' not in setup:
                 raise ValueError("Learning rate not specified")
@@ -164,8 +189,23 @@ class EMOS:
         except AttributeError:
             raise ValueError("Invalid optimizer: " + setup['optimizer']) 
         
-    def _init_forecast_distribution(self, setup):
-        # The setup of the forecast distribution
+    def _init_forecast_distribution(self, setup: dict) -> None:
+        """
+        Initialization of the parametric distribution of the probabilistic forecast.
+
+        Arguments:
+            setup (dict): dictionary containing the setup of the model.
+
+        The setup should contain the following keys:
+            forecast_distribution (str): name of the forecast distribution of the model.
+            location_features (list): a list containing the names of the features used for the location (mu).
+            scale_features (list): a list containing the names of the features used for the scale (sigma).
+            all_features (list): a list containing all the names of the features (should be sorted in the same way as the data).
+            parameters (optional, dict): parameters in case we pre-train models.
+            random_init (optional, bool): boolean stating whether random initialization should be used.
+            distribution_1 (optional, str): name of the first distribution in case a mixture distribution is used.
+            distribution_2 (optional, str): name of the second distribution in case a mixture distribution is used.
+        """
         if "parameters" in setup:
             parameters = setup["parameters"]
         else:
@@ -208,10 +248,13 @@ class EMOS:
             distribution_2)        
         
     
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.parameter_dict)
     
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Returns all the information regarding the setup of the model.
+        """
         # Loss function info
         loss_info = f"Loss function: {self.loss.__name__}"
         if hasattr(self, 'samples'):
@@ -247,6 +290,7 @@ class EMOS:
                 if hasattr(self, 'chain_function_constant'):
                     chaining_function_info += f", Constant: {self.chain_function_constant.numpy()}"
 
+        # Extra info for mixtrue distributions
         distribution_info = ""
         if type(self.forecast_distribution) == Mixture:
             distribution_info = f"Distribution 1: {self.forecast_distribution.distribution_1.name()}\n"
@@ -255,16 +299,9 @@ class EMOS:
         elif type(self.forecast_distribution) == MixtureLinear:
             distribution_info = f"Distribution 1: {self.forecast_distribution.distribution_1.name()}\n"
             distribution_info += f"Distribution 2: {self.forecast_distribution.distribution_2.name()}\n"
-            #weight_a, weight_b, weight_c = self.forecast_distribution.get_weights()
             weight_a, weight_b = self.forecast_distribution.get_weights()
             distribution_info += f"Mixture weight a: {weight_a}\n"
             distribution_info += f"Mixture weight b: {weight_b}\n"
-            #distribution_info += f"Mixture weight c: {weight_c}\n"
-
-        steps_info = ""
-        if self.steps_made > 0:
-            steps_info = f"Steps made: {self.steps_made}"
-        
 
         return (
             f"EMOS Model Information:\n"
@@ -298,8 +335,6 @@ class EMOS:
 
         Arguments:
             parameters: a dictionary containing the parameters of the model.
-
-
         """
         self.forecast_distribution.parameters = parameters
     

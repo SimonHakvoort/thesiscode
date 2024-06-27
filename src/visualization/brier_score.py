@@ -111,7 +111,7 @@ def make_brier_skill_plot(basemodel, models, X, y, values, ylim = None, title = 
     plt.legend()
     plt.show()
 
-def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title = None, name_base_model = 'Reference Model'):
+def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title = None, name_base_model = 'Reference Model') -> None:
     """
     Plots the Brier skill score (BSS) for the models, which is a dict for the numbers in values. 
     Evaluates the performance for a single batch in data.
@@ -124,6 +124,9 @@ def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title
         ylim (tuple, optional): tuple specifying the range of the y-axis.
         title (str, optional: Title for the plot.
         name_base_model (str, optional): name for the reference model in the legend.
+
+    Returns:
+        None
     """
     # brier_base_model = get_brier_scores_tf(basemodel, data, values)
     brier_base_model = basemodel.Brier_Score(data, values)
@@ -134,7 +137,7 @@ def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title
         plt.plot(values, brier_skill_scores, label = model)
 
     # print a striped black horizontal line at y=0
-    plt.axhline(0, color='black', linestyle='--')
+    plt.axhline(0, color='black', linestyle='--', label=name_base_model)
 
     plt.xlabel('wind speed threshold (m/s)')
     plt.ylabel('Brier skill score')

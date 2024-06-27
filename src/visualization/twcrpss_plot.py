@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 
 from src.climatology.climatology import Climatology
 from src.models.emos import EMOS
@@ -8,8 +9,10 @@ from src.neural_networks.nn_forecast import NNForecast
 def comp_twcrpss(model_ref, model, X, y, threshold, sample_size = 1000):
     return 1 - model.twCRPS(X, y, threshold, sample_size).numpy() / model_ref.twCRPS(X, y, threshold, sample_size).numpy()
 
+### Should get deleted.
 def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
     scores = []
+    print("This is an old function!!!!")
     if type(model) == EMOS:
         scores = model.twCRPS(data, thresholds, sample_size)
     elif type(model) == NNForecast:
@@ -20,86 +23,41 @@ def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
         raise ValueError('Model type not recognized')
     return scores
 
-def make_twcrpss_plot(base_model, model_dict, X, y, thresholds, ylim = None, sample_size = 1000):
+
+
+
+def make_twcrpss_plot_tf(base_model, model_dict: dict, data: tf.data.Dataset, values: np.ndarray, ylim: tuple = None, sample_size: int = 1000, base_model_name: str = 'Reference Model'):
     """
-    Makes a plot of the twCRPSS for different thresholds for the models in model_dict, compared to base_model
+    Plots the thesdhold-weighted CRPS (twCRPS) for the models, which is a dict for the numbers in values. 
+    Evaluates the performance for a single batch in data.
 
     Arguments:
-    - base_model: the model to compare to
-    - model_dict: a dictionary of models to compare
-    - X: the input data
-    - y: the output data
-    - thresholds: the thresholds to compare the models at
-    - ylim: the limits of the y-axis
-    - sample_size: the number of samples to use for the twCRPSS calculation
+        basemodel: reference model
+        models (dict): models to compare to basemodel
+        data (tf.data.Dataset): data to compute twCRPS.
+        values (np.array): values to compute the twCRPSS.
+        ylim (tuple, optional): tuple specifying the range of the y-axis.
+        title (str, optional: Title for the plot.
+        name_base_model (str, optional): name for the reference model in the legend.
+
+    Returns:
+        None
     """
+    base_model_twcrps = base_model.twCRPS(data, values, sample_size)
     for model_name, model in model_dict.items():
-        scores = [comp_twcrpss(base_model, model, X, y, threshold, sample_size) for threshold in thresholds]
-        #check if scores contains nan
-        if np.isnan(scores).any():
-            print("scores contain nan")
-        plt.plot(thresholds, scores, label = model_name)
-
-    # plot horizontal black striped line at y=0
-    plt.plot([thresholds[0], thresholds[-1]], [0, 0], color="black", linestyle="dashed")
-
-    plt.xlabel('Threshold (m/s)')
-    plt.ylabel('twCRPSS')
-    if ylim is not None:
-        plt.ylim(ylim[0], ylim[1])
-    plt.xlim(thresholds[0], thresholds[-1])
-    plt.legend()
-    plt.show()
-
-
-def make_twcrpss_plot_tf(base_model, model_dict, data, thresholds, ylim = None, sample_size = 1000):
-    base_model_twcrps = comp_twcrps_tf(base_model, data, thresholds, sample_size)
-    for model_name, model in model_dict.items():
-        scores = comp_twcrps_tf(model, data, thresholds, sample_size)
+        scores = model.twCRPS(data, values, sample_size)
         scores = 1 - np.array(scores) / np.array(base_model_twcrps)
-        plt.plot(thresholds, scores, label = model_name)
+        plt.plot(values, scores, label = model_name)
 
     # plot horizontal black striped line at y=0
-    plt.plot([thresholds[0], thresholds[-1]], [0, 0], color="black", linestyle="dashed")
+    plt.plot([values[0], values[-1]], [0, 0], color="black", linestyle="dashed", label=base_model_name)
     
     plt.xlabel('Threshold (m/s)')
     plt.ylabel('twCRPSS')
     if ylim is not None:
         plt.ylim(ylim[0], ylim[1])
-    plt.xlim(thresholds[0], thresholds[-1])
+    plt.xlim(values[0], values[-1])
     plt.legend()
     plt.show()
 
 
-def make_twcrps_plot(model_dict, X, y, threshold, ylim = None, sample_size = 1000, base_model = None):
-    """
-    Makes a plot of the twCRPS for different models
-
-    Arguments:
-    - model_dict: a dictionary of models
-    - X: the input data
-    - y: the output data
-    - variances: the variances of the output data
-    - threshold: the threshold to compare the models at
-    - ylim: the limits of the y-axis
-    - sample_size: the number of samples to use for the twCRPS calculation
-    - base_model: the base model
-    """
-    for model_name, model in model_dict.items():
-        scores = []
-        for value in threshold:
-            scores.append(model.twCRPS(X, y, value, sample_size).numpy())
-        plt.plot(threshold, scores, label = model_name)
-
-    if base_model is not None:
-        scores = []
-        for value in threshold:
-            scores.append(base_model.twCRPS(X, y, value, sample_size).numpy())
-        plt.plot(threshold, scores, label = "Base model", color = "black")
-    plt.xlabel('Threshold (m/s)')
-    plt.ylabel('twCRPS')
-    if ylim is not None:
-        plt.ylim(ylim[0], ylim[1])
-    plt.xlim(threshold[0], threshold[-1])
-    plt.legend()
-    plt.show()
