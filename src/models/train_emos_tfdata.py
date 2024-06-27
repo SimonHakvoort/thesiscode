@@ -31,7 +31,7 @@ features_names_dict['wind_speed'] = 15
 ignore = ['229', '285', '323']
 
 
-train_data, test_data, data_info = load_cv_data(3, features_names_dict)
+train_data, test_data, data_info = load_cv_data(1, features_names_dict)
 
 def addweight(X, y):
     return X, y, tf.constant(1, dtype=tf.float32)
@@ -50,7 +50,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_CRPS_sample"
+loss = "loss_twCRPS_sample"
 #loss = "loss_cPIT"
 samples = 250
 
@@ -59,10 +59,12 @@ samples = 250
 # if chain_function_normal_cdf is chosen, threshold is necessary
 chain_function = "chain_function_normal_cdf_plus_constant"
 threshold = 8
-chain_function_mean = 13
-chain_function_std = 2
-chain_function_constant = 0.07
+chain_function_mean = 8.830960
+chain_function_std = 1.068426
+chain_function_constant = 0.015801
 
+		
+				
 
 # possible optimizers: 'SGD', 'Adam'
 optimizer = "Adam"
@@ -73,7 +75,7 @@ forecast_distribution = "distr_trunc_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
-distribution_2 = "distr_gev"
+distribution_2 = "distr_log_normal"
 
 random_init = False
 printing = True
@@ -118,9 +120,9 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/base_emos_fold_3'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/top_twcrps_tn_1'
 
-epochs = 20
+epochs = 450
 
 
 batch_size = None
@@ -129,20 +131,15 @@ emos = EMOS(setup)
 
 my_dict = emos.fit(train_data, epochs)
 
-values = np.linspace(0,20 ,200)
-
-brierscores = emos.Brier_Score(test_data, values)
-
-
 
 print(emos.CRPS(test_data, 10000))
 
-print(emos.forecast_distribution.get_gev_shape())
+# print(emos.forecast_distribution.get_gev_shape())
 
-# mydict = emos.to_dict()
+mydict = emos.to_dict()
 
-# with open(filepath, 'wb') as f:
-#     pkl.dump(mydict, f)
+with open(filepath, 'wb') as f:
+    pkl.dump(mydict, f)
 
 # print(emos.CRPS(test_data, 10000))
 # print(emos.twCRPS(test_data, [12], 10000))

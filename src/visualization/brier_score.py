@@ -111,10 +111,25 @@ def make_brier_skill_plot(basemodel, models, X, y, values, ylim = None, title = 
     plt.legend()
     plt.show()
 
-def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title = 'Brier skill score'):
-    brier_base_model = get_brier_scores_tf(basemodel, data, values)
+def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title = None, name_base_model = 'Reference Model'):
+    """
+    Plots the Brier skill score (BSS) for the models, which is a dict for the numbers in values. 
+    Evaluates the performance for a single batch in data.
+
+    Arguments:
+        basemodel: reference model
+        models (dict): models to compare to basemodel
+        data (tf.data.Dataset): data to compute Brier scores.
+        values (np.array): values to compute the BSS.
+        ylim (tuple, optional): tuple specifying the range of the y-axis.
+        title (str, optional: Title for the plot.
+        name_base_model (str, optional): name for the reference model in the legend.
+    """
+    # brier_base_model = get_brier_scores_tf(basemodel, data, values)
+    brier_base_model = basemodel.Brier_Score(data, values)
     for model in models:
-        brier_scores = get_brier_scores_tf(models[model], data, values)
+        # brier_scores = get_brier_scores_tf(models[model], data, values)
+        brier_scores = models[model].Brier_Score(data, values)
         brier_skill_scores = 1 - brier_scores / brier_base_model
         plt.plot(values, brier_skill_scores, label = model)
 
@@ -129,90 +144,28 @@ def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title
         plt.xlim(values[0], values[-1])
     if ylim != None:
         plt.ylim(ylim[0], ylim[1])
-    plt.title(title)
+    
+    if title is not None:
+        plt.title(title)
+
     plt.legend()
     plt.show()
 
-def make_bootstrap_sample(X, y):
+def make_bootstrap_sample(X: dict, y: tf.Tensor) -> tf.data.Dataset:
     # Get the number of samples
     num_samples = X['features_emos'].shape[0]
     
-    # Generate bootstrap indices
     indices = np.random.choice(num_samples, num_samples, replace=True)
     
-    # Gather all keys in X based on bootstrap indices
     X_bootstrap = {key: tf.gather(value, indices) for key, value in X.items()}
     
-    # Gather y based on bootstrap indices
     y_bootstrap = tf.gather(y, indices)
     
-    # Create a tf.data.Dataset from the dictionary and y
     dataset = tf.data.Dataset.from_tensor_slices((X_bootstrap, y_bootstrap))
     
     dataset = dataset.batch(len(dataset))
     
     return dataset
-
-# def make_bootstrap_bss(basemodel, models, data, values, ylim=None, bootstrap_size=1000):
-#     # data = data.batch(len(data))
-#     X, y = next(iter(data))
-
-#     base_values = [np.zeros((bootstrap_size, len(values))) for _ in range(len(models))]
-    
-#     if isinstance(basemodel, Climatology):
-#         base_means = basemodel.Brier_Score(data, values)
-#         plt.plot([0, 20], [0, 0], 'k--', label='climatology')
-#         for shift in range(len(models)):
-#             new_values = values + 0.1 * (shift + 1)
-#             brier_scores_base_shifted = basemodel.Brier_Score(data, new_values)
-#             base_values[shift] = brier_scores_base_shifted[:, np.newaxis]
-#     else:
-#         base_model_values = np.zeros((bootstrap_size, len(values)))
-
-#         for i in range(bootstrap_size):
-#             dataset = make_bootstrap_sample(X, y)
-#             base_model_values[i, :] = basemodel.Brier_Score(dataset, values)
-
-#             for shift in range(len(models)):
-#                 new_values = values + 0.1 * (shift + 1)
-#                 base_values[shift][i, :] = basemodel.Brier_Score(dataset, new_values)
-
-#         base_means = np.mean(base_model_values, axis=0)
-#         base_means_extra_dim = base_means[np.newaxis, :]
-#         bss_base = 1 - base_model_values / base_means_extra_dim
-
-#         base_bss_mean = np.mean(bss_base, axis=0)
-#         base_bss_std = np.std(bss_base, axis=0)
-
-#         plt.errorbar(values, y=base_bss_mean, yerr=base_bss_std, capsize=2, label='Reference Model')
-
-#         for shift in range(len(models)):
-#             means = np.mean(base_values[shift], axis=0)
-#             base_values[shift] = means[np.newaxis, :]
-
-#     for index, (key, model) in enumerate(models.items()):
-#         new_values = values + 0.1 * (index + 1)
-#         brier_scores = np.zeros((bootstrap_size, len(values)))
-#         is_emos = isinstance(model, EMOS)
-        
-#         for i in range(bootstrap_size):
-#             dataset = make_bootstrap_sample(X, y)
-#             if is_emos:
-#                 dataset = dataset.map(lambda X, y: ({'features_emos': X['features_emos']}, y))
-            
-#             brier_scores[i, :] = model.Brier_Score(dataset, values)
-
-#         bss_scores = 1 - brier_scores / base_values[index]
-#         bss_mean = np.mean(bss_scores, axis=0)
-#         bss_std = np.std(bss_scores, axis=0)
-
-#         plt.errorbar(new_values, y=bss_mean, yerr=bss_std, capsize=2, label=key)
-
-#     plt.xlim(0, 20)
-#     plt.xlabel('Threshold')
-#     plt.ylabel('Brier Skill Scores')
-#     plt.legend()
-#     plt.show()
 
 def make_bootstrap_brier(basemodel, models, data, values, ylim=None, bootstrap_size=1000, title = None, name_base_model = None):
     scores = {key: np.zeros((bootstrap_size, len(values))) for key in models.keys()}
@@ -236,7 +189,7 @@ def make_bootstrap_brier(basemodel, models, data, values, ylim=None, bootstrap_s
             bss = 1 - model_scores / base_scores_shift
 
             scores[name][i, :] = bss
-
+        
     for i, name in enumerate(models.keys()):
         score = scores[name]
 

@@ -24,31 +24,31 @@ bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
+original_data_size = train_data.cardinality().numpy()
+
 batch_size = 32
 
-# train_data = make_importance_sampling_dataset(train_data, bounds)
+train_data = make_importance_sampling_dataset(train_data, bounds)
 
-# train_data = train_data.cache()
+train_data = train_data.cache()
 
-# # dataset_length = [i for i,_ in enumerate(train_data)][-1] + 1
+# dataset_length = [i for i,_ in enumerate(train_data)][-1] + 1
 
-# dataset_length = 28595
+dataset_length = 28595
 
-# train_data = train_data.shuffle(dataset_length)
+train_data = train_data.shuffle(dataset_length)
 
-# steps_per_epoch = dataset_length // batch_size
+steps_per_epoch = original_data_size // batch_size
 
-# print(dataset_length)
+print(steps_per_epoch)
 
-# print(steps_per_epoch)
-
-train_data = train_data.shuffle(train_data.cardinality())
+print(dataset_length)
 
 train_data = train_data.batch(batch_size)
 
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-# train_data = train_data.repeat()
+train_data = train_data.repeat()
 
 test_data = test_data.batch(len(test_data))
 
@@ -61,13 +61,13 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
-distribution_2 = 'distr_gev'
+distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_CRPS_sample'
+loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
-chain_function_mean = 10
-chain_function_std = 0.01
-chain_function_constant = 0.001
+chain_function_mean = 9
+chain_function_std = 0.25
+chain_function_constant = 0.01
 
 optimizer = 'adam'
 learning_rate = 0.0005
@@ -84,9 +84,9 @@ add_wind_conv = True
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
-saving = False
+saving = True
 
-epochs = 80
+epochs = 200
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -111,7 +111,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += 'importance_sampling_1'
+filepath += '_is_3'
 
 
 # make a folder
@@ -153,14 +153,13 @@ setup = {
     'features_names': features_names,
     'setup_loss': setup_loss,
     'setup_optimizer': setup_optimizer,
-    'sample_size': 100,
+    'sample_size': 250,
     'setup_nn_architecture': setup_nn_architecture,
 
     'add_wind_conv': add_wind_conv,
 
     'features_1d_mean': data_info['features_1d_mean'],
     'features_1d_std': data_info['features_1d_std'],
-
     'metrics': metrics,
 }
 
@@ -175,7 +174,7 @@ time_start = time.time()
 
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping) #, steps_per_epoch=steps_per_epoch)
+history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping, steps_per_epoch=steps_per_epoch)
 
 best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 
@@ -194,11 +193,10 @@ values = np.linspace(0, 20, 40)
 
 brierscores = nn.Brier_Score(test_data, values)
 
-brierscores_2 = nn.Brier_Score_new(test_data, values)
 
-X, y = next(iter(test_data))
+# X, y = next(iter(test_data))
 
-shape = nn.get_gev_shape(X)
+# shape = nn.get_gev_shape(X)
 
 if saving:
     nn.save_weights(filepath)

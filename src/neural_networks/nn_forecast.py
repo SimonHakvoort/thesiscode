@@ -307,7 +307,7 @@ class NNForecast:
     
 
 
-    def Brier_Score(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
+    def Brier_Score_old(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
         """
         Calculates the Brier score for a given dataset and a list of thresholds.
         It computes the Brier score for a single batch.
@@ -337,7 +337,7 @@ class NNForecast:
             scores[i] = tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
         return scores
     
-    def Brier_Score_new(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
+    def Brier_Score(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
         """
         Calculates the Brier score for a given dataset and a list of thresholds.
         It computes the Brier score for a single batch.
