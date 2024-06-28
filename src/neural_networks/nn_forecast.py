@@ -349,20 +349,14 @@ class NNForecast:
         Returns:
             np.ndarray: A list of Brier scores corresponding to each threshold.
         """
-
-        # Extract a batch of data
         X, y = next(iter(dataset))
 
-        # Predict the output using the model
         y_pred = self.predict(X)
 
-        # Compute the CDF values for all thresholds
         cdf_values = self.model._forecast_distribution.comp_cdf(y_pred, thresholds)
 
-        # Compute the indicator values for all thresholds
         indicator_values = np.array([self.indicator_function(y, t) for t in thresholds])
 
-        # Calculate the Brier scores vectorized
         brier_scores = np.mean((indicator_values - cdf_values) ** 2, axis=1)
 
         return brier_scores

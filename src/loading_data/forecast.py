@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 from datetime import datetime, timedelta
 from src.loading_data.station import Station
@@ -10,59 +11,65 @@ class Forecast:
     It can optionally contain other variables. These other variables and the wind speed are stored as numpy arrays.
     We can add observations to the forecast, which are stored in a dictionary with the station code as key and the observation and date_time as value.
     """
-    def __init__(self, date, initial_time, lead_time, u_wind10, v_wind10, **kwargs):
+    def __init__(self, date: str, initial_time: str, lead_time: str, u_wind10: np.ndarray, v_wind10: np.ndarray, **kwargs):
         """
         Creates a Forecast instance.
 
         Arguments:
-        - date: the date of  the forecast, which is a string of the form 'YYYY-MM-DD'. It will be converted to a datetime object.
-        - initial_time: the time of the forecast, which is a string of the form 'HHMM'. It will be converted to a datetime object.
+            date (str): the date of  the forecast, which is a string of the form 'YYYY-MM-DD'. It will be converted to a datetime object.
+            initial_time (str): the time of the forecast, which is a string of the form 'HHMM'. It will be converted to a datetime object.
+            lead_time (str): lead time of the forecast, which is a string of the form 'HH'. Will be converted to a timedelta object.
+            u_wind10 (np.ndarray): U-component of the wind speed, which is an np.ndarray representing the grid.
+            v_wind10 (np.ndarray): V-component of the wind speed, which is an np.ndarray representing the grid.
+            kwargs: additional weather variables, where the key represents the name of the variable, and the value is an np.ndarray of the grid.
         """
         year, month, day = map(int, date.split('-'))
         hour, minute = divmod(int(initial_time), 100)
         self.date = datetime(year, month, day)
         self.initial_time = datetime(year, month, day, hour, minute)
         self.lead_time = timedelta(hours=int(lead_time))
+
+        # Save each element in kwargs in the class.
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+        # Compute the total wind speed.
         self.wind_speed = np.sqrt(u_wind10 ** 2 + v_wind10 ** 2)
 
+        # Dictionary to save the observations. 
         self.observations = {}
         self.ignore = ['observations', 'date', 'initial_time', 'lead_time', 'ignore']
 
-    def add_observation(self, station_code, observation, date_time):
-        # add the observation and date_time as tuple to the dictionary
+    def add_observation(self, station_code: str, observation: float, date_time: datetime):
         self.observations[station_code] = (observation, date_time)
 
-    def neighbourhood_variance(self, gridcell, size):
-        # calculate the variance of the wind speed in a neighbourhood of size x size around the gridcell
-        # gridcell is a tuple of the form (x, y)
-        # size is an odd number
+    def neighbourhood_variance(self, gridcell: Tuple[int,int], size: int):
+        """
+        Compute the variance of the wind speeds surrounding the gridcell. Size should be an odd integer.
+        """
         x, y = gridcell
         half = size // 2
         wind_speeds = self.wind_speed[x - half:x + half + 1, y - half:y + half + 1]
         return np.var(wind_speeds)
 
-    def generate_sample(self, station, variables_names, neighbourhood_size = None):
+    def generate_sample(self, station: Station, variables_names: list, neighbourhood_size: int = None) -> Tuple[np.ndarray, float]:
         """
         Method to generate a sample for a station. The sample consists of the values of the variables at the gridcell of the station and the observation at the station.
         The features are ordered in the same order as the variables_names list.
 
         Arguments:
-        - station: Station instance
-        - variables_names: list of strings
-        - neighbourhood_size: int
+            station: Station instance
+            variables_names: list of strings
+            neighbourhood_size: int
 
         Returns:
-        - X: numpy array
-        - y: float
+            X: numpy array
+            y: float
         """
         i, j = station.gridcell
 
         X = []
         y = self.observations[station.code][0]
-
-
 
         for key in variables_names:
             if key == 'spatial_variance':
@@ -74,15 +81,20 @@ class Forecast:
 
         return np.array(X), y
     
-    def get_predictors(self):
-        # get the predictors for the forecast
+    def get_predictors(self) -> dict:
+        """
+        Returns the names of all the features (weather variables) that are in the forecast.
+
+        Returns:
+            the features (dict)
+        """
         predictors = []
         for key, value in self.__dict__.items():
             if key not in self.ignore:
                 predictors.append(value)
         return predictors
     
-    def has_observations(self):
+    def has_observations(self) -> bool:
         # check if the forecast has observations
         return len(self.observations) > 0
     
@@ -150,21 +162,49 @@ class Forecast:
 
         return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32)
     
-    def __contains__(self, station_code):
+    def __contains__(self, station_code: str) -> bool:
         """
         Checks if the forecast contains an observation for the given station code.
 
         Args: 
-        - station_code: string
+            station_code: string
 
         Returns:
-        - boolean
+            boolean which checks whether there is an observation.
         """
         return station_code in self.observations
 
 
 class ForecastSample():
-    def __init__(self, feature_names, station_code):
+    """
+    The ForecastSample class represents a sample of forecast data for a specific station. 
+    Each sample consists of various weather features and the observed value at the station.
+
+    Attributes:
+        feature_names (list): List of feature names for the forecast sample.
+        station_code (str): Code of the station for which the sample is generated.
+        y (float or None): Observed value at the station. Initialized to None.
+
+    Methods:
+        add_feature(feature_name: str, value: Union[np.ndarray, float]):
+            Adds a feature to the sample. Sets the feature value and a boolean indicating if it is a grid.
+        
+        add_y(y: float):
+            Sets the observed value at the station.
+        
+        get_tensor() -> Tuple[tf.Tensor, tf.Tensor]:
+            Returns the features and observed value as tensors.
+        
+        check_if_everything_is_set() -> bool:
+            Checks if all features and the observed value are set.
+        
+        get_X() -> dict:
+            Returns the features as a dictionary of tensors. If the feature is a grid, the key will be the feature name with '_grid' suffix.
+        
+        get_y() -> tf.Tensor:
+            Returns the observed value as a tensor.
+    """
+    def __init__(self, feature_names: list, station_code: str):
         self.feature_names = feature_names
         self.station_code = station_code
         # make attribute for each feature name
@@ -172,7 +212,14 @@ class ForecastSample():
             setattr(self, feature_name, None)
         self.y = None
 
-    def add_feature(self, feature_name, value):
+    def add_feature(self, feature_name: str, value: np.ndarray) -> None:
+        """
+        Adds a features to the class.
+
+        Arguments:
+            feature_name (str): the name of the feature
+            value (np.ndarray): the value, which can be a grid or a single value.
+        """
         setattr(self, feature_name, value)
         if type(value) == np.ndarray:
             # add a boolean attribute for each feature name that is True if the feature is a grid
@@ -180,19 +227,35 @@ class ForecastSample():
         else:
             setattr(self, feature_name + '_grid', False)
 
-    def add_y(self, y):
+    def add_y(self, y: float):
+        """
+        Adds the observations.
+        """
         self.y = y
 
-    def get_tensor(self):
+    def get_tensor(self) -> tf.Tensor:
+        """
+        Converts the values of the features to tensors.
+        """
         return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32), tf.convert_to_tensor(self.y, dtype=tf.float32)
     
-    def check_if_everything_is_set(self):
+    def check_if_everything_is_set(self) -> bool:
+        """
+        Checks whether all features in feature_names have a value.
+
+        Returns:
+            boolean indicating whether every feature has a value.
+        """
         for feature_name in self.feature_names:
             if getattr(self, feature_name) is None:
                 return False
         return self.y is not None
     
-    def get_X(self):
+    def get_X(self) -> dict:
+        """
+        Makes a dictionary, with as keys the feature names and as values the associated value, which can be a grid (np.ndarray) or a singular value.
+        All the values are converted to tensors.
+        """
         if not self.check_if_everything_is_set():
             raise ValueError('Not all features are set')
         # make a dictionary with the feature names as keys and the values as tensors. In case of a grid, the name of the key is the feature name + '_grid'
@@ -203,18 +266,27 @@ class ForecastSample():
             else:
                 X[feature_name] = tf.convert_to_tensor(getattr(self, feature_name), dtype=tf.float32)
 
+        # We add the wind_speed_forecast to the features, for the peephole in the CNNs.
         if 'wind_speed' in X:
+            # In case wind_speed is a single value, we set it to the value. 
             X['wind_speed_forecast'] = X['wind_speed']
         elif 'wind_speed_grid' in X:
+            # In case we have a wind speed grid, we take thie middle value.
             grid = X['wind_speed_grid']
             central_value = grid[grid.shape[0] // 2, grid.shape[1] // 2]
             X['wind_speed_forecast'] = central_value
+        else:
+            raise ValueError("No wind speed found in the features!")
 
+        # Only used for the climatology, which needs station codes.
         X['station_code'] = self.station_code
         
         return X
      
-    def get_y(self):
+    def get_y(self) -> tf.Tensor:
+        """
+        Returns the observations as a tensor.
+        """
         return tf.convert_to_tensor(self.y, dtype=tf.float32)
     
 

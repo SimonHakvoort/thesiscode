@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 import os
+from typing import Tuple
 import pygrib
 from src.loading_data.forecast import Forecast
 import pickle as pkl
 
 
-def ObtainParameterName(parameter_name):
-    # returns a tuple, where the first element is the indicatorOfParameter for the grb and the second element is the level
+def ObtainParameterName(parameter_name: str) -> Tuple[int, int]:
+    """
+    For a given variable it returns a tuple, where the first element is the indicatorOfParameter for the grb and the second element is the level.
+
+    Arguments:
+        parameter_name (str): name of the weather variable
+
+    Returns:
+        Tuple[int, int] with the location in the grb file.
+    """ 
     if parameter_name == 'u_wind10':
         return (33,10)
     elif parameter_name == 'v_wind10':
@@ -22,7 +31,8 @@ def ObtainParameterName(parameter_name):
     else:
         raise ValueError("Invalid parameter name")
 
-def extract_from_grb(path, variable_name):
+
+def extract_from_grb(path: str, variable_name: str):
     grbs = pygrib.open(path)
 
     try:

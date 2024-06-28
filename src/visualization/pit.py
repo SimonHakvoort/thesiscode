@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 import tensorflow as tf
 
+from src.climatology.climatology import Climatology
 from src.models.emos import EMOS
 from src.neural_networks.nn_forecast import NNForecast
 
@@ -38,45 +39,22 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     plt.ylabel("Obs. freq.")
     plt.title(title)
     plt.show()
-
-def make_cpit_hist_emos(emos, X, y, bins = 20, title = "", t = 0):
-    """
-    Function to make a PIT histogram for a given EMOS model and data.
-
-    Args:
-    - emos: EMOS model
-    - X: tensor with shape (n, m), where n is the number of samples and m is the number of features
-    - y: array with shape (n,) with the true values
-    - bins: number of bins for the histogram
-    - title: title of the histogram
-    - t: real valued number greater than 0
-
-    Returns:
-    - None
-    """
-    if t < 0:
-        raise ValueError("t needs to be greater than 0")
-    elif t > 0:
-        X, y, variance = threshold(X, y, variance, t)
-
-    distribution = emos.forecast_distribution.get_distribution(X)
-    make_cpit_hist(distribution.cdf, y, bins, title, t)
     
 
-def make_cpit_diagram(cdf_dict, y, title = "", t = 0.0, gev_shape = None):
+def make_cpit_diagram(cdf_dict: dict, y: np.ndarray, title: str = "", t: float = 0.0, gev_shape = None):
     """
     Function to make a PIT diagram for a given cdf and data. The cdf needs to have the same shape as y, they are stored in cdf_dict
     It is also possible to make a conditional PIT diagram, by setting t to a value different from 0.
     Note that in case t > 0 then we assume that y only contains values greater than 0.
 
     Args:
-    - cdf_dict: dictionary of cdfs with shape (n,)
-    - y: array with shape (n,) with the true values
-    - title: title of the diagram
-    - t: real valued number greater than 0
+        cdf_dict: dictionary of cdfs with shape (n,)
+        y: array with shape (n,) with the true values
+        title: title of the diagram
+        t: real valued number greater than 0
 
     Returns:
-    - None
+        None
     """
 
     if t < 0:
@@ -204,29 +182,31 @@ def threshold_tf(data, t, repeat = True, batching = True):
 
     return filtered_data
 
-def make_cpit_diagram_tf(model_dict, data, t = 0, base_model = None):
+def make_cpit_diagram_tf(model_dict: dict, data: tf.data.Dataset, t: int = 0, base_model = None, base_model_name: str = 'base_model'):
+    """
+    A a conditional PIT diagram for all the models in model_dict. 
+
+    Arguments:
+        model_dict (dict): dictionary of models.
+        data (tf.data.Dataset): data for which we compute the cPIT (unfiltered and unbatched).
+        t (int): threshold.
+        base_model (optional): in case you want to compare it for an extra model.
+        base_model_name (optional): naming of the base_model for the legend.
+    """
+    # We first compute the filtered data based on the threshold.
     data = threshold_tf(data, t)
     
     cdf_dict = {}
     for name, model in model_dict.items():
-        if type(model) == EMOS:
-            distribution, observations = model.get_prob_distribution(data)
-            cdf_dict[name] = distribution.cdf
-        elif type(model) == NNForecast:
-            distribution, observations = model.get_prob_distribution(data)
-            cdf_dict[name] = distribution.cdf
-        else:
-            raise ValueError('Model type not recognized')
+        if isinstance(model, Climatology):
+            raise ValueError("Climatology has not been implemented for cpit diagrams!")
+        distribution, observations = model.get_prob_distribution(data)
+        cdf_dict[name] = distribution.cdf
+
         
     if base_model is not None:
-        if type(model) == EMOS:
-            distribution, observations = base_model.get_prob_distribution(data)
-            cdf_dict['base_model'] = distribution.cdf
-        elif type(model) == NNForecast:
-            distribution, observations = base_model.get_prob_distribution(data)
-            cdf_dict['base_model'] = distribution.cdf
-        else:
-            raise ValueError('Model type not recognized')
+        distribution, observations = base_model.get_prob_distribution(data)
+        cdf_dict[base_model_name] = distribution.cdf
         
     make_cpit_diagram(cdf_dict, observations, t=t)
 
