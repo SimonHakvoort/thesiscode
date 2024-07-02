@@ -56,17 +56,29 @@ class ObjectiveCNN:
             the objective value (float).
         """
         if objective == 'CRPS':
-            return nnforecast.CRPS(test_data, 90000)
+            return nnforecast.CRPS(test_data, 50000)
         # check if the first 6 characters are 'twCRPS'
         elif objective[:6] == 'twCRPS':
             # get the numbers after 'twCRPS'
             twCRPS_num = objective[6:]
-            return nnforecast.twCRPS(test_data, [int(twCRPS_num)], 90000)[0]
+            return nnforecast.twCRPS(test_data, [int(twCRPS_num)], 50000)[0]
         else:
             raise ValueError("Incorrect objective, please use CRPS or twCRPS")
         
 
-    def train_on_fold_i(self, setup, fold, epochs, batch_size):
+    def train_on_fold_i(self, setup: dict, fold: int, epochs: int, batch_size: int) -> Tuple[np.ndarray, int]:
+        """
+        Trains a single model with a specific setup on a specific fold.
+
+        Arguments:
+            setup (dict): the setup of the NNForecast.
+            fold (int): the fold on which we model is trained.
+            epochs (int): the number of epochs.
+            batch_size (int): the batch size.
+
+        Returns:
+            the objective values and the best epoch.
+        """
         train_data, test_data = self.get_data_i(fold, batch_size)
 
         train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
@@ -87,7 +99,6 @@ class ObjectiveCNN:
         return objective_values, best_epoch
     
     def __call__(self, trial: optuna.Trial) -> Tuple[float, float]:
-
         setup = {}
 
         forecast_distribution = trial.suggest_categorical('Forecast Distribution', ['distr_trunc_normal', 'distr_log_normal', 'distr_mixture'])
@@ -101,10 +112,10 @@ class ObjectiveCNN:
 
         chain_function_mean = trial.suggest_float('cf mean', -5, 15)
         chain_function_std = trial.suggest_float('cf std', 0.0001, 10, log=True)
-        chain_function_constant = trial.suggest_float('cf constant', 0.000001, 2, log=False)
+        chain_function_constant = trial.suggest_float('cf constant', 0.000001, 1, log=False)
 
         optimizer = trial.suggest_categorical('Optimizer', ['adam', 'sgd'])
-        learning_rate = trial.suggest_float('Learning Rate', 0.00001, 0.1)
+        learning_rate = trial.suggest_float('Learning Rate', 0.0001, 0.1)
 
         dense_l2_regularization = trial.suggest_float('L2 Regularization', 0.00005, 0.1)
 

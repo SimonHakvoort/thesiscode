@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -65,18 +66,16 @@ class NNForecast:
 
         self.model.compile(optimizer=self.optimizer, loss=self.loss_function, metrics=self.metrics)#, run_eagerly=True)
 
-    def _init_loss_function(self, **kwargs):
+    def _init_loss_function(self, **kwargs) -> None:
         """
         Initializes the loss function based on the provided arguments.
+        In case loss_twCRPS_sample is used, we should also initialize the chaining_function.
 
         Parameters:
-        - kwargs (dict): Additional keyword arguments.
-
-        Raises:
-        - ValueError: If 'loss_function' is not provided or if an invalid loss function is specified.
+            loss_function (str): should be loss_CRPS_sample or loss_twCRPS_sample.
 
         Returns:
-        - None
+            None
         """
         if 'loss_function' not in kwargs:
             raise ValueError("loss_function must be provided")
@@ -89,16 +88,13 @@ class NNForecast:
             else:
                 raise ValueError("Invalid loss function")
             
-    def _init_optimizer(self, **kwargs):
+    def _init_optimizer(self, **kwargs) -> None:
         """
         Initializes the optimizer for the neural network.
 
         Args:
             optimizer (str): The optimizer to be used. Must be one of 'adam', 'sgd', or 'rmsprop'.
             learning_rate (float): The learning rate for the optimizer.
-
-        Raises:
-            ValueError: If the optimizer is not one of 'adam', 'sgd', or 'rmsprop'.
 
         Returns:
             None
@@ -122,8 +118,20 @@ class NNForecast:
         else:
             raise ValueError("Invalid optimizer")
 
-    def _init_chain_function(self, **kwargs):
+    def _init_chain_function(self, **kwargs) -> None:
+        """
+        Initializes the chaining function.
 
+        Arguments:
+            chain_function (str): either chain_function_indicator, chain_function_normal_cdf or chain_function_normal_cdf_plus_constant.
+            chain_function_threshold (float): the threshold in case chain_function_indicator is used.
+            chain_function_mean (float): the mean of the Gaussian cdf in case chain_function_normal_cdf or chain_function_normal_cdf_plus_constant is used.
+            chain_function_std (float): the std of the Gaussian cdf in case chain_function_normal_cdf or chain_function_normal_cdf_plus_constant is used.
+            chain_function_constant (float): the constant added to the Gaussian cdf in case chain_function_normal_cdf_plus_constant is used.
+
+        Returns:
+            None.
+        """
         if 'chain_function' not in kwargs:
             raise ValueError("chain_function must be provided")
         else:
@@ -149,10 +157,30 @@ class NNForecast:
                 
                 self.chain_function_normal_distribution = tfp.distributions.Normal(loc=kwargs['chain_function_mean'], scale=kwargs['chain_function_std'])
 
-    def get_distribution(self, y_pred):
+    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.Distribution:
+        """
+        Returns the corresponding distribution for a prediction.
+
+        Arguments:
+            y_pred (tf.Tensor): the predicted values (which contains the mean/stds and possible weight) of the distribution.
+        
+        Returns:
+            The probability distribution (tfp.distributions.Distribution)
+        """
         return self.model._forecast_distribution.get_distribution(y_pred)
 
-    def _compute_CRPS(self, y_true, y_pred, sample_size):
+    def _compute_CRPS(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int) -> tf.Tensor:
+        """
+        Internal method to compute the CRPS. 
+
+        Arguments:
+            y_true (tf.Tensor): the observed value.
+            y_pred (tf.Tensor): the predicted values (mean, std and possible weight).
+            sample_size (int): the numer of samples used to estimate expected value.
+
+        Returns:
+            an estimate of the CRPS (tf.Tensor)
+        """
         distribution = self.get_distribution(y_pred)
 
         sample_shape = tf.concat([[sample_size], tf.ones_like(distribution.batch_shape_tensor(), dtype=tf.int32)], axis=0)
@@ -168,6 +196,14 @@ class NNForecast:
     def _loss_CRPS_sample(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
         """
         Private method that can be used as a loss function.
+        It uses self.sample_size
+
+        Arguments:
+            y_true (tf.Tensor): the observed value.
+            y_pred (tf.Tensor): the predicted values (mean, std and possible weight).
+
+        Returns:
+            an estimate of the CRPS (tf.Tensor)
         """
         return self._compute_CRPS(y_true, y_pred, self.sample_size)
 
@@ -195,7 +231,7 @@ class NNForecast:
         y_pred = tf.concat(y_pred, axis=0)
         return self._compute_CRPS(y_true, y_pred, sample_size)
     
-    def _chain_function_indicator(self, x, threshold):
+    def _chain_function_indicator(self, x: tf.Tensor, threshold: tf.Tensor) -> tf.Tensor:
         return tf.maximum(x, threshold)
 
     
@@ -422,7 +458,7 @@ class NNForecast:
         return history
 
     
-    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None, steps_per_epoch = None) -> tf.keras.callbacks.History:
+    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None, steps_per_epoch = None, verbose ='auto') -> tf.keras.callbacks.History:
         """
         Fits the neural network model to the given dataset.
 
@@ -431,6 +467,7 @@ class NNForecast:
             epochs (int): The number of epochs to train the model (default: 100).
             validation_data (tf.data.Dataset): The validation dataset to evaluate the model on.
             early_stopping (tf.keras.callbacks.EarlyStopping): Early stopping callback (default: None).
+            verbose ('auto', 0, 1 or 2): verbosity mode, 0 = silent, 1 = progress bar, 2 = one line per epoch.
 
         Returns:
             history (tf.keras.callbacks.History): The history of the training process.
@@ -439,7 +476,7 @@ class NNForecast:
         if early_stopping is not None:
             callbacks.append(early_stopping)
             
-        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=callbacks, steps_per_epoch=steps_per_epoch)
+        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=callbacks, steps_per_epoch=steps_per_epoch, verbose=verbose)
 
         return history
     
@@ -447,10 +484,25 @@ class NNForecast:
     def predict(self, X: dict) -> tf.Tensor:
         """
         Makes a prediction and returns the distribution's parameters
+
+        Arguments:
+            X (dict): the dict containing the features.
+
+        Returns:
+            the predicted mean/std and possible weight of the distribution (tf.Tensor).
         """
         return self.model.predict(X)
     
-    def get_prob_distribution(self, data):
+    def get_prob_distribution(self, data: tf.data.Dataset) -> Tuple[tfp.distributions.Distribution, tf.Tensor]:
+        """
+        Based on the data it returns the distributions and the observations.
+
+        Arguments:
+            data (tf.data.Dataset): data for which we compute the distribution. A single batch is taken.
+
+        Returns:
+            the distribution and the observations Tuple[tfp.distributions.Distribution, tf.Tensor].
+        """
         y_pred = []
         y_true = []
 
@@ -463,6 +515,9 @@ class NNForecast:
         return self.model._forecast_distribution.get_distribution(y_pred), y_true
     
     def save_weights(self, filepath: str) -> None:
+        """
+        Saves the weights of the model in filepath.
+        """
         self.model.save_weights(filepath + '/model.weights.h5')
 
 
