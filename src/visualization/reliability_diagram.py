@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.calibration import calibration_curve
 import matplotlib.gridspec as gridspec
+import tensorflow as tf
 
 
 def make_reliability_and_refinement_diagram(emos_dict, X, y, variances, t, n_subset = 11):
@@ -221,7 +222,21 @@ def make_reliability_and_sharpness(emos_dict, X, y, t, n_subset = 10, base_model
     plt.tight_layout()
     plt.show()
     
-def make_reliability_and_sharpness_tf(dict, data, t, n_subset = 10, base_model = None):
+def make_reliability_and_sharpness_tf(dict: dict, data: tf.data.Dataset, t: float, n_subset: int = 10, base_model = None, base_model_name = 'Base Model') -> None:
+    """
+    Makes a reliability diagram and a sharpness diagram for the models in dict, for wind speeds of value t.
+
+    Arguments:
+        dict: a dictionary containing the models.
+        data: the data for which we make the reliability and sharpness diagram.
+        t: the threshold at which we make the diagram.
+        n_subset: the number of bins we use to split the data.
+        base_model: an optional model that will also be shown in the diagram.
+        base_model_name: the name of the base_model.
+
+    Returns: 
+        None
+    """
     fig = plt.figure(figsize=(8, 8))  # Create a figure
     gs = gridspec.GridSpec(4, 1)  # Create a GridSpec with 3 rows and 1 column
 
@@ -246,7 +261,7 @@ def make_reliability_and_sharpness_tf(dict, data, t, n_subset = 10, base_model =
         distribution, observations = base_model.get_prob_distribution(data)
         cdf_values = np.clip(1 - distribution.cdf(t), 0, 1)
         prob_true, prob_pred = calibration_curve(y_true, cdf_values, n_bins=n_subset)
-        axs[0].plot(prob_pred, prob_true, 'o-', label = "Base model")
+        axs[0].plot(prob_pred, prob_true, 'o-', label=base_model_name)
         cdfs["Base model"] = cdf_values
 
     axs[0].plot([0, 1], [0, 1], color="black", linestyle="dashed")

@@ -26,21 +26,23 @@ class NNForecast:
         self.sample_size = kwargs['sample_size']
         self.features_names = kwargs['features_names']
 
-        self.features_1d_mean = kwargs['features_1d_mean']
-        self.features_1d_std = kwargs['features_1d_std']
+        if 'features_1d_mean' in kwargs:
+            self.features_1d_mean = kwargs['features_1d_mean']
+        else:
+            self.features_1d_mean = None
+
+        if 'features_1d_std' in kwargs:
+            self.features_1d_std = kwargs['features_1d_std']
+        else:
+            self.features_1d_std = None
 
 
         self._init_loss_function(**kwargs['setup_loss'])
 
-        self.add_wind_conv = kwargs['add_wind_conv']
-
         if 'setup_nn_architecture' not in kwargs:
             return
         
-        if self.add_wind_conv:
-            self.model = NNConvModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
-        else:
-            self.model = NNModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
+        self.model = NNConvModel(distribution_name(kwargs['setup_distribution']['forecast_distribution'], **kwargs['setup_distribution']), **kwargs['setup_nn_architecture'])
 
 
         self._init_optimizer(**kwargs['setup_optimizer'])

@@ -62,26 +62,33 @@ def make_cpit_diagram(cdf_dict: dict, y: np.ndarray, title: str = "", t: float =
     elif t == 0:
         for name, cdf in cdf_dict.items():
             probabilities = cdf(y)
-            if gev_shape is not None:
-                # change the probabilities such that nan becomes 1 if gev_shape < 0 and 0 if gev_shape > 0
-                shape = gev_shape[name]
-                if shape is not None:
-                    probabilities = np.where(np.isnan(probabilities), 1 if shape < 0 else 0, probabilities)
-            
-            # print contain nan if probabilities contains nan
-            if np.isnan(probabilities).any():
-                print("probabilities contain nan")
+            if gev_shape[name] is not None:
+                probabilities = np.array(probabilities)  
+                shape_values = np.array(gev_shape[name])
+                
+                # change the probabilities such that nan at i becomes 1 if gev_shape[i] < 0 and 0 if gev_shape[i] > 0
+                nan_indices = np.isnan(probabilities)
+        
+                # Replace NaN values based on the corresponding gev_shape values
+                probabilities[nan_indices & (shape_values < 0)] = 1
+                probabilities[nan_indices & (shape_values > 0)] = 0
 
             plt.plot(np.sort(probabilities), np.linspace(0, 1, len(probabilities)), label = name)
             
     else:
         for name, cdf in cdf_dict.items():
             probabilities = (cdf(y) - cdf(t)) / (1 - cdf(t))
-            if gev_shape is not None:
-                # change the probabilities such that nan becomes 1 if gev_shape < 0 and 0 if gev_shape > 0
-                shape = gev_shape[name]
-                if shape is not None:
-                    probabilities = np.where(np.isnan(probabilities), 1 if shape < 0 else 0, probabilities)
+            if gev_shape[name] is not None:
+                probabilities = np.array(probabilities)  
+                shape_values = np.array(gev_shape[name])
+
+                # change the probabilities such that nan at i becomes 1 if gev_shape[i] < 0 and 0 if gev_shape[i] > 0
+                nan_indices = np.isnan(probabilities)
+            
+                # Replace NaN values based on the corresponding gev_shape values
+                probabilities[nan_indices & (shape_values < 0)] = 1
+                probabilities[nan_indices & (shape_values > 0)] = 0  
+
 
             #remove the nan from probabilities
             # these can occur if cdf(t) = 1, which occurs in the dataset for large t.
@@ -174,15 +181,17 @@ def threshold_tf(data, t, repeat = True, batching = True):
         
     filtered_data = data.filter(filter_function)
 
+    dataset_length = [i for i,_ in enumerate(filtered_data)][-1] + 1
+
     if batching:
-        filtered_data = filtered_data.batch(100000)
+        filtered_data = filtered_data.batch(dataset_length)
     if repeat:
         filtered_data = filtered_data.repeat()
     #X, y = next(iter(filtered_data))
 
     return filtered_data
 
-def make_cpit_diagram_tf(model_dict: dict, data: tf.data.Dataset, t: int = 0, base_model = None, base_model_name: str = 'base_model'):
+def make_cpit_diagram_tf(model_dict: dict, data: tf.data.Dataset, t: int = 0, base_model = None, base_model_name: str = 'Base Model'):
     """
     A a conditional PIT diagram for all the models in model_dict. 
 
@@ -194,21 +203,26 @@ def make_cpit_diagram_tf(model_dict: dict, data: tf.data.Dataset, t: int = 0, ba
         base_model_name (optional): naming of the base_model for the legend.
     """
     # We first compute the filtered data based on the threshold.
-    data = threshold_tf(data, t)
-    
+    data_filtered = threshold_tf(data, t)
+    X, y = next(iter(data_filtered)) 
     cdf_dict = {}
+    gev_shapes = {}
     for name, model in model_dict.items():
         if isinstance(model, Climatology):
             raise ValueError("Climatology has not been implemented for cpit diagrams!")
-        distribution, observations = model.get_prob_distribution(data)
+        distribution, observations = model.get_prob_distribution(data_filtered)
         cdf_dict[name] = distribution.cdf
+        gev_shapes[name] = model.get_gev_shape(X)
 
         
     if base_model is not None:
-        distribution, observations = base_model.get_prob_distribution(data)
+        if isinstance(model, Climatology):
+            raise ValueError("Climatology has not been implemented for cpit diagrams!")
+        distribution, observations = base_model.get_prob_distribution(data_filtered)
         cdf_dict[base_model_name] = distribution.cdf
+        gev_shapes[base_model_name] = model.get_gev_shape(X)
         
-    make_cpit_diagram(cdf_dict, observations, t=t)
+    make_cpit_diagram(cdf_dict, observations, t=t, gev_shape=gev_shapes)
 
 def comp_pit_score_tf(model, data, t = 0):
     # this function integrates the area between the pit curve and the diagonal

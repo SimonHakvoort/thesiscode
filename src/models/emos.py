@@ -386,6 +386,14 @@ class EMOS:
 
         return model_dict
     
+    def get_gev_shape(self, X: tf.Tensor):
+        gev_shape = self.forecast_distribution.get_gev_shape()
+
+        if gev_shape is None:
+            return None
+        
+        return np.full(X['features_emos'].shape[0], gev_shape)
+    
     def normalize_features(self, X):
         """
         Normalize the features of the model.

@@ -111,7 +111,7 @@ def make_brier_skill_plot(basemodel, models, X, y, values, ylim = None, title = 
     plt.legend()
     plt.show()
 
-def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title = None, name_base_model = 'Reference Model') -> None:
+def make_brier_skill_plot_tf(basemodel, models, data, values, xlim = None, ylim = None, title = None, name_base_model = 'Reference Model') -> None:
     """
     Plots the Brier skill score (BSS) for the models, which is a dict for the numbers in values. 
     Evaluates the performance for a single batch in data.
@@ -121,6 +121,7 @@ def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title
         models (dict): models to compare to basemodel
         data (tf.data.Dataset): data to compute Brier scores.
         values (np.array): values to compute the BSS.
+        xlim (tuple, optional): tuple specifying the range of the x-axis.
         ylim (tuple, optional): tuple specifying the range of the y-axis.
         title (str, optional: Title for the plot.
         name_base_model (str, optional): name for the reference model in the legend.
@@ -145,6 +146,7 @@ def make_brier_skill_plot_tf(basemodel, models, data, values, ylim = None, title
         plt.xlim(0, values[-1])
     else:
         plt.xlim(values[0], values[-1])
+        
     if ylim != None:
         plt.ylim(ylim[0], ylim[1])
     

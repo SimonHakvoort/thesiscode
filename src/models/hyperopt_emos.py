@@ -1,4 +1,5 @@
 import string
+from typing import Tuple
 import numpy as np
 import optuna
 import tensorflow as tf
@@ -20,7 +21,16 @@ class Objective:
             if objective != 'CRPS' and objective[:6] != 'twCRPS':
                 raise ValueError('The objective is not valid. Please use either CRPS or twCRPS')
 
-    def get_data_i(self, i):
+    def get_data_i(self, i: int) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
+        """
+        Preprocess the training and test data for a specific fold.
+
+        Arguments:
+            i (int): fold number
+
+        Returns:
+            Tuple[tf.data.Dataset, tf.data.Dataset], with the training data as first element and the test data as the second.
+        """
         train_data, test_data, data_info = load_cv_data(i, self.feature_names_dict)
 
         def addweight(X, y):
@@ -30,6 +40,7 @@ class Objective:
 
         train_data = train_data.shuffle(len(train_data))
 
+        # We remove the other features (those are only used in CNNs)
         def mapping(X, y, w):
             X_emos = {'features_emos': X['features_emos']}
             return X_emos, y, w
@@ -42,9 +53,10 @@ class Objective:
 
         return train_data, test_data
     
-    def compute_objective(self, emos: EMOS, objective: string, test_data: tf.data.Dataset):
+    def compute_objective(self, emos: EMOS, objective: string, test_data: tf.data.Dataset) -> float:
         if objective == 'CRPS':
             return emos.CRPS(test_data, 90000)
+        
         # check if the first 6 characters are 'twCRPS'
         elif objective[:6] == 'twCRPS':
             # get the numbers after 'twCRPS'
@@ -192,8 +204,6 @@ class Objective:
                 objective_values[i] = 10
             if objective_values[i] > 20:
                 objective_values[i] = 20
-
-        
 
         return objective_values.tolist()
 

@@ -22,27 +22,31 @@ ignore = ['229', '285', '323']
 
 bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
+seed = 42
+
+tf.random.set_seed(seed)
+
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 original_data_size = train_data.cardinality().numpy()
 
 batch_size = 32
 
-train_data = make_importance_sampling_dataset(train_data, bounds)
+# train_data = make_importance_sampling_dataset(train_data, bounds)
 
-train_data = train_data.cache()
+# train_data = train_data.cache()
 
-# dataset_length = [i for i,_ in enumerate(train_data)][-1] + 1
+# # dataset_length = [i for i,_ in enumerate(train_data)][-1] + 1
 
-dataset_length = 28595
+# dataset_length = 28595
 
-train_data = train_data.shuffle(dataset_length)
+print(original_data_size)
+
+train_data = train_data.shuffle(original_data_size, seed=seed)
 
 steps_per_epoch = original_data_size // batch_size
 
 print(steps_per_epoch)
-
-print(dataset_length)
 
 train_data = train_data.batch(batch_size)
 
@@ -59,7 +63,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
-forecast_distribution = 'distr_trunc_normal'
+forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
@@ -76,17 +80,15 @@ learning_rate = 0.0005
 dense_l1_regularization = 0.000
 dense_l2_regularization = 0.0003
 hidden_units_list = [100, 100, 100]
-add_nwp_forecast = True
 conv_7x7_units = 4
 conv_5x5_units = 4
 conv_3x3_units = 4
-add_wind_conv = True
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
-saving = True
+saving = False
 
-epochs = 200
+epochs = 5
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -111,7 +113,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += '_is_3'
+filepath += '_us_fixed_seed_1'
 
 
 # make a folder
@@ -128,7 +130,6 @@ setup_nn_architecture = {
     'hidden_units_list': hidden_units_list,
     'dense_l1_regularization': dense_l1_regularization,
     'dense_l2_regularization': dense_l2_regularization,
-    'add_nwp_forecast': add_nwp_forecast,
 
     'conv_7x7_units': conv_7x7_units,
     'conv_5x5_units': conv_5x5_units,
@@ -153,10 +154,8 @@ setup = {
     'features_names': features_names,
     'setup_loss': setup_loss,
     'setup_optimizer': setup_optimizer,
-    'sample_size': 250,
+    'sample_size': 1000,
     'setup_nn_architecture': setup_nn_architecture,
-
-    'add_wind_conv': add_wind_conv,
 
     'features_1d_mean': data_info['features_1d_mean'],
     'features_1d_std': data_info['features_1d_std'],
@@ -179,6 +178,8 @@ history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_st
 best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 
 print(f'Best epoch: {best_epoch}')
+
+print(nn.model.summary())
 
 #end the time
 time_end = time.time()

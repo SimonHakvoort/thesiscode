@@ -98,8 +98,6 @@ class NNConvModel(NNBaseModel):
 
         self.concatenate = Concatenate()
 
-        self.add_nwp_forecast = kwargs['add_nwp_forecast']
-
         self.conv_7x7_layers = []
         self.conv_5x5_layers = []
         self.conv_3x3_layers = []
@@ -130,7 +128,6 @@ class NNConvModel(NNBaseModel):
             'dense_l1_regularization': kwargs['dense_l1_regularization'],
             'dense_l2_regularization': kwargs['dense_l2_regularization'],
             'forecast_distribution': forecast_distribution,
-            'add_nwp_forecast': kwargs['add_nwp_forecast'],
             'conv_7x7_units': kwargs['conv_7x7_units'],
             'conv_5x5_units': kwargs['conv_5x5_units'],
             'conv_3x3_units': kwargs['conv_3x3_units'],
