@@ -125,7 +125,6 @@ class NNConvModel(NNBaseModel):
 
         self.setup = {
             'hidden_units_list': kwargs['hidden_units_list'],
-            'dense_l1_regularization': kwargs['dense_l1_regularization'],
             'dense_l2_regularization': kwargs['dense_l2_regularization'],
             'forecast_distribution': forecast_distribution,
             'conv_7x7_units': kwargs['conv_7x7_units'],

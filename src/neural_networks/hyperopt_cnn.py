@@ -7,7 +7,7 @@ import tensorflow as tf
 from src.neural_networks.get_data import load_cv_data
 from src.neural_networks.nn_forecast import NNForecast
 
-class Objective:
+class ObjectiveCNN:
     def __init__(self, feature_names_dict, objectives, train_amount = 3):
         self.feature_names_dict = feature_names_dict
         self.objectives = objectives
@@ -71,7 +71,7 @@ class Objective:
 
         train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-        nn_forecast = NNForecast(setup)
+        nn_forecast = NNForecast(**setup)
 
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
