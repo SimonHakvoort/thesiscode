@@ -1,6 +1,8 @@
 import os
 import pickle as pkl
+from typing import Tuple
 import tensorflow as tf
+from src.loading_data.forecast import Forecast
 
 # retrieve the forecasts from the pickle files and returns them as a list
 def get_folds():
@@ -11,15 +13,15 @@ def get_folds():
 
     return fold0, fold1, fold2, fold3
 
-def get_fold_i(i):
+def get_fold_i(i: int) -> list[Forecast]:
     """
     Load the forecasts from fold i from the pickle files and return them as a list.
 
     Args:
-    - i: int
+        i (int): the fold that needs to get loaded.
 
     Returns:
-    - list: list of Forecast objects
+        A list of Forecast objects for fold i.
     """
     foldi = []
 
@@ -31,28 +33,33 @@ def get_fold_i(i):
     
     return foldi
 
-def get_station_info():
+def get_station_info() -> dict:
     """
+    Loads station_info.pkl, which contains a dictionary with all the station information
+
+    Arguments:
+        None
+
     Returns:
-    - dict: dictionary with keys the station numbers and values dictionaries with keys 'lat' and 'lon' and values the latitude and longitude of the station.
+        dict: dictionary with keys the station numbers and values dictionaries with keys 'lat' and 'lon' and values the latitude and longitude of the station.
     """
     with open('/net/pc200239/nobackup/users/hakvoort/station_info.pkl', 'rb') as f:
         station_info = pkl.load(f)
     return station_info
 
-def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
+def get_tensors(neighbourhood_size: int, parameter_names: list, fold: int, ignore: list = []):
     """
     This function generates tensors 'X' and 'y' from the given parameters and fold.
 
     Parameters:
-    neighbourhood_size (int): The size of the neighbourhood to consider.
-    parameter_names (list): A list of parameter names to include in the tensor.
-    fold (int): The fold to use for generating the samples.
-    ignore (list, optional): A list of parameters to ignore. Defaults to an empty list.
+        neighbourhood_size (int): The size of the neighbourhood to consider.
+        parameter_names (list): A list of parameter names to include in the tensor.
+        fold (int): The fold to use for generating the samples.
+        ignore (list, optional): A list of parameters to ignore. Defaults to an empty list.
 
     Returns:
-    tuple: A tuple containing the tensor 'X' and the target tensor 'y'. If 'spatial_variance' 
-           is included in parameter_names, it is added to 'X' and removed from parameter_names.
+        tuple: A tuple containing the tensor 'X' and the target tensor 'y'. If 'spatial_variance'. 
+            is included in parameter_names, it is added to 'X' and removed from parameter_names.
     """
     fold = get_fold_i(fold)
     station_info = get_station_info()
@@ -61,7 +68,6 @@ def get_tensors(neighbourhood_size, parameter_names, fold, ignore = []):
 
     for forecast in fold:
         if forecast.has_observations():
-            # X, y, variances = forecast.generate_all_samples(neighbourhood_size, station_info, parameter_names, ignore)
             X, y = forecast.generate_all_samples(station_info, parameter_names, station_ignore=ignore, neighbourhood_size=neighbourhood_size)
             X_list.append(X)
             y_list.append(y)
@@ -76,15 +82,15 @@ def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = [
     This function generates a normalized tensor from the given parameters.
 
     Parameters:
-    neighbourhood_size (int): The size of the neighbourhood to consider.
-    parameter_names (list): A list of parameter names to include in the tensor.
-    folds (list): A list of folds to use for cross-validation.
-    ignore (list, optional): A list of parameters to ignore. Defaults to an empty list.
-    normalize_wind (bool, optional): If True, normalizes the wind parameter. Defaults to False.
+        neighbourhood_size (int): The size of the neighbourhood to consider.
+        parameter_names (list): A list of parameter names to include in the tensor.
+        folds (list): A list of folds to use for cross-validation.
+        ignore (list, optional): A list of parameters to ignore. Defaults to an empty list.
+        normalize_wind (bool, optional): If True, normalizes the wind parameter. Defaults to False.
 
     Returns:
-    dict: A dictionary containing the normalized tensor 'X', the target tensor 'y', 
-          the mean and standard deviation used for normalization, and the feature names.
+        dict: A dictionary containing the normalized tensor 'X', the target tensor 'y', 
+            the mean and standard deviation used for normalization, and the feature names.
     """
     X_list = []
     y_list = []
@@ -123,7 +129,10 @@ def get_normalized_tensor(neighbourhood_size, parameter_names, folds, ignore = [
 
     return output_dict
     
-def sort_tensor(X, y, variance = None):
+def sort_tensor(X: tf.Tensor, y: tf.Tensor, variance = None) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    """
+    Sorts the tensors based on the value of y. The tensors X and variance have the same order.
+    """
     order = tf.argsort(y, axis=0, direction='DESCENDING')
     X = tf.gather(X, order)
     y = tf.gather(y, order)

@@ -1,10 +1,22 @@
+from typing import Tuple
+import numpy as np
 import pandas as pd
 import os
 from src.loading_data.station import Station
 import pygrib
 import pickle as pkl
 
-def load_stations():
+def load_stations() -> dict:
+    """
+    Load station data from CSV files in a specified folder and create a dictionary of Station objects.
+
+    This function reads each CSV file in the designated folder, extracts station information,
+    and creates a Station object for each station. The station objects are stored in a dictionary
+    with their codes as keys.
+
+    Returns:
+        dict: A dictionary where the keys are station codes and the values are Station objects.
+    """
     csv_folder = '/net/pc200002/nobackup/users/whan/WOW/KNMI_data/data/'
 
     station_dict = {}
@@ -39,7 +51,23 @@ def load_stations():
 
     return station_dict
 
-def find_grid_cell(lat, lon, lats, lons):
+def find_grid_cell(lat: int, lon: int, lats: np.ndarray, lons: np.ndarray) -> Tuple[int, int]:
+    """
+    Find the closest grid cell indices for a given latitude and longitude.
+
+    This function takes a latitude and longitude, along with arrays of latitudes and
+    longitudes from a grid, and finds the indices of the closest grid cell.
+
+    Args:
+        lat (float): The latitude of the point of interest.
+        lon (float): The longitude of the point of interest.
+        lats (numpy.ndarray): A 2D array of latitudes from the grid.
+        lons (numpy.ndarray): A 2D array of longitudes from the grid.
+
+    Returns:
+        tuple: A tuple containing the row and column indices (min_lat_index, min_lon_index)
+               of the closest grid cell.
+    """
     min_lat_diff = 100
     min_lon_diff = 100
     min_lat_index = 0
@@ -57,6 +85,7 @@ def find_grid_cell(lat, lon, lats, lons):
                 
     return min_lat_index, min_lon_index
 
+# Load all the stations.
 station_info = load_stations()
 
 grb_location = '/net/pc230023/nobackup/users/ameronge/windwinter/output/'
@@ -68,6 +97,7 @@ grbs = pygrib.open(grb_location + forecast)
 # Get the latitudes and longitudes of the GRBs
 lats, lons = grbs[1].latlons()
 
+# For each station we set the correct grid cell.
 for station in station_info.values():
     i, j = find_grid_cell(station.latitude, station.longitude, lats, lons)
     station.set_grid_cell(i, j)
@@ -78,6 +108,7 @@ location = '/net/pc200239/nobackup/users/hakvoort/'
 
 pickle_file_location = location + 'station_info.pkl'
 
+# Load all the information in a pickle file
 with open(pickle_file_location, 'wb') as file:
     pkl.dump(station_info, file)
 

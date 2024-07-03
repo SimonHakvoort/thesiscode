@@ -102,7 +102,23 @@ def get_tf_data(fold, feature_names, ignore = [], add_emos=True, features_emos_m
     return output
 
 
-def load_train_test_data(cv, feature_names, ignore = []):
+def load_train_test_data(cv: int, feature_names: dict, ignore: list = []) -> Tuple[tf.data.Dataset, tf.data.Dataset, dict]:
+    """
+    Loads the train and test set for cross-validation. 
+    Normalizes the training data, and then normalizes the test data with the mean and std from the training data.
+
+    Arguments:
+        cv (int): fold to load. 1, 2 and 3 are for validation, fold 0 contains the test set.
+        feature_names (dict): dictionary with names of the features that are loaded. As key they should contain the grid size.
+        ignore (list, optional): list of station IDs that are ignored.
+
+    Returns:
+        train_data (tf.data.Dataset): the training data.
+        test_data (tf.data.Dataset): the test data.
+        data_info (dict): a dictionary containing the mean and std of the training data.
+    """
+
+    # decide which folds to use for training and which for testing.
     if cv == 1:
         train_folds = [2,3]
         test_folds = [1]
@@ -118,7 +134,10 @@ def load_train_test_data(cv, feature_names, ignore = []):
     else:
         raise ValueError('Invalid value for cv')
     
+    # load the traninig data.
     train_data_dict = get_tf_data(train_folds, feature_names, ignore=ignore, add_emos=True, normalize_features=True)
+
+    # load the test data, which we normalize with the mean and std from the training data.
     test_data_dict = get_tf_data(test_folds, 
                                  feature_names, 
                                  ignore=ignore, 
@@ -141,9 +160,17 @@ def load_train_test_data(cv, feature_names, ignore = []):
 
     return train_data, test_data, extra_info
 
-def save_cv_data(feature_names, ignore = []):
-    # save the data in /net/pc200239/nobackup/users/hakvoort/cv_data where there is a folder containing the grid size of wind speed forecast, and in that folder there are the files for the different folds.
-    # The files should contain the data in the format of the output of load_train_test_data
+def save_cv_data(feature_names: dict, ignore: list = []) -> None:
+    """
+    Saves the data of all folds, such that they can be easily loaded back in.
+
+    Arguments:
+        feature_names (dict): a dict with 'wind_speed' as key and the corresponding grid size as value.
+        ignore (list, optional): list of stations to ignore.
+
+    Returns:
+        None.
+    """
 
     for fold in [0,1,2,3]:
         train_data, test_data, data_info = load_train_test_data(fold, feature_names, ignore = ignore)
@@ -161,7 +188,18 @@ def save_cv_data(feature_names, ignore = []):
             pickle.dump(data_info, f)
         
 
-def load_cv_data(cv, feature_names):
+def load_cv_data(cv: int, feature_names: dict) -> Tuple[tf.data.Dataset, tf.data.Dataset, dict]:
+    """
+    Loads a specific fold, for a specific grid size for the wind speeds.
+    This can be used after save_cv_data has been used.
+    
+    Arguments:
+        cv (int): 0, 1, 2 or 3, which specifies the fold.
+        feature_names (dict): a dict with 'wind_speed' as key and the corresponding grid size as value.
+
+    Returns:
+        The training data, the test data and addtional info about the fold (mean, std of the features) (Tuple[tf.data.Dataset, tf.data.Dataset, dict]).
+    """
     filepath = '/net/pc200239/nobackup/users/hakvoort/cv_data/' + str(feature_names['wind_speed']) + '/' + str(cv) + '/'
     train_data_filepath = filepath + 'train_data'
     test_data_filepath = filepath + 'test_data'

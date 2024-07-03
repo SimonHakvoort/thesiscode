@@ -7,6 +7,8 @@ import pickle as pkl
 import numpy as np
 from src.neural_networks.hyperopt_cnn import ObjectiveCNN
 
+filepath = '/net/pc200239/nobackup/users/hakvoort/hyperopt/hyperopt_cnn/'
+
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 features_names_dict = {name: 1 for name in features_names}
@@ -17,7 +19,7 @@ objectives = ['CRPS', 'twCRPS12']
 
 sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
 directions = ['minimize' for _ in range(len(objectives))]
-study = optuna.create_study(sampler=sampler, directions=directions) #, study_name='MOTPE_CRPS_CRPS12_less_epochs_final', storage=f'sqlite:///{directory}/study.db')
+study = optuna.create_study(sampler=sampler, directions=directions, study_name='hyperoptCNN_large_space', storage=f'sqlite:///{filepath}/study.db')
 
 objective = ObjectiveCNN(features_names_dict, objectives, train_amount=3)
 

@@ -149,7 +149,17 @@ def fold3_data(variable_names, initial_time = '0000', lead_time = '48'):
     return forecasts
 
 
-def pickle_fold_forecasts(variable_names, i, initial_time, lead_time):
+def pickle_fold_forecasts(variable_names: list, i: int, initial_time: str, lead_time: str) -> None:
+    """
+    Pickles a the Forecast objects, such that they can be loaded in later. 
+    No observations are added.
+
+    Arguments:
+        variable_names (list): a list of the variables that need to be included.
+        i (int): fold number, 0, 1, 2 or 3.
+        initial_time (str): the initial time, in the form 'HHMM'
+        lead_time (str): the lead time, in the form 'HH'
+    """
     nobackup = '/net/pc200239/nobackup/users/hakvoort/'
 
     if i == 1:
