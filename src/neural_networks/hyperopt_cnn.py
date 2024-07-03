@@ -87,7 +87,7 @@ class ObjectiveCNN:
 
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-        nn_forecast.fit(train_data, epochs, test_data, early_stopping=early_stopping)
+        nn_forecast.fit(train_data, epochs, test_data, early_stopping=early_stopping, verbose=0)
 
         objective_values = np.zeros(len(self.objectives))
         for i, objective in enumerate(self.objectives):
@@ -98,7 +98,16 @@ class ObjectiveCNN:
 
         return objective_values, best_epoch
     
-    def __call__(self, trial: optuna.Trial) -> Tuple[float, float]:
+    def __call__(self, trial: optuna.Trial) -> list:
+        """
+        This method chooses the hyperparameter, and returns the loss(es) in a list.
+
+        Arguments:
+            trial (optuna.Trial): an trial object which select parameters.
+
+        Returns:
+            the losst values in a list.
+        """
         setup = {}
 
         forecast_distribution = trial.suggest_categorical('Forecast Distribution', ['distr_trunc_normal', 'distr_log_normal', 'distr_mixture'])
@@ -131,7 +140,7 @@ class ObjectiveCNN:
         conv_3x3_units = 4
 
         sample_size = 1000
-        epochs = 200
+        epochs = 100
 
         setup_distribution = {
             'forecast_distribution': forecast_distribution,
@@ -177,13 +186,13 @@ class ObjectiveCNN:
 
         for fold in folds:
             losses = np.zeros(len(self.objectives))
-            for _ in range(self.train_amount):
+            for iteration in range(self.train_amount):
                 losses, best_epoch = self.train_on_fold_i(setup, fold, epochs, batch_size)
-
+                print("Model ", iteration + 1, " on fold ", fold, " has loss ", losses)
                 objective_values += losses
                 num_epochs.append(best_epoch)
 
-        losses /= (3 * self.train_amount)
+        objective_values /= (3 * self.train_amount)
         
         avg_epochs = np.mean(num_epochs)
 

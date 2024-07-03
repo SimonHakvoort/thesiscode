@@ -232,19 +232,57 @@ class NNForecast:
         return self._compute_CRPS(y_true, y_pred, sample_size)
     
     def _chain_function_indicator(self, x: tf.Tensor, threshold: tf.Tensor) -> tf.Tensor:
+        """
+        The chaining function of an indicator function.
+
+        Arguments:
+            x (tf.Tensor)
+            threshold (tf.Tensor)
+
+        Returns:
+            the maximum of x and threshold.
+        """
         return tf.maximum(x, threshold)
 
     
-    def _chain_function_indicator_for_twCRPS(self, x):
+    def _chain_function_indicator_for_twCRPS(self, x: tf.Tensor) -> tf.Tensor:
+        """
+        The chaining function for an indicator function, where the threshold is self.chain_function_threshold.
+
+        Arguments:
+            x (tf.Tensor)
+
+        Returns:
+            the maximum of x and self.chain_function_threshold (tf.Tensor)
+        """
         return self.chain_function_indicator(x, self.chain_function_threshold)
     
         
-    def _chain_function_normal_cdf(self, x, normal_distribution):
+    def _chain_function_normal_cdf(self, x: tf.Tensor, normal_distribution: tfp.distributions.Normal) -> tf.Tensor:
+        """
+        The chaining function of a normal cdf.
+
+        Arguments:
+            x (tf.Tensor).
+            normal_distribution (tfp.distribution.Normal).
+
+        Returns:
+            the chaining function with the cdf of the normal_distribution as weight function.
+        """
         first_part = (x - normal_distribution.loc) * normal_distribution.cdf(x)
         second_part = normal_distribution.scale ** 2 * normal_distribution.prob(x)
         return first_part + second_part 
     
-    def _chain_function_normal_cdf_for_twCRPS(self, x):
+    def _chain_function_normal_cdf_for_twCRPS(self, x: tf.Tensor) -> tf.Tensor:
+        """
+        The chaining function of a normal cdf with self.chain_function_normal_distribution.
+
+        Arguments:
+            x (tf.Tensor)
+
+        Returns:
+            The chaining function with as weight function the cdf of self.chain_function_normal_distribution.
+        """
         return self._chain_function_normal_cdf(x, self.chain_function_normal_distribution)
 
     def _chain_function_normal_cdf_plus_constant(self, x, normal_distribution, constant):
@@ -255,16 +293,49 @@ class NNForecast:
     def _chain_function_normal_cdf_plus_constant_for_twCRPS(self, x):
         return self._chain_function_normal_cdf_plus_constant(x, self.chain_function_normal_distribution, self.chain_function_constant)
     
-    def _twCRPS_10(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+    def _twCRPS_10(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+        """
+        Estimates twCRPS at threshold 10, with a sample size of 1000. Can be used to monitor this quantity during training.
+
+        Arguments:
+            y_true (tf.Tensor): the observed wind speed.
+            y_pred (tf.Tensor): the predicted values.
+
+        Returns:
+            An estimate of the twCRPS at threshold 10 (tf.Tensor).
+        """
         return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 10))
     
     def _twCRPS_12(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+        """
+        Estimates twCRPS at threshold 12, with a sample size of 1000. Can be used to monitor this quantity during training.
+
+        Arguments:
+            y_true (tf.Tensor): the observed wind speed.
+            y_pred (tf.Tensor): the predicted values.
+
+        Returns:
+            An estimate of the twCRPS at threshold 12 (tf.Tensor).
+        """
         return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 12))
     
     def _twCRPS_15(self, y_true: tf.Tensor, y_pred: tf.Tensor):
+        """
+        Estimates twCRPS at threshold 15, with a sample size of 1000. Can be used to monitor this quantity during training.
+
+        Arguments:
+            y_true (tf.Tensor): the observed wind speed.
+            y_pred (tf.Tensor): the predicted values.
+
+        Returns:
+            An estimate of the twCRPS at threshold 15 (tf.Tensor).
+        """
         return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 15))
     
-    def get_gev_shape(self, X):
+    def get_gev_shape(self, X: tf.Tensor):
+        """
+        Returns None if there is no GEV distribution in the parametric distribution. Otherwise it returns its shape.
+        """
         if not self.model.has_gev():
             return None
 

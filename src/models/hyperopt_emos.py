@@ -110,7 +110,16 @@ class Objective:
 
         return objective_values, additional_metrics
 
-    def __call__(self, trial):
+    def __call__(self, trial: optuna.Trial) -> list:
+        """
+        This method chooses the hyperparameter, and returns the loss(es) in a list.
+
+        Arguments:
+            trial (optuna.Trial): an trial object which select parameters.
+
+        Returns:
+            the losst values in a list.
+        """
         chain_function = "chain_function_normal_cdf_plus_constant"
         chain_function_mean = None
         chain_function_std = None
