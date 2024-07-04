@@ -1,5 +1,3 @@
-
-
 class Station():
     """
     A station object, which stores the latitude, longitude, altitude of a station.
@@ -13,7 +11,7 @@ class Station():
         self.altitude = altitude
         self.gridcell = None
 
-    def set_grid_cell(self, i: int, j: int):
+    def set_grid_cell(self, i: int, j: int) -> None:
         """
         Set the grid cell to a value.
         """

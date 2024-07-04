@@ -1,11 +1,11 @@
 import copy
 import os
 import pickle
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Union
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from src.models.forecast_distributions import TruncatedNormal, LogNormal, GEV, Mixture, MixtureLinear, GEV2, GEV3, distribution_name, initialize_distribution
+from src.models.forecast_distributions import Mixture, MixtureLinear, initialize_distribution
 from src.neural_networks.get_data import load_cv_data 
 import time
 tfpd = tfp.distributions
@@ -386,7 +386,17 @@ class EMOS:
 
         return model_dict
     
-    def get_gev_shape(self, X: tf.Tensor):
+    def get_gev_shape(self, X: tf.Tensor) -> Union[np.ndarray, None]:
+        """
+        Returns the shape of the GEV distribution in case this is part of the parametric distribution.
+        The output has the same first dimension (sample size) as X.
+
+        Arguments:
+            X (tf.Tensor): a Tensor (features_emos) for which we want to compute the GEV shape.
+
+        Returns:
+            The GEV shape or None.
+        """
         gev_shape = self.forecast_distribution.get_gev_shape()
 
         if gev_shape is None:
@@ -436,16 +446,24 @@ class EMOS:
         forecast_distribution = self.forecast_distribution.get_distribution(X)
         return -tf.reduce_mean(forecast_distribution.log_prob(y))
     
-    def get_prob_distribution(self, data: tf.data.Dataset):
+    def get_prob_distribution(self, data: tf.data.Dataset) -> Tuple[tfp.distributions.Distribution, tf.Tensor]:
+        """
+        Returns the distribution and the observations a single batch taken from data.
+
+        Arguments:
+            data (tf.data.Dataset): the data for which we want to compute the distribution
+
+        Returns:
+            The distribution and the observations.
+        """
         X, y = next(iter(data))
         distributions = self.forecast_distribution.get_distribution(X['features_emos'])
-        observations = y
 
-        return distributions, observations
+        return distributions, y
     
     def CRPS(self, data: tf.data.Dataset, samples: int) -> float:
         """
-        Compute the CRPS for the given data, using the specified sample size
+        Estimates the CRPS for the given data, using the specified sample size
 
         Arguments:
             data (tf.data.Dataset): the dataset containing the input data and observations.
@@ -478,13 +496,23 @@ class EMOS:
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
 
-        # y will be broadcasted to the shape of X_1 and X_2
+        # y will be broadcasted to the shape of X_1.
         E_1 = tf.reduce_mean(tf.abs(X_1 - y), axis=0)
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
 
         return E_1 - 0.5 * E_2
     
-    def loss_cPIT(self, X, y):
+    def loss_cPIT(self, X: tf.Tensor, y: tf.Tensor):
+        """
+        Loss function that can be used where we minimize the cPIT scores for threshold 0, 5, 10 and 15.
+
+        Arguments:
+            X (tf.Tensor): the features.
+            y (tf.Tensor): the observations.
+
+        Returns:
+            The average cPIT score over the thresdholds.
+        """
         return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in [0, 5, 10, 15]])
     
     def calc_cPIT(self, X: tf.Tensor, y: tf.Tensor, t: float) -> tf.Tensor:
@@ -674,7 +702,7 @@ class EMOS:
     def _compute_loss_and_gradient(self, X: tf.Tensor, y: tf.Tensor, w: tf.Tensor) -> Tuple[tf.Tensor, List[tf.Tensor]]:
         """
         Compute the loss and the gradient of the loss with respect to the parameters of the model, 
-        which are the parameters of the forecast distribution.
+        which are the parameters of the forecast distribution. 
 
         Arguments:
             X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
@@ -682,7 +710,7 @@ class EMOS:
             w (tf.Tensor): the weights of the samples with shape (n,)
 
         Returns:
-            loss_value: the loss value.
+            loss_value: the weighted loss value.
             grads: the gradients of the loss with respect to the parameters of the model.
         """
         with tf.GradientTape() as tape:
