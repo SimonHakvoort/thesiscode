@@ -70,7 +70,18 @@ def make_forecast(year, month, day, initial_time, lead_time, variable_names):
     else:
         raise ValueError("File does not exist!")
 
-def validation_data(variable_names, initial_time = '0000', lead_time = '48'):
+def test_data(variable_names: list[str], initial_time: str = '0000', lead_time: str = '48') -> list[Forecast]:
+    """
+    Makes Forecast objects for the test data.
+
+    Arguments:
+        variable_names (list[str]): a list of variables to include in the Forecast objects.
+        initial_time (str, 'HHMM'): the time when the forecast is initialized.
+        lead_time (str, 'HH'): the lead time of the forecast.
+
+    Returns:
+        A list of Forecast objects for the test data.
+    """
     forecasts = []
     for year in range(2018, 2020):
         for month in range(1, 13):
@@ -82,7 +93,18 @@ def validation_data(variable_names, initial_time = '0000', lead_time = '48'):
                     continue
     return forecasts
 
-def fold1_data(variable_names, initial_time = '0000', lead_time = '48'):
+def fold1_data(variable_names: list[str], initial_time: str = '0000', lead_time: str = '48') -> list[Forecast]:
+    """
+    Makes Forecast objects for fold 1.
+
+    Arguments:
+        variable_names (list[str]): a list of variables to include in the Forecast objects.
+        initial_time (str, 'HHMM'): the time when the forecast is initialized.
+        lead_time (str, 'HH'): the lead time of the forecast.
+
+    Returns:
+        A list of Forecast objects for fold 1.
+    """
     forecasts = []
     year = 2015
     for month in range(10, 13):
@@ -104,7 +126,18 @@ def fold1_data(variable_names, initial_time = '0000', lead_time = '48'):
 
     return forecasts
 
-def fold2_data(variable_names, initial_time = '0000', lead_time = '48'):
+def fold2_data(variable_names: list[str], initial_time: str = '0000', lead_time: str = '48') -> list[Forecast]:
+    """
+    Makes Forecast objects for fold 2.
+
+    Arguments:
+        variable_names (list[str]): a list of variables to include in the Forecast objects.
+        initial_time (str, 'HHMM'): the time when the forecast is initialized.
+        lead_time (str, 'HH'): the lead time of the forecast.
+
+    Returns:
+        A list of Forecast objects for fold 2.
+    """
     forecasts = []
     year = 2016
     for month in range(10, 13):
@@ -126,7 +159,18 @@ def fold2_data(variable_names, initial_time = '0000', lead_time = '48'):
 
     return forecasts
 
-def fold3_data(variable_names, initial_time = '0000', lead_time = '48'):
+def fold3_data(variable_names: list[str], initial_time: str = '0000', lead_time: str = '48') -> list[Forecast]:
+    """
+    Makes Forecast objects for fold 3.
+
+    Arguments:
+        variable_names (list[str]): a list of variables to include in the Forecast objects.
+        initial_time (str, 'HHMM'): the time when the forecast is initialized.
+        lead_time (str, 'HH'): the lead time of the forecast.
+
+    Returns:
+        A list of Forecast objects for fold 3.
+    """
     forecasts = []
     year = 2017
     for month in range(10, 13):
@@ -152,7 +196,8 @@ def fold3_data(variable_names, initial_time = '0000', lead_time = '48'):
 def pickle_fold_forecasts(variable_names: list, i: int, initial_time: str, lead_time: str) -> None:
     """
     Pickles a the Forecast objects, such that they can be loaded in later. 
-    No observations are added.
+    No observations are added. We denote with fold 0 the test data. 
+    Saves the Forecast under the name 'date_leadtime.pkl'.
 
     Arguments:
         variable_names (list): a list of the variables that need to be included.
@@ -172,10 +217,10 @@ def pickle_fold_forecasts(variable_names: list, i: int, initial_time: str, lead_
         forecasts = fold3_data(variable_names, initial_time, lead_time)
         folder_base = 'fold3data'
     elif i == 0:
-        forecasts = validation_data(variable_names, initial_time, lead_time)
+        forecasts = test_data(variable_names, initial_time, lead_time)
         folder_base = 'fold0data'
     else:
-        raise ValueError("Invalid value for i. Expected values: 0, 1, 2, or 3.")
+        raise ValueError("Invalid value for i. Expected values: 0 (test data), 1, 2, or 3.")
 
     counter = 0
     folder = os.path.join(nobackup, folder_base)

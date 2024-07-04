@@ -19,8 +19,8 @@ objectives = ['CRPS', 'twCRPS12']
 
 sampler = optuna.samplers.MOTPESampler(n_startup_trials=20)
 directions = ['minimize' for _ in range(len(objectives))]
-study = optuna.create_study(sampler=sampler, directions=directions, study_name='hyperoptCNN_large_space', storage=f'sqlite:///{filepath}/study.db')
+study = optuna.create_study(sampler=sampler, directions=directions, study_name='hyperoptCNN_large_space_log_l2', storage=f'sqlite:///{filepath}/study.db')
 
-objective = ObjectiveCNN(features_names_dict, objectives, train_amount=3)
+objective = ObjectiveCNN(features_names_dict, objectives, train_amount=2)
 
 study.optimize(objective)

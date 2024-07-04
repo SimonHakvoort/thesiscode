@@ -96,6 +96,8 @@ class ObjectiveCNN:
 
         best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 
+        print("The best epoch is number: ", best_epoch)
+
         return objective_values, best_epoch
     
     def __call__(self, trial: optuna.Trial) -> list:
@@ -126,7 +128,7 @@ class ObjectiveCNN:
         optimizer = trial.suggest_categorical('Optimizer', ['adam', 'sgd'])
         learning_rate = trial.suggest_float('Learning Rate', 0.0001, 0.1)
 
-        dense_l2_regularization = trial.suggest_float('L2 Regularization', 0.00005, 0.1)
+        dense_l2_regularization = trial.suggest_float('L2 Regularization', 0.00005, 0.1, log=True)
 
         number_of_layers = trial.suggest_int('Number of Layers', 1, 5)
         number_of_units = trial.suggest_int('Number of Units per Layer', 30, 200, step=10)

@@ -6,20 +6,47 @@ import pickle
 from typing import Dict, Tuple
 from src.models.get_data import get_fold_i, get_station_info
 
-def get_tf_data(fold, feature_names, ignore = [], add_emos=True, features_emos_mean = None, features_emos_std = None, normalize_features = True, features_1d_mean = None, features_1d_std = None):
+def get_tf_data(fold, 
+                feature_names: dict,
+                ignore: list[str] = [],
+                add_emos: bool = True,
+                features_emos_mean: tf.Tensor = None, 
+                features_emos_std: tf.Tensor = None, 
+                normalize_features: bool = True, 
+                features_1d_mean: tf.Tensor = None, 
+                features_1d_std: tf.Tensor = None) -> dict:
     """
-    Generates a TensorFlow Dataset from given forecast data.
+    Generates a TensorFlow Dataset from given forecast data. 
+
+    The output is a dictionary with the following keys:
+        'features_1d_mean' (tf.Tensor): the mean of the features except the wind speed.
+        'features_1d_std' (tf.Tensor): the std of the features except the wind speed.
+        'features_emos_mean' (tf.Tensor): the mean of all of the features (including wind speed).
+        'features_emos_std' (tf.Tensor): the std of all of the features (including wind speed).
+        'data' (tf.data.Dataset): the data.
+        'ignore' (list[str]): the codes of the station names that are ignored.
+        'feature_names' (dict): the feature names (the value is should be 1 for all the features, except for wind_speed, then it contains the grid size).
+
+    Each element in data consists of two parts, X and y. X is a dictionary containing multiple features, which can be used for training neural networks and
+    linear regression. The value y is a tf.Tensor, containing the observation.
+
+    The following keys are contained in the dictionary X:
+        'features_emos' (tf.Tensor): a Tensor containing the features from 'feature_names', each is a real valued number.
+        'features_1d' (tf.Tensor): a Tensor containing the features from 'feature_names' except for the wind speed.
+        'wind_speed_grid' (tf.Tensor): a grid of the wind speeds, where the size is determined by the value in feature_names. The observation station is in the central grid point.
+        'wind_speed_forecast' (tf.Tensor): the forecasted wind speed, which is never normalized.
+
 
     Parameters:
     fold (int or iterable): Specifies the fold(s) of data to include in the dataset.
-    feature_names (dict): Dictionary mapping feature names to their dimensions.
-    ignore (list, optional): List of features to ignore. Defaults to an empty list.
-    add_emos (bool, optional): Whether to add emotion-related features. Defaults to True.
-    features_emos_mean (Tensor, optional): Mean of emotion-related features. Used for normalization.
-    features_emos_std (Tensor, optional): Standard deviation of emotion-related features. Used for normalization.
-    normalize_features (bool, optional): Whether to normalize 1D features. If None, no normalization is performed.
-    features_1d_mean (Tensor, optional): Mean of 1D features. Used for normalization.
-    features_1d_std (Tensor, optional): Standard deviation of 1D features. Used for normalization.
+    feature_names (dict): Dictionary mapping feature names to their dimensions (should be 1 for all features except for wind speed).
+    ignore (list, optional): List of stations to ignore. Defaults to an empty list.
+    add_emos (bool, optional): Whether to add the key 'features_emos'. Defaults to True.
+    features_emos_mean (Tensor, optional): Mean of 'features_emos'. Used for normalization.
+    features_emos_std (Tensor, optional): Standard deviation of 'features_emos. Used for normalization.
+    normalize_features (bool, optional): Whether to normalize 'features_1d'. If False, no normalization is performed.
+    features_1d_mean (Tensor, optional): Mean of 'features_1d'. Used for normalization.
+    features_1d_std (Tensor, optional): Standard deviation of 'features_1d'. Used for normalization.
 
     Returns:
     dict: A dictionary containing the generated TensorFlow Dataset and additional information such as feature names, ignored features, and normalization parameters (if applicable).
@@ -70,7 +97,7 @@ def get_tf_data(fold, feature_names, ignore = [], add_emos=True, features_emos_m
         X['features_emos'] = (X['features_emos'] - features_emos_mean) / features_emos_std
 
 
-    # To ensure that the wind_speed_grid is a 3D tensor, where the final dimension is for the number of channels.
+    # To ensure that the wind_speed_grid is a 3D tensor, where the final dimension is for the number of channels (which is equal to 1 in our case).
     if 'wind_speed_grid' in X:
         X['wind_speed_grid'] = tf.expand_dims(X['wind_speed_grid'], axis=-1)
 
@@ -212,33 +239,45 @@ def load_cv_data(cv: int, feature_names: dict) -> Tuple[tf.data.Dataset, tf.data
     
     return train_data, test_data, data_info
 
-        
 
+def stack_1d_features(features: dict, label: tf.Tensor) -> Tuple[dict, tf.Tensor]:
+    """
+    This function makes from all the features that have a 1-dimensional shape a single tf.Tensor.
+    It only skips the features 'station_code' and 'wind_speed_forecast'.
 
-def stack_1d_features(features, label):
-    
+    Arguments:
+        features (dict): the features (X) of the tf.data.Dataset.
+        label (tf.Tensor): the observed wind speed (y).
+
+    Returns:
+        features (dict), where all the features that are 1-dimensional stacked, and the corresponding keys removed. The rest of the dictionary is not changed.
+        label (tf.Tensor), the observed wind speed.
+    """
+    # get a list of the keys for the features that are removed.
     feature_names_1d = [key for key, value in features.items() if value.shape == () and key != 'wind_speed_forecast' and key != 'station_code']
+
+    # stack the features and add them under a new key, 'features_1d'
     features_1d = [features[key] for key in feature_names_1d]
     features_1d = tf.stack(features_1d, axis=0)
     features['features_1d'] = features_1d
 
-    # remove the 1d features
+    # remove the 1d features since they are now contained in 'features_1d'
     for key in feature_names_1d:
         features.pop(key)
 
     return features, label
 
-def normalize_1d_features(dataset):
+def normalize_1d_features(dataset: tf.data.Dataset) -> Tuple[tf.data.Dataset, tf.Tensor, tf.Tensor]:
     """
-    Normalizes the key 'features_1d' in the given dataset.
+    Normalizes the key 'features_1d' in the given dataset, by computing the mean and standard deviation.
 
     Args:
         dataset (tf.data.Dataset): The dataset containing the features to be normalized.
 
     Returns:
         tf.data.Dataset: The normalized dataset.
-        float: The mean value used for normalization.
-        float: The standard deviation value used for normalization.
+        mean (tf.Tensor): The mean value used for normalization.
+        std (tf.Tensor): The standard deviation value used for normalization.
     """
     
     mean = 0
@@ -261,14 +300,14 @@ def normalize_1d_features(dataset):
     
     return dataset.map(normalize), mean, std
 
-def normalize_1d_features_with_mean_std(dataset, mean, std):
+def normalize_1d_features_with_mean_std(dataset: tf.data.Dataset, mean: tf.Tensor, std: tf.Tensor):
     """
     Normalizes the key 'features_1d' in the given dataset using the provided mean and standard deviation.
 
     Args:
         dataset (tf.data.Dataset): The dataset containing the features to be normalized.
-        mean (float): The mean value used for normalization.
-        std (float): The standard deviation value used for normalization.
+        mean (tf.Tensor): The mean value used for normalization.
+        std (tf.Tensor): The standard deviation value used for normalization.
 
     Returns:
         tf.data.Dataset: The normalized dataset.

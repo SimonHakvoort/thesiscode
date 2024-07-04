@@ -37,9 +37,9 @@ def addobservation(folder_pickle_files: str, csv_name: str) -> None:
         if file.endswith('.pkl'):
             datestring = file[:10]
             pickle_date = dt.datetime.strptime(datestring, '%Y-%m-%d')
+            # Check whether the observations and date overlap
             if not start <= pickle_date <= end:
                 continue
-
 
             with open(folder_pickle_files + file , 'rb') as f:
                 sample = pkl.load(f)
