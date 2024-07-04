@@ -80,19 +80,28 @@ class ObjectiveCNN:
             the objective values and the best epoch.
         """
         train_data, test_data = self.get_data_i(fold, batch_size)
-
         train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
-
-        nn_forecast = NNForecast(**setup)
 
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-        nn_forecast.fit(train_data, epochs, test_data, early_stopping=early_stopping, verbose=0)
+        attempt = 0
+        max_attempts = 5
+        success = False
+
+        while not success and attempt < max_attempts:
+            try:
+                nn_forecast = NNForecast(**setup)
+                nn_forecast.fit(train_data, epochs, test_data, early_stopping=early_stopping, verbose=0)
+                success = True
+            except tf.errors.InvalidArgumentError as e:
+                print(f"Attempt {attempt + 1} failed with error: {e}")
+                attempt += 1
+                if attempt >= max_attempts:
+                    raise RuntimeError("Max attempts reached. Unable to train NNForecast successfully.")
 
         objective_values = np.zeros(len(self.objectives))
         for i, objective in enumerate(self.objectives):
             objective_values[i] = self.compute_objective(nn_forecast, objective, test_data)
-
 
         best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 

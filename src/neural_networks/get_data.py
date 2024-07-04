@@ -65,6 +65,7 @@ def get_tf_data(fold,
     for forecasts in fold_list:
         for forecast in forecasts:
             if forecast.has_observations():
+                # Makes for each observation in the Forecast a ForecastSample and puts them in a list.
                 samples = forecast.generate_ForecastSample(station_info, feature_names, ignore = ignore)
                 for sample in samples:
                     X_dicts.append(sample.get_X())
@@ -80,7 +81,7 @@ def get_tf_data(fold,
     y = tf.convert_to_tensor(y_list)
 
     if add_emos is True:        
-        # Add a key 'features_emos' to X that contains all the features_names that are 1D, and the centre grid cell of wind_speed_grid
+        # Add a key 'features_emos' to X that contains all the features_names that are 1D, and the center grid cell of wind_speed_grid
         temp = {}
         for feature in feature_names:
             if feature_names[feature] == 1:
@@ -346,7 +347,8 @@ def make_importance_sampling_dataset(data: tf.data.Dataset, factors: dict) -> tf
 
     datasets = []
     previous_bound = 0
-
+    
+    # We the construct seperate tf.data.Datasets for each bucket, and add a weight to it.
     for bound in bounds:
         factor = factors[bound]
         filtered_data = data.filter(lambda X, y, lb=previous_bound, ub=bound: filter_func(X, y, lb, ub))

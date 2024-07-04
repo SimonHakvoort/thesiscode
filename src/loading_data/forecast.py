@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 import numpy as np
 from datetime import datetime, timedelta
 from src.loading_data.station import Station
@@ -8,7 +8,7 @@ import tensorflow as tf
 class Forecast:
     """
     The Forecast class represents a forecast. It contains the day and time that the forecast is made, the lead time and the wind speed.
-    It can optionally contain other variables. These other variables and the wind speed are stored as numpy arrays.
+    It can optionally contain other variables. These other variables and the wind speed are stored as 2-dimensional numpy arrays.
     We can add observations to the forecast, which are stored in a dictionary with the station code as key and the observation and date_time as value.
     """
     def __init__(self, date: str, initial_time: str, lead_time: str, u_wind10: np.ndarray, v_wind10: np.ndarray, **kwargs):
@@ -98,55 +98,80 @@ class Forecast:
         # check if the forecast has observations
         return len(self.observations) > 0
     
-    def get_grid_variable(self, station, variable_name, grid_size):
+    def get_grid_variable(self, station: Station, variable_name: str, grid_size: int) -> np.ndarray:
+        """
+        Based on a Station and feature it takes the surrounding grid around the station for the feature.
+
+        Arguments:
+            station (Station): station that we want to find the surrounding grid for.
+            variable_name (str): name of the feature
+            grid_size (int): size of the grid
+
+        Returns:
+            The 2-dimensional grid (np.ndarray).
+        """
         i, j = station.gridcell
         half = grid_size // 2
         variable = getattr(self, variable_name)
         return variable[i - half:i + half + 1, j - half:j + half + 1]
     
-    def get_sample_grid(self, station, parameter_names):
-        # parameter names is a dict, with as key the parameter name and as value the grid size. If grid size = 1 or 0 or None, the value at the gridcell is returned
+    # def get_sample_grid(self, station, parameter_names):
+    #     # parameter names is a dict, with as key the parameter name and as value the grid size. If grid size = 1 or 0 or None, the value at the gridcell is returned
 
-        X = []
-        y = self.observations[station.code][0]
-        for key, value in parameter_names.items():
-            if key == 'spatial_variance':
-                if value == None:
-                    raise ValueError('Neighbourhood size must be specified when using spatial variance as a predictor')
-                X.append(self.neighbourhood_variance(station.gridcell, value))
-            else:
-                if value == 0 or value == 1 or value == None:
-                    X.append(getattr(self, key)[station.gridcell])
-                else:
-                    X.append(self.get_grid_variable(station, key, value))
+    #     X = []
+    #     y = self.observations[station.code][0]
+    #     for key, value in parameter_names.items():
+    #         if key == 'spatial_variance':
+    #             if value == None:
+    #                 raise ValueError('Neighbourhood size must be specified when using spatial variance as a predictor')
+    #             X.append(self.neighbourhood_variance(station.gridcell, value))
+    #         else:
+    #             if value == 0 or value == 1 or value == None:
+    #                 X.append(getattr(self, key)[station.gridcell])
+    #             else:
+    #                 X.append(self.get_grid_variable(station, key, value))
 
-        return X, y
+    #     return X, y
     
-    def generate_all_samples_grid(self, station_info, parameter_names, station_ignore = []):
-        X = {}
-        y = []
-        for station in station_info.values():
-            if station.code in self.observations and station.code not in station_ignore:
-                X[station.code], observation = self.get_sample_grid(station, parameter_names)
-                y.append(observation)
+    # def generate_all_samples_grid(self, station_info, parameter_names, station_ignore = []):
+    #     X = {}
+    #     y = []
+    #     for station in station_info.values():
+    #         if station.code in self.observations and station.code not in station_ignore:
+    #             X[station.code], observation = self.get_sample_grid(station, parameter_names)
+    #             y.append(observation)
         
-        return X, y
+    #     return X, y
     
-    def generate_ForecastSample(self, station_info, variable_names, ignore = []):
-        samples = []
+    def generate_ForecastSample(self, station_info: dict, variable_names: dict, ignore: list = []) -> list:
+        """
+        Makes for all stations in station_info (except for the ones in ignore) a ForecastSample (which contains only the relevant information, not the full grids).
+
+        Arguments:
+            station_info (dict): a dictionary containing station codes as keys and Station objects as values.
+            variable_names (dict): a dictionary with as keys the name of the features that need to get included (should be 1 for all features except for the wind speed).
+            ignore (list): a list of station codes that need to be ignored.
+        """
+        samples_list = []
         for station in station_info.values():
             if station.code in self.observations and station.code not in ignore:
                 sample = ForecastSample(variable_names, station.code)
+
+                
                 for variable_name, grid_size in variable_names.items():
+                    # we add each feature to the ForecastSample
                     if grid_size == 0 or grid_size == 1 or grid_size == None:
                         sample.add_feature(variable_name, getattr(self, variable_name)[station.gridcell])
+
+                    # in case grid size is not 1, we add _grid to the name of the feature.
                     else:
                         sample.add_feature(variable_name, self.get_grid_variable(station, variable_name, grid_size))
+                
+                # we add the obervation to the Forecast Sample
                 sample.add_y(self.observations[station.code][0])
-                samples.append(sample)
-        return samples
-        
 
+                samples_list.append(sample)
+        return samples_list
         
 
     def generate_all_samples(self, station_info, variable_names, station_ignore = [], neighbourhood_size = None):
@@ -192,9 +217,6 @@ class ForecastSample():
         add_y(y: float):
             Sets the observed value at the station.
         
-        get_tensor() -> Tuple[tf.Tensor, tf.Tensor]:
-            Returns the features and observed value as tensors.
-        
         check_if_everything_is_set() -> bool:
             Checks if all features and the observed value are set.
         
@@ -212,7 +234,7 @@ class ForecastSample():
             setattr(self, feature_name, None)
         self.y = None
 
-    def add_feature(self, feature_name: str, value: np.ndarray) -> None:
+    def add_feature(self, feature_name: str, value: Union[np.ndarray, float]) -> None:
         """
         Adds a features to the class.
 
@@ -233,11 +255,11 @@ class ForecastSample():
         """
         self.y = y
 
-    def get_tensor(self) -> tf.Tensor:
-        """
-        Converts the values of the features to tensors.
-        """
-        return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32), tf.convert_to_tensor(self.y, dtype=tf.float32)
+    # def get_tensor(self) -> tf.Tensor:
+    #     """
+    #     Converts the values of the features to tensors.
+    #     """
+    #     return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32), tf.convert_to_tensor(self.y, dtype=tf.float32)
     
     def check_if_everything_is_set(self) -> bool:
         """
@@ -249,15 +271,17 @@ class ForecastSample():
         for feature_name in self.feature_names:
             if getattr(self, feature_name) is None:
                 return False
+            
         return self.y is not None
     
     def get_X(self) -> dict:
         """
-        Makes a dictionary, with as keys the feature names and as values the associated value, which can be a grid (np.ndarray) or a singular value.
+        Makes a dictionary, with as keys the feature names and as values the associated value, which can be a grid (in case of wind speed) or a singular value.
         All the values are converted to tensors.
         """
         if not self.check_if_everything_is_set():
             raise ValueError('Not all features are set')
+        
         # make a dictionary with the feature names as keys and the values as tensors. In case of a grid, the name of the key is the feature name + '_grid'
         X = {}
         for feature_name in self.feature_names:
