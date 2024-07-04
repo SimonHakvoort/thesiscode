@@ -12,7 +12,7 @@ features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
-folds = [1,2,3]
+folds = [0,1,2,3]
 
 folder = '/net/pc200239/nobackup/users/hakvoort/models/climatology/'
 
