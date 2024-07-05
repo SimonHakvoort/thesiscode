@@ -9,26 +9,32 @@ from src.neural_networks.nn_forecast import NNForecast
 def comp_twcrpss(model_ref, model, X, y, threshold, sample_size = 1000):
     return 1 - model.twCRPS(X, y, threshold, sample_size).numpy() / model_ref.twCRPS(X, y, threshold, sample_size).numpy()
 
-### Should get deleted.
-def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
-    scores = []
-    print("This is an old function!!!!")
-    if type(model) == EMOS:
-        scores = model.twCRPS(data, thresholds, sample_size)
-    elif type(model) == NNForecast:
-        scores = model.twCRPS(data, thresholds, sample_size)
-    elif isinstance(model, Climatology):
-        scores = model.twCRPS(data, thresholds, sample_size)
-    else:
-        raise ValueError('Model type not recognized')
-    return scores
+# ### Should get deleted.
+# def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
+#     scores = []
+#     print("This is an old function!!!!")
+#     if type(model) == EMOS:
+#         scores = model.twCRPS(data, thresholds, sample_size)
+#     elif type(model) == NNForecast:
+#         scores = model.twCRPS(data, thresholds, sample_size)
+#     elif isinstance(model, Climatology):
+#         scores = model.twCRPS(data, thresholds, sample_size)
+#     else:
+#         raise ValueError('Model type not recognized')
+#     return scores
 
 
 
 
-def make_twcrpss_plot_tf(base_model, model_dict: dict, data: tf.data.Dataset, values: np.ndarray, ylim: tuple = None, sample_size: int = 1000, base_model_name: str = 'Reference Model'):
+def make_twcrpss_plot_tf(base_model, 
+                         model_dict: dict, 
+                         data: tf.data.Dataset, 
+                         values: np.ndarray, 
+                         ylim: tuple = None, 
+                         sample_size: int = 1000, 
+                         base_model_name: str = 'Reference Model'):
     """
-    Plots the thesdhold-weighted CRPS (twCRPS) for the models, which is a dict for the numbers in values. 
+    Plots the theshold-weighted CRPS (twCRPS) for the models (stored in a dict) for the thresholds in values. 
     Evaluates the performance for a single batch in data.
 
     Arguments:

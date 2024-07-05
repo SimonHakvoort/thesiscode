@@ -5,7 +5,7 @@ import pickle
 
 import pdb
 
-from src.neural_networks.nn_distributions import NNDistribution, NNTruncNormal
+from src.neural_networks.nn_distributions import NNDistribution
 
 class NNBaseModel(Model):
     
@@ -71,9 +71,26 @@ class NNModel(NNBaseModel):
 
 class NNConvModel(NNBaseModel):
     """
-    A CNN implemented with Keras. The attribute _forecast_distribution contains the specific forecast distribution of the model.
+    Convolutional Neural Network (CNN) model implemented with Keras.
+
+    The attribute _forecast_distribution contains the specific forecast distribution of the model.
+
+    It uses 7x7, 5x5 and 3x3 convolutional blocks, each followed by batch normalization.
+    The output of the final convolutional block is concatenated with 'features_1d'. Then there are 
+    dense blocks, followed by an output which is dependent in the parametric distribution of the forecast.
     """
     def __init__(self, forecast_distribution, **kwargs):
+        """
+        Initialize the CNN model with given forecast distribution and optional keyword arguments.
+
+        kwargs should contain the following keys:
+            hidden_units_list (list): List of units for hidden dense layers. Each element stands for a single hidden layer.
+            dense_l1_regularization (float): L1 regularization factor for dense layers.
+            dense_l2_regularization (float): L2 regularization factor for dense layers.
+            conv_7x7_units (int): Number of 7x7 convolutional units.
+            conv_5x5_units (int): Number of 5x5 convolutional units.
+            conv_3x3_units (int): Number of 3x3 convolutional units.
+        """
         super(NNConvModel, self).__init__()
 
         self._forecast_distribution = forecast_distribution
@@ -81,6 +98,7 @@ class NNConvModel(NNBaseModel):
         if not kwargs:
             return
 
+        # A list containing the dense layers.
         self.hidden_layers = []
 
         for units in kwargs['hidden_units_list']:
@@ -94,10 +112,14 @@ class NNConvModel(NNBaseModel):
                 regularizer = None
             self.hidden_layers.append(Dense(units, activation='relu', kernel_regularizer=regularizer))
 
+
         self.output_layers = forecast_distribution.build_output_layers()
 
+        # Used to concatenate the output of the convolutional block with 'features_1d'.
         self.concatenate = Concatenate()
 
+        # Initialize the 7x7, 5x5 and 3x3 convolutions. After every convolution we apply batch normalization
+        # After each convolutional block we apply 2x2 max pooling.
         self.conv_7x7_layers = []
         self.conv_5x5_layers = []
         self.conv_3x3_layers = []
@@ -105,7 +127,6 @@ class NNConvModel(NNBaseModel):
         self.batch_norm_7x7_layers = []
         self.batch_norm_5x5_layers = []
         self.batch_norm_3x3_layers = []
-
 
         for _ in range(kwargs['conv_7x7_units']):
             self.conv_7x7_layers.append(Conv2D(8, (7, 7), activation='relu', padding='same'))
@@ -121,8 +142,6 @@ class NNConvModel(NNBaseModel):
 
         self.max_pooling_2x2 = MaxPooling2D((2, 2))
 
-        
-
         self.setup = {
             'hidden_units_list': kwargs['hidden_units_list'],
             'dense_l2_regularization': kwargs['dense_l2_regularization'],
@@ -133,13 +152,27 @@ class NNConvModel(NNBaseModel):
         }
 
 
-    def call(self, inputs):
+    def call(self, inputs: dict) -> tf.Tensor:
+        """
+        Perform the forward pass of the CNN model.
+
+        Args:
+            inputs (dict): Dictionary containing input tensors:
+                           - 'wind_speed_grid': Grid input for wind speed.
+                           - 'features_1d': 1D features input.
+                           - 'wind_speed_forecast': Wind speed forecast input.
+
+        Returns:
+            tf.Tensor: Output tensor from the model.
+        """
+        # Extract the features from the data.
         grid_input = inputs['wind_speed_grid']
         features_1d = inputs['features_1d']
         wind_speed_forecast = inputs['wind_speed_forecast']
 
         x = grid_input
 
+        # Put the grid_input through the convolutional block.
         for layer, batch_norm in zip(self.conv_7x7_layers, self.batch_norm_7x7_layers):
             x = layer(x)
             x = batch_norm(x)
@@ -160,17 +193,35 @@ class NNConvModel(NNBaseModel):
 
         x = Flatten()(x)
 
+        # Concatenate the inputs and put it through the dense layers.
         x = Concatenate()([x, Flatten()(features_1d)])
 
         for layer in self.hidden_layers:
             x = layer(x)
 
+        # Concatenate the output of the final layer with the wind_speed_forecast.
         x = Concatenate()([x, Flatten()(wind_speed_forecast)])
 
+        # Each output is an element of output_layers. This is dependend on the parametric distribution.
         outputs = self.concatenate([layer(x) for layer in self.output_layers])
         
         return outputs
     
-    def has_gev(self):
+    def has_gev(self) -> bool:
+        """
+        Check if the forecast distribution contains the Generalized Extreme Value (GEV) distribution.
+
+        Returns:
+            bool: True if the forecast distribution contains GEV, False otherwise.
+        """
         return self._forecast_distribution.has_gev()
+    
+    def get_forecast_distribution(self) -> NNDistribution:
+        """
+        Returns the parametric distribution (NNDistribution).
+
+        Returns:
+            self._forecast_distribution (NNDistribution).
+        """
+        return self._forecast_distribution
     

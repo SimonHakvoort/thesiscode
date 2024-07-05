@@ -56,12 +56,12 @@ class ObjectiveCNN:
             the objective value (float).
         """
         if objective == 'CRPS':
-            return nnforecast.CRPS(test_data, 50000)
+            return nnforecast.CRPS(test_data, 30000)
         # check if the first 6 characters are 'twCRPS'
         elif objective[:6] == 'twCRPS':
             # get the numbers after 'twCRPS'
             twCRPS_num = objective[6:]
-            return nnforecast.twCRPS(test_data, [int(twCRPS_num)], 50000)[0]
+            return nnforecast.twCRPS(test_data, [int(twCRPS_num)], 30000)[0]
         else:
             raise ValueError("Incorrect objective, please use CRPS or twCRPS")
         
@@ -85,7 +85,7 @@ class ObjectiveCNN:
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
         attempt = 0
-        max_attempts = 5
+        max_attempts = 1000
         success = False
 
         while not success and attempt < max_attempts:
@@ -135,7 +135,7 @@ class ObjectiveCNN:
         chain_function_constant = trial.suggest_float('cf constant', 0.000001, 1, log=False)
 
         optimizer = trial.suggest_categorical('Optimizer', ['adam', 'sgd'])
-        learning_rate = trial.suggest_float('Learning Rate', 0.0001, 0.1)
+        learning_rate = trial.suggest_float('Learning Rate', 0.0001, 0.03)
 
         dense_l2_regularization = trial.suggest_float('L2 Regularization', 0.00005, 0.1, log=True)
 

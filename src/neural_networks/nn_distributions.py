@@ -11,7 +11,22 @@ from abc import ABC, abstractmethod
 
 import pdb
 
-def distribution_name(distribution, **kwargs):
+def distribution_name(distribution: str, **kwargs):
+    """
+    Factory function that returns an instance of a specific forecast distribution model based on the provided distribution name.
+
+    Args:
+        distribution (str): The name of the distribution. Case insensitive. Supported values are:
+                            - 'trunc_normal', 'truncated_normal', 'distr_trunc_normal', 'distr_tn', 'tn', 'truncnorm' for NNTruncNormal.
+                            - 'log_normal', 'lognormal', 'distr_log_normal', 'distr_ln', 'ln', 'lognorm' for NNLogNormal.
+                            - 'gev', 'generalized_extreme_value', 'distr_gev', 'distr_generalized_extreme_value' for NNGEV.
+                            - 'mixture', 'distr_mixture' for NNMixture. Requires 'distribution_1' and 'distribution_2' in kwargs.
+
+        **kwargs: Additional keyword arguments for configuring the NNMixture.
+
+    Returns:
+        An instance of a NNDistribution the corresponding forecast distribution model based on the given distribution name.
+    """
     if distribution.lower() in ['trunc_normal', 'truncated_normal', 'distr_trunc_normal', 'distr_tn', 'tn', 'truncnorm']:
         return NNTruncNormal()
     elif distribution.lower() in ['log_normal', 'lognormal', 'distr_log_normal', 'distr_ln', 'ln', 'lognorm']:
@@ -46,19 +61,39 @@ class MinMaxConstraint(Constraint):
 @register_keras_serializable(package='Custom')
 class NNDistribution(ABC):
     @abstractmethod
-    def get_distribution(self, y_pred):
+    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.Distribution:
+        """
+        Based on the output of the CNN it returns the parametric distribution.
+        This is an abstract method that needs to get implemented by child classes.
+
+        Arguments:
+            y_pred (tf.Tensor): the output of the CNN.
+
+        Returns:
+            The distribution (tfp.distributions.Distribution)
+        """
         pass
     
     @abstractmethod
     def build_output_layers(self):
+        """
+        Builds the output layers of the neural network, which depends on the specific parametric distribution.
+        This is an abstract method that needs to get implemented by child classes.
+
+        Returns:
+            A tuple of tf.keras.layers.Dense layers.
+        """
         pass
     
-    @abstractmethod
-    def add_forecast(self, outputs, inputs):
-        pass
+    # @abstractmethod
+    # def add_forecast(self, outputs, inputs):
+    #     pass
     
     @abstractmethod
     def __str__(self):
+        """
+        Returns the name of the parametric distribution
+        """
         pass
 
     @abstractmethod
@@ -103,6 +138,11 @@ class NNTruncNormal(NNDistribution):
     def get_distribution(y_pred):
         loc = y_pred[:, 0]
         scale = y_pred[:, 1]
+
+        # Clip the values to ensure they are within the desired ranges
+        loc = tf.clip_by_value(loc, -2.0, 50.0)
+        scale = tf.clip_by_value(scale, 0.0, 20.0)
+
         return tfp.distributions.TruncatedNormal(loc=loc, scale=scale, low=0.0, high=1000.0)
     
     def build_output_layers(self):
@@ -110,8 +150,8 @@ class NNTruncNormal(NNDistribution):
         sigma = Dense(1, activation='softplus')
         return mu, sigma
 
-    def add_forecast(self, outputs, inputs):
-        return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
+    # def add_forecast(self, outputs, inputs):
+    #     return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
     
     def __str__(self):
         return "TruncNormal"
@@ -145,9 +185,9 @@ class NNLogNormal(NNDistribution):
         sigma = Dense(1, activation='softplus')
         return mu, sigma
     
-    def add_forecast(self, outputs, inputs):
-        adjusted_mean = outputs[:, 0:1] + tf.math.log(tf.expand_dims(inputs['wind_speed_forecast'], axis=-1)) - tf.square(outputs[:, 1:])/2
-        return tf.concat([adjusted_mean, outputs[:, 1:]], axis=1)
+    # def add_forecast(self, outputs, inputs):
+    #     adjusted_mean = outputs[:, 0:1] + tf.math.log(tf.expand_dims(inputs['wind_speed_forecast'], axis=-1)) - tf.square(outputs[:, 1:])/2
+    #     return tf.concat([adjusted_mean, outputs[:, 1:]], axis=1)
     
     def __str__(self):
         return "LogNormal"
@@ -170,8 +210,8 @@ class NNGEV(NNDistribution):
         shape = Dense(1, activation='linear', kernel_constraint=SymmetricClipConstraint(0.5))
         return loc, scale, shape
     
-    def add_forecast(self, outputs, inputs):
-        return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
+    # def add_forecast(self, outputs, inputs):
+    #     return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
     
     def __str__(self):
         return "GEV"
@@ -237,8 +277,8 @@ class NNMixture(NNDistribution):
         params_2 = self.distribution_2.build_output_layers()
         return weight, *params_1, *params_2
     
-    def add_forecast(self, outputs, inputs):
-        return tf.concat([outputs[:, 0:1], self.distribution_1.add_forecast(outputs[:, 1:1+self.num_params_distribution_1], inputs), self.distribution_2.add_forecast(outputs[:, 1+self.num_params_distribution_1:], inputs)], axis=1)
+    # def add_forecast(self, outputs, inputs):
+    #     return tf.concat([outputs[:, 0:1], self.distribution_1.add_forecast(outputs[:, 1:1+self.num_params_distribution_1], inputs), self.distribution_2.add_forecast(outputs[:, 1+self.num_params_distribution_1:], inputs)], axis=1)
         
 
     def __str__(self):

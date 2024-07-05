@@ -222,7 +222,7 @@ def load_cv_data(cv: int, feature_names: dict) -> Tuple[tf.data.Dataset, tf.data
     This can be used after save_cv_data has been used.
     
     Arguments:
-        cv (int): 0, 1, 2 or 3, which specifies the fold.
+        cv (int): 0, 1, 2 or 3, which specifies the fold that is used for testing.
         feature_names (dict): a dict with 'wind_speed' as key and the corresponding grid size as value.
 
     Returns:
@@ -365,13 +365,13 @@ def make_importance_sampling_dataset(data: tf.data.Dataset, factors: dict) -> tf
     return output_data
 
 
-def get_fold_is(features_names_dict: Dict, fold: int, factors: dict, batch_size: int, get_info: bool = True) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+def get_fold_is(features_names_dict: Dict, cv: int, factors: dict, batch_size: int, get_info: bool = True) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     """
     Prepares the training and testing datasets with and without importance sampling for a given fold.
 
     Args:
         features_names_dict (Dict): A dictionary of feature names.
-        fold (int): The fold number for cross-validation.
+        cv (int): The fold number for cross-validation (indicates which fold is used for testing).
         factors (dict): Factors used for importance sampling.
         batch_size (int): The batch size for the datasets.
 
@@ -380,7 +380,7 @@ def get_fold_is(features_names_dict: Dict, fold: int, factors: dict, batch_size:
         the importance sampling training dataset, and the testing dataset.
     """
 
-    train_data, test_data, data_info = load_cv_data(fold, features_names_dict)
+    train_data, test_data, data_info = load_cv_data(cv, features_names_dict)
 
     def remove_other_info(X, y):
         return {'features_emos': X['features_emos']}, y
