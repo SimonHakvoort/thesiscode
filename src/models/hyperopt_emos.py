@@ -4,7 +4,7 @@ import numpy as np
 import optuna
 import tensorflow as tf
 
-from src.models.emos import EMOS
+from src.models.emos import LinearEMOS
 from src.neural_networks.get_data import load_cv_data
 
 class Objective:
@@ -53,7 +53,7 @@ class Objective:
 
         return train_data, test_data
     
-    def compute_objective(self, emos: EMOS, objective: string, test_data: tf.data.Dataset) -> float:
+    def compute_objective(self, emos: LinearEMOS, objective: string, test_data: tf.data.Dataset) -> float:
         if objective == 'CRPS':
             return emos.CRPS(test_data, 90000)
         
@@ -76,17 +76,17 @@ class Objective:
         if setup['forecast_distribution'] == 'distr_mixture' or setup['forecast_distribution'] == 'distr_mixture_linear':
             distribution = setup['forecast_distribution']
             setup['forecast_distribution'] = setup['distribution_1']
-            emos1 = EMOS(setup)
+            emos1 = LinearEMOS(setup)
             emos1.fit(train_data, epochs=50, printing=False)
 
             setup['forecast_distribution'] = setup['distribution_2']
-            emos2 = EMOS(setup)
+            emos2 = LinearEMOS(setup)
             emos2.fit(train_data, epochs=50, printing=False)
 
             setup['parameters'] = {**emos1.get_parameters(), **emos2.get_parameters()}
             setup['forecast_distribution'] = distribution
 
-        emos = EMOS(setup)
+        emos = LinearEMOS(setup)
 
         emos.fit(train_data, epochs=epochs, printing=False)
 

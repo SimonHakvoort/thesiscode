@@ -4,7 +4,9 @@ import pickle
 
 import tensorflow as tf
 
-class Climatology:
+from src.models.emos import BaseForecastModel
+
+class Climatology(BaseForecastModel):
     """
     Class for the climatology model. The model is based on the empirical distribution of past observations, and is done on a station level.
     """
@@ -41,13 +43,13 @@ class Climatology:
 
         self.station_codes = np.unique(X)
 
-    def Brier_Score(self, data: tf.data.Dataset, values: np.ndarray) -> np.ndarray:
+    def Brier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
         """
         Computes the Brier score for a single batch of the data, for all the values.
 
         Arguments:
             data (tf.data.Dataset): the data for which we compute the Brier score.
-            values (np.ndarray): values for which Brier score is computed.
+            probability_thresholds (np.ndarray): values for which Brier score is computed.
 
         Returns:
             an np.ndarray containing the Brier scores.
@@ -55,8 +57,8 @@ class Climatology:
         X, y = next(iter(data))
         X = X['station_code'].numpy()
 
-        brier_scores = np.zeros(len(values))
-        for i, threshold in enumerate(values):
+        brier_scores = np.zeros(len(probability_thresholds))
+        for i, threshold in enumerate(probability_thresholds):
             brier_scores[i] = self._comp_Brier_Score(X, y, threshold)
 
         return brier_scores
@@ -139,7 +141,7 @@ class Climatology:
 
         return brier_scores / len(X)
     
-    def twCRPS(self, data: tf.data.Dataset, thresholds, sample_size = 1000):
+    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, sample_size: int = 1000) -> np.ndarray:
         X, y = next(iter(data))
         X = X['station_code'].numpy()
         y = y.numpy()

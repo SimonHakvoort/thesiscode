@@ -2,7 +2,7 @@ import pickle as pkl
 
 import numpy as np
 
-from src.models.emos import EMOS
+from src.models.emos import LinearEMOS
 from src.models.forecast_distributions import Mixture, TruncatedGEV, TruncatedNormal, LogNormal, GEV, Frechet, DistributionMixture, MixtureLinear, distribution_name
 from src.models.get_data import get_normalized_tensor
 
@@ -62,17 +62,17 @@ def train_model(forecast_distribution, loss, optimizer, learning_rate, folds, al
 
     if pretrained:
         setup['forecast_distribution'] = setup['distribution_1']
-        model_1 = EMOS(setup)
+        model_1 = LinearEMOS(setup)
 
         setup['forecast_distribution'] = setup['distribution_2']
-        model_2 = EMOS(setup)
+        model_2 = LinearEMOS(setup)
 
         model_1.fit_old(X, y, 100, False, subset_size = subset_size)
         model_2.fit_old(X, y, 100, False, subset_size = subset_size)
         setup['parameters'] = {**model_1.get_parameters(), **model_2.get_parameters()}
         setup['forecast_distribution'] = original_distribution
 
-    model = EMOS(setup)
+    model = LinearEMOS(setup)
 
     
     if 'parameters' in kwargs:
@@ -216,7 +216,7 @@ def load_model(path):
     with open(path, 'rb') as f:
         model_dict = pkl.load(f)
     
-    model = EMOS(model_dict)
+    model = LinearEMOS(model_dict)
     return model
 
     

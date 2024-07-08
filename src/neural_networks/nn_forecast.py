@@ -1,22 +1,18 @@
-from typing import Tuple
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow.keras.layers import Dense, Concatenate, Conv2D, Flatten
-from tensorflow.keras.models import Model
-from tensorflow.keras import regularizers
-from tensorflow.keras.utils import register_keras_serializable
-
-from src.neural_networks.nn_distributions import distribution_name
-from src.neural_networks.nn_model import NNConvModel, NNModel, NNModel
-
-import pdb
 import pickle
-import os
 
-class NNForecast:
+
+from src.models.emos import BaseForecastModel
+from src.neural_networks.nn_distributions import distribution_name
+from src.neural_networks.nn_model import NNConvModel
+from typing import Tuple
+
+
+class CNNEMOS(BaseForecastModel):
     """
-    NNForecast is a class designed to model the relationship between input features and distribution parameters using a Convolutional Neural Network (CNN) within the framework of an Ensemble Model Output Statistics (EMOS). 
+    CNNEMOS is a class designed to model the relationship between input features and distribution parameters using a Convolutional Neural Network (CNN) within the framework of an Ensemble Model Output Statistics (EMOS). 
 
     This class includes methods to:
     - Initialize the model with specified parameters
@@ -55,9 +51,8 @@ class NNForecast:
         get_gev_shape(X: tf.Tensor): Returns GEV shape if applicable.
         _compute_twCRPS(y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable) -> tf.Tensor: Computes twCRPS.
         _loss_twCRPS_sample(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor: Computes twCRPS as a loss function.
-        twCRPS(dataset: tf.data.Dataset, thresholds: list[float], sample_size: int) -> list[float]: Calculates twCRPS for given thresholds.
-        Brier_Score_old(dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray: Calculates Brier score for a dataset and thresholds (old method).
-        Brier_Score(dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray: Calculates Brier score for a dataset and thresholds.
+        twCRPS(data: tf.data.Dataset, thresholds: list[float], sample_size: int) -> list[float]: Calculates twCRPS for given thresholds.
+        Brier_Score(dataset: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray: Calculates Brier score for a dataset and probability_thresholds.
         indicator_function(y: tf.Tensor, threshold: float) -> tf.Tensor: Applies an indicator function to input values.
         my_load(cls, filepath: str, data: tf.data.Dataset) -> 'NNForecast': Loads a neural network forecast model from a file.
         load_history(filepath: str) -> tf.keras.callbacks.History: Loads the training history of a neural network forecast model.
@@ -256,7 +251,7 @@ class NNForecast:
 
 
     
-    def CRPS(self, dataset: tf.data.Dataset, sample_size: int) -> float:
+    def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
         """
         Calculates the Continuous Ranked Probability Score (CRPS) for a given dataset.
 
@@ -270,7 +265,7 @@ class NNForecast:
         y_true = []
         y_pred = []
 
-        X, y = next(iter(dataset))
+        X, y = next(iter(data))
         y_pred.append(self.predict(X))
         y_true.append(y)
             
@@ -434,13 +429,13 @@ class NNForecast:
         return self._compute_twCRPS(y_true, y_pred, self.sample_size, self.chain_function)
     
 
-    def twCRPS(self, dataset: tf.data.Dataset, thresholds: list[float], sample_size: int) -> list[float]:
+    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, sample_size: int = 1000) -> np.ndarray:
         """
         Calculates the threshold-weighted Continuous Ranked Probability Score (twCRPS) for a given dataset.
 
         Parameters:
             dataset (tf.data.Dataset): The dataset containing input features and true labels.
-            thresholds (list[float]): A list of threshold values for computing twCRPS.
+            thresholds (np.ndarray): A list of threshold values for computing twCRPS.
             sample_size (int): The number of samples to use for estimating the twCRPS.
 
         Returns:
@@ -449,7 +444,7 @@ class NNForecast:
         y_true = []
         y_pred = []
 
-        X, y = next(iter(dataset))
+        X, y = next(iter(data))
         y_pred.append(self.predict(X))
         y_true.append(y)
 
@@ -459,59 +454,28 @@ class NNForecast:
         scores = []
         for threshold in thresholds:
             scores.append(self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, threshold)))
-        return scores
+        return np.array(scores)
     
-
-
-    def Brier_Score_old(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
+    
+    def Brier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
         """
         Calculates the Brier score for a given dataset and a list of thresholds.
         It computes the Brier score for a single batch.
 
         Args:
-            dataset (tf.data.Dataset): The dataset containing input features and true labels.
-            thresholds (np.ndarray): A list of thresholds to calculate the Brier score.
+            data (tf.data.Dataset): The dataset containing input features and true labels.
+            probability_thresholds (np.ndarray): A list of thresholds to calculate the Brier score.
 
         Returns:
             np.ndarray: A list of Brier scores corresponding to each threshold.
         """
-        y_true = []
-        y_pred = []
-
-        X, y = next(iter(dataset))
-
-        y_pred.append(self.predict(X))
-        y_true.append(y)
-            
-        y_true = tf.concat(y_true, axis=0)
-        y_pred = tf.concat(y_pred, axis=0)
-        distributions = self.get_distribution(y_pred)
-        
-        scores = np.zeros(len(thresholds))
-        for i, threshold in enumerate(thresholds):
-            cdf_values = distributions.cdf(threshold)
-            scores[i] = tf.reduce_mean(tf.square(self.indicator_function(y_true, threshold) - cdf_values))
-        return scores
-    
-    def Brier_Score(self, dataset: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
-        """
-        Calculates the Brier score for a given dataset and a list of thresholds.
-        It computes the Brier score for a single batch.
-
-        Args:
-            dataset (tf.data.Dataset): The dataset containing input features and true labels.
-            thresholds (np.ndarray): A list of thresholds to calculate the Brier score.
-
-        Returns:
-            np.ndarray: A list of Brier scores corresponding to each threshold.
-        """
-        X, y = next(iter(dataset))
+        X, y = next(iter(data))
 
         y_pred = self.predict(X)
 
-        cdf_values = self.model._forecast_distribution.comp_cdf(y_pred, thresholds)
+        cdf_values = self.model._forecast_distribution.comp_cdf(y_pred, probability_thresholds)
 
-        indicator_values = np.array([self.indicator_function(y, t) for t in thresholds])
+        indicator_values = np.array([self.indicator_function(y, t) for t in probability_thresholds])
 
         brier_scores = np.mean((indicator_values - cdf_values) ** 2, axis=1)
 
@@ -533,7 +497,7 @@ class NNForecast:
 
 
     @classmethod
-    def my_load(cls, filepath: str, data: tf.data.Dataset) -> 'NNForecast':
+    def my_load(cls, filepath: str, data: tf.data.Dataset) -> 'CNNEMOS':
         """
         Load a neural network forecast model from a file. Data is needed to compile the parameters of the model.
 

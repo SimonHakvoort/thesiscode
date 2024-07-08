@@ -2,195 +2,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-from src.models.emos import EMOS
+from src.models.emos import LinearEMOS
 from src.models.forecast_distributions import Mixture, MixtureLinear
-from src.neural_networks.nn_forecast import NNForecast
+from src.neural_networks.nn_distributions import NNMixture
+from src.neural_networks.nn_forecast import CNNEMOS
 from src.visualization.pit import threshold_tf
 
-def plot_forecast_cdf(emos_dict, X, y, observation_value = 0, base_model = None, seed = None, plot_size = 3):
-    """
-    Plot the forecast distributions for each model in the dictionary, for a single random observation value that is greater than a specified value.
 
-    Args:
-    - emos_dict: dictionary of EMOS models
-    - X: tensor
-    - y: tensor
-    - variances: tensor
-    - observation_value: float (default 0)
-    - base_model: EMOS object (optional)
-    - seed: int (optional)
-    """
-    if seed is not None:
-        np.random.seed(seed)
-    X = X.numpy()
-    y = y.numpy()
-
-    #pick a single random row from y that is greater than the observation value
-    candidates = y > observation_value
-    indices = np.where(candidates)[0]
-    i = np.random.choice(indices, 1)[0]
-
-    min_value = min(y[i] - plot_size, X[i,0] - plot_size)
-    max_value = max(y[i] + plot_size, X[i,0] + plot_size)
-
-    x = np.linspace(min_value, max_value, 500)
-
-    #plot the forecast distributions for each model
-    for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X)
-
-        pdf = distributions.cdf
-        y_values = np.zeros((len(x), distributions.batch_shape[0]))
-        for p,j in enumerate(x):
-            y_values[p,:] = pdf(j).numpy()
-
-        pdf_val_i = y_values[:,i]
-
-        plt.plot(x, pdf_val_i, label = name)
-
-    if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X)
-        pdf = distributions.cdf
-        y_values = np.zeros((len(x), distributions.batch_shape[0]))
-        for p,j in enumerate(x):
-            y_values[p,:] = pdf(j).numpy()
-
-        pdf_val_i = y_values[:,i]
-        plt.plot(x, pdf_val_i, label = 'base model', color = 'black')
-    
-    #plot the observation
-    plt.axvline(y[i], color = 'red', label = 'observation')
-
-    #plot the forecast of the observation
-    plt.axvline(X[i,0], color = 'black', label = 'forecast', linestyle = 'dashed')
-
-    plt.xlabel('Value')
-    plt.ylabel('Probability density')
-    plt.legend()
-    plt.show()
-
-def plot_forecast_pdf(emos_dict, X, y, observation_value = 0, plot_size = 3, base_model = None, seed = None):
-    """
-    Plot the forecast distributions for each model in the dictionary, for a single random observation value that is greater than a specified value.
-
-    Args:
-    - emos_dict: dictionary of EMOS models
-    - X: tensor
-    - y: tensor
-    - observation_value: float (default 0)
-    - plot_size: float (default 3)
-    - base_model: EMOS object (optional)
-    - seed: int (optional)
-    """
-    if seed is not None:
-        np.random.seed(seed)
-    X = X.numpy()
-    y = y.numpy()
-
-    #pick a single random row from y that is greater than the observation value
-    candidates = y > observation_value
-    indices = np.where(candidates)[0]
-    i = np.random.choice(indices, 1)[0]
-
-    min_value = min(y[i] - plot_size, X[i,0] - plot_size)
-    max_value = max(y[i] + plot_size, X[i,0] + plot_size)
-
-    x = np.linspace(min_value, max_value, 500)
-
-    #plot the forecast distributions for each model
-    for name, model in emos_dict.items():
-        # use row i and i+1 to get the distribution
-        distributions = model.forecast_distribution.get_distribution(X[i-1:i+1, :])
-
-        pdf = distributions.prob
-        y_values = np.zeros((len(x), distributions.batch_shape[0]))
-        for p,j in enumerate(x):
-            y_values[p,:] = pdf(j).numpy()
-
-        pdf_val_i = y_values[:,1]
-
-        plt.plot(x, pdf_val_i, label = name)
-
-    if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X[i-1:i+1, :])
-        pdf = distributions.prob
-        y_values = np.zeros((len(x), distributions.batch_shape[0]))
-        for p,j in enumerate(x):
-            y_values[p,:] = pdf(j).numpy()
-
-        pdf_val_i = y_values[:,1]
-        plt.plot(x, pdf_val_i, label = 'base model', color = 'black')
-    
-    #plot the observation
-    plt.axvline(y[i], color = 'red', label = 'observation')
-
-    #plot the forecast of the observation
-    plt.axvline(X[i,0], color = 'black', label = 'forecast', linestyle = 'dashed')
-
-    plt.xlabel('Value')
-    plt.ylabel('Probability density')
-    plt.legend()
-    plt.show()
-
-def plot_forecast_pdf_i(emos_dict, X, y, i, plot_size = 3, base_model = None):
-    """
-    Plot the forecast distributions for each model in the dictionary, for a single observation value.
-
-    Args:
-    - emos_dict: dictionary of EMOS models
-    - X: tensor
-    - y: tensor
-    - i: int
-    - plot_size: float (default 3)
-    - base_model: EMOS object (optional)
-    """
-    X = X.numpy()
-    y = y.numpy()
-
-    min_value = min(y[i] - plot_size, X[i,0] - plot_size)
-    max_value = max(y[i] + plot_size, X[i,0] + plot_size)
-
-    x = np.linspace(min_value, max_value, 500)
-
-    #plot the forecast distributions for each model
-    for name, model in emos_dict.items():
-        distributions = model.forecast_distribution.get_distribution(X)
-
-        pdf = distributions.prob
-        y_values = np.zeros((len(x), distributions.batch_shape[0]))
-        for p,j in enumerate(x):
-            y_values[p,:] = pdf(j).numpy()
-
-        pdf_val_i = y_values[:,i]
-
-        plt.plot(x, pdf_val_i, label = name)
-
-    if base_model is not None:
-        distributions = base_model.forecast_distribution.get_distribution(X[i, :])
-        pdf = distributions.prob
-        plt.plot(x, pdf(x).numpy(), label = 'base model', color = 'black')
-    
-    #plot the observation
-    plt.axvline(y[i], color = 'red', label = 'observation')
-
-    #plot the forecast of the observation
-    plt.axvline(X[i,0], color = 'black', label = 'forecast', linestyle = 'dashed')
-
-    plt.xlabel('Value')
-    plt.ylabel('Probability density')
-    plt.legend()
-    plt.show()
-
-def plot_weight_mixture(model_dict, values):
+def plot_weight_mixture(model_dict: dict, values: np.ndarray) -> None:
     """
     Plot the weight for the distributions for each model as a function of the values.
+    model_dict should contain EMOS models as value, where the forecast distribution is 
+    Mixture of MixtureLienar.
 
     Args:
-    - model_dict: dictionary of EMOS models
-    - values: array
+        model_dict: dictionary of EMOS models.
+        values: array for which we want to find the weight.
 
     Returns:
-    - None
+        None
     """
     for name, model in model_dict.items():
         if type(model.forecast_distribution) == Mixture:
@@ -211,24 +41,20 @@ def plot_weight_mixture(model_dict, values):
     plt.show()    
 
 
-def plot_forecast_pdf_tf(model_dict, data, observation_value=0, plot_size=5, base_model=None):
+def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5, base_model = None):
     """
     Plots the probability density function (PDF) of forecasted values for a given model or models.
 
     Parameters:
-    - model_dict (dict): A dictionary containing the models to be plotted. The keys are the names of the models, and the values are the model objects.
-    - data (tf.data.Dataset): The input data used for forecasting.
-    - observation_value (float): The observed value used as a reference point for plotting.
-    - plot_size (float): The range of values to be plotted around the observation value.
-    - base_model: The base model to be plotted. If provided, it will be plotted in black color.
+        model_dict (dict): A dictionary containing the models to be plotted. The keys are the names of the models, and the values are the model objects.
+        data (tf.data.Dataset): The input data used for forecasting.
+        observation_value (float): The observed value used as a reference point for plotting.
+        plot_size (float): The range of values to be plotted around the observation value.
+        base_model: The base model to be plotted. If provided, it will be plotted in black color.
 
     Returns:
-    None
+        None
     """
-    # Function code goes here
-    pass
-def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5, base_model = None):
-
     test_data_greater = threshold_tf(data, observation_value, repeat=False, batching=False)
 
     test_data_greater = test_data_greater.shuffle(10000)
@@ -246,9 +72,9 @@ def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5,
     
 
     for name, model in model_dict.items():
-        if isinstance(model, EMOS):
+        if isinstance(model, LinearEMOS):
             distributions = model.forecast_distribution.get_distribution(X['features_emos'])
-        elif isinstance(model, NNForecast):
+        elif isinstance(model, CNNEMOS):
             distributions = model.get_distribution(model.predict(X))
 
 
@@ -261,9 +87,9 @@ def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5,
         plt.plot(x, y_values, label = name)
 
     if base_model is not None:
-        if isinstance(base_model, EMOS):
+        if isinstance(base_model, LinearEMOS):
             distributions = base_model.forecast_distribution.get_distribution(X['features_emos'])
-        elif isinstance(base_model, NNForecast):
+        elif isinstance(base_model, CNNEMOS):
             distributions = base_model.get_distribution(model.predict(X))
 
 
@@ -281,4 +107,35 @@ def plot_forecast_pdf_tf(model_dict, data, observation_value = 0, plot_size = 5,
     plt.ylabel('Probability density')
     plt.legend()
     plt.show()
+
+def plot_weight_mixture_cnns(model_dict: dict, data: tf.data.Dataset) -> None:
+    """
+    Plots the weight of the mixture distribution for EMOS with CNNs.
+    The forecast distribution should be NNMixture, where the first distribution is TN and the 
+    second distribution is the LN.
+
+    Arguments:
+        model_dict (dict): a dictionary containing NNForecast objects. 
+        data (tf.data.Dataset): the dataset for which we plot the weights.
+    """
+    X, y = next(iter(data))
+
+    for name, model in model_dict.items():
+        if not isinstance(model.model.get_forecast_distribution(), NNMixture):
+            raise ValueError("We can only plot the weights in case the forecast distribution is NNMixture!")
+        
+        y_pred = model.predict(X)
+        weight = y_pred[:, 0]
+
+        plt.scatter(y, weight, alpha=0.5, label=name)
+
+    plt.xlabel("Observed Wind Speed")
+    plt.ylabel("Weight for TN")
+    plt.ylim(0,1)
+    plt.xlim(0, np.max(y))
+    plt.grid(True, linestyle='--', alpha=0.7)
+
+    plt.legend()
+    plt.show()
+
             

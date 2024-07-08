@@ -5,7 +5,7 @@ import optuna
 import tensorflow as tf
 
 from src.neural_networks.get_data import load_cv_data
-from src.neural_networks.nn_forecast import NNForecast
+from src.neural_networks.nn_forecast import CNNEMOS
 
 class ObjectiveCNN:
     def __init__(self, feature_names_dict, objectives, train_amount = 3):
@@ -43,12 +43,12 @@ class ObjectiveCNN:
 
         return train_data, test_data
 
-    def compute_objective(self, nnforecast: NNForecast, objective: string, test_data: tf.data.Dataset) -> float:
+    def compute_objective(self, nnforecast: CNNEMOS, objective: string, test_data: tf.data.Dataset) -> float:
         """
         Computes the objective values.
 
         Arguments:
-            nnforecast (NNForecast): a NNForecast object.
+            nnforecast (CNNEMOS): a NNForecast object.
             objective (string): a string specifying the objective.
             test_data (tf.data.Dataset): the test data.
 
@@ -90,7 +90,7 @@ class ObjectiveCNN:
 
         while not success and attempt < max_attempts:
             try:
-                nn_forecast = NNForecast(**setup)
+                nn_forecast = CNNEMOS(**setup)
                 nn_forecast.fit(train_data, epochs, test_data, early_stopping=early_stopping, verbose=0)
                 success = True
             except tf.errors.InvalidArgumentError as e:
@@ -117,7 +117,7 @@ class ObjectiveCNN:
             trial (optuna.Trial): an trial object which select parameters.
 
         Returns:
-            the losst values in a list.
+            the loss values in a list.
         """
         setup = {}
 

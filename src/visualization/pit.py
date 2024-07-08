@@ -5,8 +5,8 @@ import numpy as np
 import tensorflow as tf
 
 from src.climatology.climatology import Climatology
-from src.models.emos import EMOS
-from src.neural_networks.nn_forecast import NNForecast
+from src.models.emos import BaseForecastModel, LinearEMOS
+from src.neural_networks.nn_forecast import CNNEMOS
 
 def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     """
@@ -191,15 +191,15 @@ def threshold_tf(data, t, repeat = True, batching = True):
 
     return filtered_data
 
-def make_cpit_diagram_tf(model_dict: dict, data: tf.data.Dataset, t: int = 0, base_model = None, base_model_name: str = 'Base Model'):
+def make_cpit_diagram_tf(model_dict: dict[str, BaseForecastModel], data: tf.data.Dataset, t: int = 0, base_model: BaseForecastModel = None, base_model_name: str = 'Base Model'):
     """
     A a conditional PIT diagram for all the models in model_dict. 
 
     Arguments:
-        model_dict (dict): dictionary of models.
+        model_dict (dict[str, BaseForecastModel]): dictionary of models.
         data (tf.data.Dataset): data for which we compute the cPIT (unfiltered and unbatched).
         t (int): threshold.
-        base_model (optional): in case you want to compare it for an extra model.
+        base_model (BaseForecastModel, optional): in case you want to compare it for an extra model.
         base_model_name (optional): naming of the base_model for the legend.
     """
     # We first compute the filtered data based on the threshold.
@@ -229,10 +229,10 @@ def comp_pit_score_tf(model, data, t = 0):
     # the closer the score is to 0, the better the model
     test_data_greater = threshold_tf(data, t)
 
-    if isinstance(model, EMOS):
+    if isinstance(model, LinearEMOS):
         distribution, observations = model.get_prob_distribution(test_data_greater)
         cdf = distribution.cdf
-    elif isinstance(model, NNForecast):
+    elif isinstance(model, CNNEMOS):
         distribution, observations = model.get_prob_distribution(test_data_greater)
         cdf = distribution.cdf
     else:

@@ -1,124 +1,28 @@
+from typing import Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
 from src.climatology.climatology import Climatology
-from src.models.emos import EMOS
-from src.neural_networks.nn_forecast import NNForecast
+from src.models.emos import BaseForecastModel
 
 
-def make_brier_plot(emos, X, y, values, title = ''):
-    """
-    Makes a plot of the Brier score for the model. We assume that X is already normalized.
 
-    Args:
-    - emos: EMOS object
-    - X: tensor
-    - y: tensor
-    - values: list of floats on which to compute the Brier score
-    - title: string
-
-    Returns:
-    - None
-    """
-    brier_scores = get_brier_scores(emos, X, y, values)
-
-    plt.plot(values, brier_scores)
-    plt.xlabel('wind speed threshold (m/s)')
-    plt.ylabel('Brier score')
-    plt.title(title)
-    plt.xlim(values[0], values[-1])
-    #ensure that ylim has a minimum of 0
-    plt.ylim(0, max(brier_scores))
-    plt.show()
-
-def get_brier_scores(emos, X, y, values):
-    """
-    Returns the Brier scores for a range of thresholds. We assume that X is already normalized.
-
-    Args:
-    - emos: EMOS object
-    - X: tensor
-    - y: tensor
-    - values: list of floats on which to compute the Brier score
-
-    Returns:
-    - brier_scores: list of floats
-    """
-    brier_scores = np.zeros(len(values))
-    for i, threshold in enumerate(values):
-        brier_scores[i] = emos.Brier_Score(X, y, threshold)
-    return brier_scores
-
-def get_brier_scores_tf(model, data, values):
-    brier_scores = np.zeros(len(values))
-    if type(model) == EMOS:
-        brier_scores = model.Brier_Score(data, values)
-    elif type(model) == NNForecast:
-        brier_scores = np.array(model.Brier_Score(data, values))
-    elif isinstance(model, Climatology):
-       brier_scores = model.Brier_Score(data, values)
-    else:
-        raise ValueError('Model type not recognized')
-    return brier_scores
-
-
-def get_brier_skill_scores(emos1, emos2, X, y, values):
-    """
-    Returns the Brier skill scores for a range of thresholds. We assume that X is already normalized.
-
-    Args:
-    - emos1: EMOS object
-    - emos2: EMOS object
-    - X: tensor
-    - y: tensor
-    - values: list of floats on which to compute the Brier score
-
-    Returns:
-    - brier_skill_scores: list of floats
-    """
-    brier_scores1 = get_brier_scores(emos1, X, y, values)
-    brier_scores2 = get_brier_scores(emos2, X, y, values)
-    return 1 - brier_scores1 / brier_scores2
-
-def make_brier_skill_plot(basemodel, models, X, y, values, ylim = None, title = 'Brier skill score'):
-    """
-    Makes a plot of the Brier skill score for the models. We assume that X is already normalized. basemodel is the model to compare to. 
-    Includes a legend with the names of the models.
-
-    Args:
-    - basemodel: EMOS object
-    - models: dictionary of EMOS objects
-    - X: tensor
-    - y: tensor
-    - values: list of floats on which to compute the Brier score
-    - ylim: tuple of floats
-    - title: string
-    """
-    for model in models:
-        brier_skill_scores = get_brier_skill_scores(models[model], basemodel, X, y, values)
-        plt.plot(values, brier_skill_scores, label = model)
-
-    # print a striped black horizontal line at y=0
-    plt.axhline(0, color='black', linestyle='--')
-
-    plt.xlabel('wind speed threshold (m/s)')
-    plt.ylabel('Brier skill score')
-    plt.xlim(values[0], values[-1])
-    if ylim != None:
-        plt.ylim(ylim[0], ylim[1])
-    plt.title(title)
-    plt.legend()
-    plt.show()
-
-def make_brier_skill_plot_tf(basemodel, models, data, values, xlim = None, ylim = None, title = None, name_base_model = 'Reference Model') -> None:
+def make_brier_skill_plot_tf(basemodel: BaseForecastModel, 
+                             models: dict[str, BaseForecastModel], 
+                             data: tf.data.Dataset, 
+                             values: np.ndarray, 
+                             xlim: Tuple[float,float] = None, 
+                             ylim: Tuple[float,float] = None, 
+                             title: str = None, 
+                             name_base_model: str = 'Reference Model') -> None:
     """
     Plots the Brier skill score (BSS) for the models, which is a dict for the numbers in values. 
     Evaluates the performance for a single batch in data.
 
     Arguments:
-        basemodel: reference model
-        models (dict): models to compare to basemodel
+        basemodel (BaseForecastModel): reference model
+        models (dict[str, BaseForecastModel]): models to compare to basemodel
         data (tf.data.Dataset): data to compute Brier scores.
         values (np.array): values to compute the BSS.
         xlim (tuple, optional): tuple specifying the range of the x-axis.
@@ -129,10 +33,8 @@ def make_brier_skill_plot_tf(basemodel, models, data, values, xlim = None, ylim 
     Returns:
         None
     """
-    # brier_base_model = get_brier_scores_tf(basemodel, data, values)
     brier_base_model = basemodel.Brier_Score(data, values)
     for model in models:
-        # brier_scores = get_brier_scores_tf(models[model], data, values)
         brier_scores = models[model].Brier_Score(data, values)
         brier_skill_scores = 1 - brier_scores / brier_base_model
         plt.plot(values, brier_skill_scores, label = model)
@@ -172,7 +74,32 @@ def make_bootstrap_sample(X: dict, y: tf.Tensor) -> tf.data.Dataset:
     
     return dataset
 
-def make_bootstrap_brier(basemodel, models, data, values, ylim=None, bootstrap_size=1000, title = None, name_base_model = None):
+def make_bootstrap_brier(base_model: BaseForecastModel, 
+                         models: dict[str, BaseForecastModel], 
+                         data: tf.data.Dataset,
+                         values: np.ndarray, 
+                         ylim: Union[Tuple[float, float], None] = None, 
+                         bootstrap_size: int = 1000, 
+                         title: str = None, 
+                         name_base_model: str = None) -> None:
+    """
+    Plots the bootstrapped Brier scores in a single plot. 
+    For each model in dict we compute the Brier scores at values plus a small constant and then compute the BSS.
+    We add the small constant to ensure that the error bars do not overlap, and vary the constant per model.
+
+    Arguments:
+        base_model (BaseForecastModel): model to use as reference model.
+        models (dict[str, BaseForecastModel]): BaseForecastModel instances to compare to base_model.
+        data (tf.data.Dataset): data for which we compute the bootstrapped BS.
+        values (np.ndarray): array at which we want to compute the bootstrapped BS.
+        ylim (Union[Tuple[float, float], None], optional): limit of the y-axis of the plot.
+        bootstrap_size (int, optional): size of the bootstrap.
+        title (str, optional): title for the plot.
+        name_base_model (str, optional): the name of the base_model to put in the legend.
+
+    Returns:
+        None.
+    """
     scores = {key: np.zeros((bootstrap_size, len(values))) for key in models.keys()}
 
     base_brier_scores = np.zeros((bootstrap_size, len(values)))
@@ -182,12 +109,12 @@ def make_bootstrap_brier(basemodel, models, data, values, ylim=None, bootstrap_s
     for i in range(bootstrap_size):
         bootstrap_data = make_bootstrap_sample(X, y)
 
-        base_brier_scores[i, :] = basemodel.Brier_Score(bootstrap_data, values)
+        base_brier_scores[i, :] = base_model.Brier_Score(bootstrap_data, values)
 
         for j, name in enumerate(models.keys()):
             new_values = values + (j + 1) * 0.1
 
-            base_scores_shift = basemodel.Brier_Score(bootstrap_data, new_values)
+            base_scores_shift = base_model.Brier_Score(bootstrap_data, new_values)
 
             model_scores = models[name].Brier_Score(bootstrap_data, new_values)
 
@@ -211,7 +138,7 @@ def make_bootstrap_brier(basemodel, models, data, values, ylim=None, bootstrap_s
     base_bss_std = np.std(bss_scores_base, axis=0)
 
     # plt.errorbar(values, y=base_bss_mean, yerr=base_bss_std, capsize=2, label='Base Model')
-    if isinstance(basemodel, Climatology):
+    if isinstance(base_model, Climatology):
         plt.plot(values, base_bss_mean, label='Climatology')
     else:
         if name_base_model is None:

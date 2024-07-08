@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from src.neural_networks.get_data import get_tf_data, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
 from src.models.train_emos import train_emos
-from src.models.emos import EMOS, BootstrapEmos
+from src.models.emos import LinearEMOS, BootstrapEmos
 from src.models.get_data import get_tensors
 from src.models.train_emos import train_and_test_emos
 from src.training.training import load_model
@@ -104,11 +104,11 @@ setup = {'loss': loss,
 if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == 'distr_mixture':
     setup['forecast_distribution'] = distribution_1
 
-    emos1 = EMOS(setup)
+    emos1 = LinearEMOS(setup)
 
     setup['forecast_distribution'] = distribution_2
 
-    emos2 = EMOS(setup)
+    emos2 = LinearEMOS(setup)
 
     emos1.fit(train_data, 75, False)
     emos2.fit(train_data, 75, False)
@@ -127,7 +127,7 @@ epochs = 20
 
 batch_size = None
 
-emos = EMOS(setup)
+emos = LinearEMOS(setup)
 
 my_dict = emos.fit(train_data, epochs)
 

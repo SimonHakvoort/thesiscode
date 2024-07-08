@@ -6,11 +6,62 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from src.models.forecast_distributions import Mixture, MixtureLinear, initialize_distribution
-from src.neural_networks.get_data import load_cv_data 
+from src.neural_networks.get_data import load_cv_data
+from abc import ABC, abstractmethod 
 import time
 tfpd = tfp.distributions
 
-class EMOS:
+class BaseForecastModel(ABC):
+    """
+    Abstract base class for Climatology and the EMOS models.
+    """
+
+    @abstractmethod
+    def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
+        """
+        Abstract method that estimates the CRPS for a single batch in data.
+        We use a sampling based approach.
+
+        Arguments:
+            data (tf.data.Dataset): data for which we estimate the CRPS.
+            sample_size (int): number of samples used to estimate the CRPS per oberservation.
+
+        Returns:
+            The average CRPS over a single batch of data.
+        """
+        pass
+
+    @abstractmethod
+    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, sample_size: int = 1000) -> np.ndarray:
+        """
+        Abstract method that estimates the twCRPS for a single batch in data, for all thresholds
+        We use a sampling based approach. The weight function is the indicater function.
+
+        Arguments:
+            data (tf.data.Dataset): data for which we estimate the twCRPS.
+            thresholds (np.ndarray): threshold at which we estimate the twCRPS
+            sample_size (int): number of samples used to estimate the CRPS per oberservation.
+
+        Returns:
+            An np.ndarray with the twCRPS values.
+        """
+        pass
+
+    @abstractmethod
+    def Brier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+        """
+        Computes the Brier score (BS) for a single batch of data. It computes it at probability_thresholds.
+
+        Arguments:
+            data (tf.data.Dataset): data for which we compute BS.
+            probability_thresholds (np.ndarray): thresholds at which we compute the BS.
+
+        Returns:
+            An np.ndarray with the BS at the thresholds.
+        """
+        pass
+
+class LinearEMOS(BaseForecastModel):
     """
     Class for the EMOS model with linear regression
 
@@ -304,7 +355,7 @@ class EMOS:
             distribution_info += f"Mixture weight b: {weight_b}\n"
 
         return (
-            f"EMOS Model Information:\n"
+            f"Linear EMOS Model Information:\n"
             f"{loss_info}\n"
             f"{forecast_distribution_info}\n"
             f"{distribution_info}"
@@ -461,19 +512,19 @@ class EMOS:
 
         return distributions, y
     
-    def CRPS(self, data: tf.data.Dataset, samples: int) -> float:
+    def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
         """
         Estimates the CRPS for the given data, using the specified sample size
 
         Arguments:
             data (tf.data.Dataset): the dataset containing the input data and observations.
-            samples (int): the amount of samples used to estimate the expected value of the CRPS.
+            sample_size (int): the amount of samples used to estimate the expected value of the CRPS.
 
         Returns:
             the CRPS value (float).
         """
         X, y = next(iter(data))
-        total_crps = tf.reduce_mean(self._crps_computation(X['features_emos'], y, samples)).numpy()
+        total_crps = tf.reduce_mean(self._crps_computation(X['features_emos'], y, sample_size)).numpy()
         return total_crps
 
     
@@ -562,7 +613,7 @@ class EMOS:
         return self._crps_computation(X, y, self.samples)
         
     
-    def Brier_Score(self, data: tf.data.Dataset, thresholds: np.ndarray) -> np.ndarray:
+    def Brier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
         """
         The loss function for the Brier score, based on the forecast distribution and observations, using a tf.dataset.
         We compute the Brier score for a single batch of the dataset, meaning that in case we want to compute the Brier score over the entire
@@ -570,37 +621,32 @@ class EMOS:
 
         Arguments:
             data (tf.dataset): the dataset containing the input data and observations.
-            thresholds (list(float)): the threshold for the Brier score.
+            probability_thresholds (np.ndarray): the threshold for the Brier score.
 
         Returns:
-            an array containing the Brier scores for the specified thresholds.
+            An np.ndarray containing the Brier scores for the specified thresholds.
         """
-        # Extract a batch of data
         X, y = next(iter(data))
 
         # Predict the CDF values for all thresholds
-        cdfs = self.forecast_distribution.comp_cdf(X['features_emos'], thresholds)  
+        cdfs = self.forecast_distribution.comp_cdf(X['features_emos'], probability_thresholds)  
 
         # Compute the indicator values for all thresholds
-        indicator_matrix = np.array([self.indicator_function(y, t) for t in thresholds])
+        indicator_matrix = np.array([self.indicator_function(y, t) for t in probability_thresholds])
 
         # Calculate the Brier scores vectorized
         brier_scores = np.mean((indicator_matrix - cdfs) ** 2, axis=1)
 
         return brier_scores
-
-    def twCRPS_old(self, X, y, threshold, samples):
-        chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
-        return self.loss_twCRPS_sample_general(X, y, chain_function, samples)
     
-    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, samples: int) -> np.ndarray:
+    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, sample_size: int) -> np.ndarray:
         """
         The loss function for the twCRPS, based on the forecast distribution and observations, using a tf.dataset.
 
         Arguments:
             data (tf.data.Dataset): the dataset containing the input data and observations.
             thresholds (np.ndarray): the thresholds for the twCRPS.
-            samples (int): the amount of samples used to estimate the expected value of the twCRPS.
+            sample_size (int): the amount of samples used to estimate the expected value of the twCRPS.
 
         Returns:
             the twCRPS at the given thresholds.
@@ -611,8 +657,8 @@ class EMOS:
 
         for i, threshold in enumerate(thresholds):
             chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
-            X_1 = forecast_distribution.sample(samples)
-            X_2 = forecast_distribution.sample(samples)
+            X_1 = forecast_distribution.sample(sample_size)
+            X_2 = forecast_distribution.sample(sample_size)
             vX_1 = chain_function(X_1)
             vX_2 = chain_function(X_2)
             E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
@@ -621,11 +667,19 @@ class EMOS:
 
         return twcrps
 
-
     
+    def loss_twCRPS_sample(self, X: tf.Tensor, y: tf.Tensor) -> tf.Tensor:
+        """
+        Internal method that can be used as loss function to train the LinearEMOS model with the twCRPS function.
+        As chaining function we use self.chain_function and as sample size we use self.samples.
 
-    
-    def loss_twCRPS_sample(self, X, y):
+        Arguments:
+            X (tf.Tensor): features.
+            y (tf.Tensor): The observations.
+
+        Returns:
+            The twCRPS as a tf.Tensor
+        """
         return self.loss_twCRPS_sample_general(X, y, self.chain_function, self.samples)
         
     def loss_twCRPS_sample_general(self, X: tf.Tensor, y: tf.Tensor, chain_function: Callable[[tf.Tensor], tf.Tensor], samples: int) -> tf.Tensor:
@@ -876,7 +930,7 @@ class BootstrapEmos():
         amount_of_data = y.shape[0]
 
         for _ in range(number):
-            model = EMOS(self.setup)
+            model = LinearEMOS(self.setup)
             bootstrap_sample = self._make_bootstrap_sample(X, y)
 
             bootstrap_sample = bootstrap_sample.shuffle(amount_of_data)
@@ -910,7 +964,7 @@ class BootstrapEmos():
             path = os.path.join(self.filepath, 'models', name)
             with open(path, 'rb') as f:
                 model_dict = pickle.load(f)
-            model = EMOS(model_dict)
+            model = LinearEMOS(model_dict)
             models.append(model)
         self.models = models
     
@@ -941,7 +995,7 @@ class BootstrapEmos():
 
         amount_of_data = y.shape[0]
 
-        model = EMOS(self.setup)
+        model = LinearEMOS(self.setup)
 
         bootstrap_sample = self._make_bootstrap_sample(X, y)
 

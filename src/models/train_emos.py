@@ -4,7 +4,7 @@ import pickle as pkl
 import numpy as np
 
 
-from src.models.emos import EMOS
+from src.models.emos import LinearEMOS
 from src.models.get_data import get_normalized_tensor, get_tensors
     
 
@@ -28,7 +28,7 @@ def train_emos(neighbourhood_size, parameter_names, epochs, folds, setup, ignore
     if "printing" in setup:
         printing = setup["printing"]
 
-    emos = EMOS(setup)
+    emos = LinearEMOS(setup)
 
     emos.fit_old(X, y, epochs, printing = printing, subset_size = subset_size)
 
@@ -47,7 +47,7 @@ def train_and_test_emos(neighbourhood_size, parameter_names, epochs, train_folds
     setup["features"] = parameter_names
     setup["neighbourhood_size"] = neighbourhood_size
 
-    emos = EMOS(setup)
+    emos = LinearEMOS(setup)
     emos.fit_old(X, y, variances, epochs)
 
     X_test, y_test, variances_test = get_tensors(neighbourhood_size, parameter_names, test_folds)

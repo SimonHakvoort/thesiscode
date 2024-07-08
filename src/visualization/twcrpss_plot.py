@@ -3,31 +3,15 @@ import numpy as np
 import tensorflow as tf
 
 from src.climatology.climatology import Climatology
-from src.models.emos import EMOS
-from src.neural_networks.nn_forecast import NNForecast
+from src.models.emos import BaseForecastModel, LinearEMOS
+from src.neural_networks.nn_forecast import CNNEMOS
 
 def comp_twcrpss(model_ref, model, X, y, threshold, sample_size = 1000):
     return 1 - model.twCRPS(X, y, threshold, sample_size).numpy() / model_ref.twCRPS(X, y, threshold, sample_size).numpy()
 
-# ### Should get deleted.
-# def comp_twcrps_tf(model, data, thresholds, sample_size = 1000):
-#     scores = []
-#     print("This is an old function!!!!")
-#     if type(model) == EMOS:
-#         scores = model.twCRPS(data, thresholds, sample_size)
-#     elif type(model) == NNForecast:
-#         scores = model.twCRPS(data, thresholds, sample_size)
-#     elif isinstance(model, Climatology):
-#         scores = model.twCRPS(data, thresholds, sample_size)
-#     else:
-#         raise ValueError('Model type not recognized')
-#     return scores
 
-
-
-
-def make_twcrpss_plot_tf(base_model, 
-                         model_dict: dict, 
+def make_twcrpss_plot_tf(base_model: BaseForecastModel, 
+                         model_dict: dict[str, BaseForecastModel], 
                          data: tf.data.Dataset, 
                          values: np.ndarray, 
                          ylim: tuple = None, 
@@ -38,8 +22,8 @@ def make_twcrpss_plot_tf(base_model,
     Evaluates the performance for a single batch in data.
 
     Arguments:
-        basemodel: reference model
-        models (dict): models to compare to basemodel
+        basemodel (BaseForecastModel): reference model
+        models (dict[str, BaseForecastModel]): models to compare to basemodel
         data (tf.data.Dataset): data to compute twCRPS.
         values (np.array): values to compute the twCRPSS.
         ylim (tuple, optional): tuple specifying the range of the y-axis.

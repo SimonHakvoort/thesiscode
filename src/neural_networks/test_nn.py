@@ -5,7 +5,7 @@ import numpy as np
 from src.neural_networks.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
 from src.neural_networks.nn_model import NNModel
 from src.models.get_data import get_tensors
-from src.neural_networks.nn_forecast import NNForecast
+from src.neural_networks.nn_forecast import CNNEMOS
 import tensorflow as tf
 import pickle
 import os
@@ -166,7 +166,7 @@ if saving:
     with open(filepath + '/attributes', 'wb') as f:
         pickle.dump(setup, f)
 
-nn = NNForecast(**setup)
+nn = CNNEMOS(**setup)
 
 #start the time
 time_start = time.time()
