@@ -9,10 +9,7 @@ from src.models.emos import LinearEMOS, BootstrapEmos
 from src.models.get_data import get_tensors
 from src.models.train_emos import train_and_test_emos
 from src.training.training import load_model
-from src.visualization.brier_score import make_brier_skill_plot
-from src.visualization.pit import comp_pit_score_tf, make_cpit_hist_emos
 from src.visualization.reliability_diagram import make_reliability_and_sharpness
-from src.visualization.scoring_tables import make_table
 from src.models.probability_distributions import TruncGEV
 import pickle as pkl
 import time

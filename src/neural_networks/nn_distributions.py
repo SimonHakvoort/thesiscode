@@ -45,7 +45,6 @@ def distribution_name(distribution: str, **kwargs):
     
 
 class SymmetricClipConstraint(Constraint):
-
     def __init__(self, clip_value: float):
         self.clip_value = clip_value
 
@@ -138,8 +137,20 @@ class NNDistribution(ABC):
 
     
 class NNTruncNormal(NNDistribution):
+    """
+    Class representing a truncated normal distribution for the CNNEMOS model.
+    """
     @staticmethod
-    def get_distribution(y_pred):
+    def get_distribution(y_pred: tf.Tensor) -> tfp.distribution.TruncatedNormal:
+        """
+        Returns the TruncatedNormal distribution based on the CNN output.
+
+        Arguments:
+            y_pred (tf.Tensor): The output of the CNN containing the parameters for the TruncatedNormal distribution.
+
+        Returns:
+            tfp.distributions.TruncatedNormal: The TruncatedNormal distribution parameterized by the CNN output.
+        """
         loc = y_pred[:, 0]
         scale = y_pred[:, 1]
 
@@ -149,25 +160,50 @@ class NNTruncNormal(NNDistribution):
 
         return tfp.distributions.TruncatedNormal(loc=loc, scale=scale, low=0.0, high=1000.0)
     
-    def build_output_layers(self):
+    def build_output_layers(self) -> Tuple[Dense, Dense]:
+        """
+        Constructs and returns the output layers for the neural network corresponding to the truncated normal distribution.
+
+        Returns:
+            Tuple[Dense, Dense]: The Dense layers for the mean (mu) and standard deviation (sigma) of the TruncatedNormal distribution.
+        """
         mu = Dense(1, activation='linear')
         sigma = Dense(1, activation='softplus')
         return mu, sigma
     
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Returns the name of the distribution.
+
+        Returns:
+            str: The name of the distribution.
+        """
         return "TruncNormal"
     
-    def short_name(self):
-        return "tn"
-    
-    def get_config(self):
-        return {}
+    def short_name(self) -> str:
+        """
+        Returns a short name for the distribution.
 
-    
-    
+        Returns:
+            str: The short name of the distribution.
+        """
+        return "tn"
+
 
 class NNLogNormal(NNDistribution):
-    def get_distribution(self, y_pred):
+    """
+    Class representing a log-normal distribution for the CNNEMOS model.
+    """
+    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.LogNormal:
+        """
+        Returns the LogNormal distribution based on the CNN output.
+
+        Arguments:
+            y_pred (tf.Tensor): The output of the CNN containing the parameters for the LogNormal distribution.
+
+        Returns:
+            tfp.distributions.LogNormal: The LogNormal distribution parameterized by the CNN output.
+        """
         loc = y_pred[:, 0]
         scale = y_pred[:, 1]
 
@@ -178,54 +214,107 @@ class NNLogNormal(NNDistribution):
 
         return tfp.distributions.LogNormal(loc=mean, scale=sigma)
     
-    def build_output_layers(self):
+    def build_output_layers(self) -> Tuple[Dense, Dense]:
+        """
+        Constructs and returns the output layers for the neural network corresponding to the log-normal distribution.
+
+        Returns:
+            Tuple[Dense, Dense]: The Dense layers for the mean (mu) and standard deviation (sigma) of the LogNormal distribution.
+        """
         mu = Dense(1, activation='linear')
         sigma = Dense(1, activation='softplus')
         return mu, sigma
     
-    def __str__(self):
+
+    def __str__(self) -> str:
+        """
+        Returns the name of the distribution.
+
+        Returns:
+            str: The name of the distribution.
+        """
         return "LogNormal"
     
-    def short_name(self):
+
+    def short_name(self) -> str:
+        """
+        Returns a short name for the distribution.
+
+        Returns:
+            str: The short name of the distribution.
+        """
         return "ln"
     
 
 class NNGEV(NNDistribution):
-    def get_distribution(self, y_pred):
+    """
+    Class representing a Generalized Extreme Value (GEV) distribution for the CNNEMOS model.
+    Has additional methods since tfp.distributions.GeneralizedExtremeValue returns NaN for the methods prob or cdf outside of its domain.
+    """
+    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.GeneralizedExtremeValue:
+        """
+        Returns the GEV distribution based on the CNN output.
+
+        Arguments:
+            y_pred (tf.Tensor): The output of the CNN containing the parameters for the GEV distribution.
+
+        Returns:
+            tfp.distributions.GeneralizedExtremeValue: The GEV distribution parameterized by the CNN output.
+        """
         loc = y_pred[:, 0]
         scale = y_pred[:, 1] + 1e-5
         concentration = y_pred[:, 2]
         return tfp.distributions.GeneralizedExtremeValue(loc=loc, scale=scale, concentration=concentration)
     
-    def build_output_layers(self):
+    def build_output_layers(self) -> Tuple[Dense, Dense, Dense]:
+        """
+        Constructs and returns the output layers for the neural network corresponding to the GEV distribution.
+
+        Returns:
+            Tuple[Dense, Dense, Dense]: The Dense layers for the location (loc), scale, and concentration parameters of the GEV distribution.
+        """
         # Setting these constraint results in better convergence.
         loc = Dense(1, activation='linear', kernel_constraint=MinMaxConstraint(-10, 30))
         scale = Dense(1, activation='softplus', kernel_constraint=SymmetricClipConstraint(5))
         shape = Dense(1, activation='linear', kernel_constraint=SymmetricClipConstraint(0.5))
         return loc, scale, shape
     
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Returns the name of the distribution.
+
+        Returns:
+            str: The name of the distribution.
+        """
         return "GEV"
     
-    def short_name(self):
+    def short_name(self) -> str:
+        """
+        Returns a short name for the distribution.
+
+        Returns:
+            str: The short name of the distribution.
+        """
         return "gev"
     
     def has_gev(self) -> bool:
         """
         Checks whether the distribution contains a GEV distribution, which is True in this case.
+
+        Returns:
+            bool: True, since this is a GEV distribution.
         """
         return True
     
     def get_gev_shape(self, y_pred: tf.Tensor) -> tf.Tensor:
         """
-        Based on y_pred, we return the shape of the GEV. 
-        This is necessary for computing the BS, since it then returns NaN in case the threshold is outside of the domain.
+        Returns the shape parameter of the GEV distribution based on the predicted values.
 
         Arguments:
-            y_pred (tf.Tensor): the predicted values.
-        
+            y_pred (tf.Tensor): The predicted values.
+
         Returns:
-            The shape paramater of y_pred (tf.Tensor).
+            tf.Tensor: The shape parameter of the GEV distribution.
         """
         return y_pred[:, 2]
     

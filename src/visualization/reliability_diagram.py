@@ -4,6 +4,8 @@ from sklearn.calibration import calibration_curve
 import matplotlib.gridspec as gridspec
 import tensorflow as tf
 
+from src.models.emos import BaseForecastModel
+
 
 def make_reliability_and_refinement_diagram(emos_dict, X, y, variances, t, n_subset = 11):
     subset_values = np.linspace(0, 1, n_subset)
@@ -222,17 +224,17 @@ def make_reliability_and_sharpness(emos_dict, X, y, t, n_subset = 10, base_model
     plt.tight_layout()
     plt.show()
     
-def make_reliability_and_sharpness_tf(dict: dict, data: tf.data.Dataset, t: float, n_subset: int = 10, base_model = None, base_model_name = 'Base Model') -> None:
+def make_reliability_and_sharpness_tf(dict: dict[str: BaseForecastModel], data: tf.data.Dataset, t: float, n_subset: int = 10, base_model: BaseForecastModel = None, base_model_name = 'Base Model') -> None:
     """
     Makes a reliability diagram and a sharpness diagram for the models in dict, for wind speeds of value t.
 
     Arguments:
-        dict: a dictionary containing the models.
-        data: the data for which we make the reliability and sharpness diagram.
-        t: the threshold at which we make the diagram.
-        n_subset: the number of bins we use to split the data.
-        base_model: an optional model that will also be shown in the diagram.
-        base_model_name: the name of the base_model.
+        dict (dict[str: BaseForecastModel]): a dictionary containing the models.
+        data (tf.data.Dataset): the data for which we make the reliability and sharpness diagram.
+        t (float): the threshold at which we make the diagram.
+        n_subset (int): the number of bins we use to split the data.
+        base_model (BaseForecastModel): an optional model that will also be shown in the diagram.
+        base_model_name (str): the name of the base_model.
 
     Returns: 
         None

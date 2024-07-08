@@ -8,6 +8,33 @@ from src.neural_networks.get_data import load_cv_data
 from src.neural_networks.nn_forecast import CNNEMOS
 
 class ObjectiveCNN:
+    """
+    Class used as an objective function with Optuna for hyperparameter optimization of CNNEMOS.
+
+    This class facilitates the preprocessing of data, training of models, and computation of objective 
+    functions for evaluating model performance during hyperparameter optimization.
+
+    Attributes:
+        feature_names_dict (dict): Dictionary mapping feature names to their respective indices or descriptions.
+        objectives (list): List of objective functions to be used for model evaluation. Valid objectives 
+                           include 'CRPS' and 'twCRPS<value>'.
+        train_amount (int): Number of times to train the model on each fold for stability and robustness.
+        feature_names_list (list): List of feature names extracted from feature_names_dict.
+    
+    Methods:
+        get_data_i(i: int, batch_size: int) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
+            Preprocesses and returns the training and test datasets for the specified fold.
+        
+        compute_objective(nnforecast: CNNEMOS, objective: str, test_data: tf.data.Dataset) -> float:
+            Computes and returns the specified objective value for the given test data.
+        
+        train_on_fold_i(setup: dict, fold: int, epochs: int, batch_size: int) -> Tuple[np.ndarray, int]:
+            Trains the model on the specified fold and returns the objective values and best epoch.
+        
+        __call__(trial: optuna.Trial) -> list:
+            Executes the objective function for Optuna hyperparameter optimization, returning the list of 
+            objective values.
+    """
     def __init__(self, feature_names_dict, objectives, train_amount = 3):
         self.feature_names_dict = feature_names_dict
         self.objectives = objectives
