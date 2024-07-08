@@ -1,3 +1,4 @@
+from typing import Tuple, Union
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -44,7 +45,8 @@ def distribution_name(distribution: str, **kwargs):
     
 
 class SymmetricClipConstraint(Constraint):
-    def __init__(self, clip_value):
+
+    def __init__(self, clip_value: float):
         self.clip_value = clip_value
 
     def __call__(self, w):
@@ -58,8 +60,10 @@ class MinMaxConstraint(Constraint):
     def __call__(self, w):
         return tf.clip_by_value(w, self.min, self.max)
         
-@register_keras_serializable(package='Custom')
 class NNDistribution(ABC):
+    """
+    Abstract base class for the parametric distributions of the CNNEMOS.
+    """
     @abstractmethod
     def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.Distribution:
         """
@@ -85,10 +89,6 @@ class NNDistribution(ABC):
         """
         pass
     
-    # @abstractmethod
-    # def add_forecast(self, outputs, inputs):
-    #     pass
-    
     @abstractmethod
     def __str__(self):
         """
@@ -97,20 +97,25 @@ class NNDistribution(ABC):
         pass
 
     @abstractmethod
-    def short_name(self):
+    def short_name(self) -> str:
+        """
+        Returns a shortened version of the name of the distribution, which can be used for saving.
+
+        Returns:
+            The shortened name of the distribution.
+        """
         pass
     
-    @classmethod
-    def from_config(cls, config):
-        return NNTruncNormal.from_config(config)
-        
-    def get_config(self):
-        return {'name': self.__str__()}
-    
-    def has_gev(self):
+    def has_gev(self) -> bool:
+        """
+        Checks whether the parametric distribution contains a GEV distribution.
+        """
         return False
     
-    def is_mixture(self):
+    def is_mixture(self) -> bool:
+        """
+        Checks whether this is an mixture distribution.
+        """
         return False
     
     def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
@@ -132,16 +137,15 @@ class NNDistribution(ABC):
         return output
 
     
-@register_keras_serializable(package='Custom')
 class NNTruncNormal(NNDistribution):
     @staticmethod
     def get_distribution(y_pred):
         loc = y_pred[:, 0]
         scale = y_pred[:, 1]
 
-        # Clip the values to ensure they are within the desired ranges
-        loc = tf.clip_by_value(loc, -2.0, 50.0)
-        scale = tf.clip_by_value(scale, 0.0, 20.0)
+        # # Clip the values to ensure they are within the desired ranges
+        # loc = tf.clip_by_value(loc, -2.0, 50.0)
+        # scale = tf.clip_by_value(scale, 0.0, 20.0)
 
         return tfp.distributions.TruncatedNormal(loc=loc, scale=scale, low=0.0, high=1000.0)
     
@@ -149,9 +153,6 @@ class NNTruncNormal(NNDistribution):
         mu = Dense(1, activation='linear')
         sigma = Dense(1, activation='softplus')
         return mu, sigma
-
-    # def add_forecast(self, outputs, inputs):
-    #     return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
     
     def __str__(self):
         return "TruncNormal"
@@ -161,10 +162,7 @@ class NNTruncNormal(NNDistribution):
     
     def get_config(self):
         return {}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls()
+
     
     
 
@@ -184,10 +182,6 @@ class NNLogNormal(NNDistribution):
         mu = Dense(1, activation='linear')
         sigma = Dense(1, activation='softplus')
         return mu, sigma
-    
-    # def add_forecast(self, outputs, inputs):
-    #     adjusted_mean = outputs[:, 0:1] + tf.math.log(tf.expand_dims(inputs['wind_speed_forecast'], axis=-1)) - tf.square(outputs[:, 1:])/2
-    #     return tf.concat([adjusted_mean, outputs[:, 1:]], axis=1)
     
     def __str__(self):
         return "LogNormal"
@@ -210,22 +204,43 @@ class NNGEV(NNDistribution):
         shape = Dense(1, activation='linear', kernel_constraint=SymmetricClipConstraint(0.5))
         return loc, scale, shape
     
-    # def add_forecast(self, outputs, inputs):
-    #     return tf.concat([outputs[:, 0:1] + tf.expand_dims(inputs['wind_speed_forecast'], axis=-1), outputs[:, 1:]], axis=1)
-    
     def __str__(self):
         return "GEV"
     
     def short_name(self):
         return "gev"
     
-    def has_gev(self):
+    def has_gev(self) -> bool:
+        """
+        Checks whether the distribution contains a GEV distribution, which is True in this case.
+        """
         return True
     
-    def get_gev_shape(self, y_pred):
+    def get_gev_shape(self, y_pred: tf.Tensor) -> tf.Tensor:
+        """
+        Based on y_pred, we return the shape of the GEV. 
+        This is necessary for computing the BS, since it then returns NaN in case the threshold is outside of the domain.
+
+        Arguments:
+            y_pred (tf.Tensor): the predicted values.
+        
+        Returns:
+            The shape paramater of y_pred (tf.Tensor).
+        """
         return y_pred[:, 2]
     
     def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+        """
+        Computes the CDF values for the distribution parameters y_pred at values.
+        Based on the CDF values, we need to change the NaNs into 0 or 1 depending on the shape of the distribution.
+
+        Arguments:
+            y_pred (tf.Tensor): tensor of the predicted values.
+            values (np.ndarray): the values at which we want to find the CDF.
+
+        Returns:
+            The correct cdf at  values.
+        """
         shape = self.get_gev_shape(y_pred)
 
         output = np.zeros((len(values), y_pred.shape[0]))
@@ -244,6 +259,9 @@ class NNGEV(NNDistribution):
         return output
 
 class NNMixture(NNDistribution):
+    """
+    Class for the Mixture distribution for CNNEMOS. It contains two underlying NNDistributions and combines these two with an extra weight parameter.
+    """
     def __init__(self, distribution_1, distribution_2):
         if not isinstance(distribution_1, NNDistribution):
             raise ValueError("distribution_1 must be an instance of NNDistribution")
@@ -256,7 +274,17 @@ class NNMixture(NNDistribution):
         self.num_params_distribution_1 = len(distribution_1.build_output_layers())
         self.num_params_distribution_2 = len(distribution_2.build_output_layers())
     
-    def get_distribution(self, y_pred):
+    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distribution.Mixture:
+        """
+        Based on y_pred it returns the mixture distribution.
+
+        Arguments:
+            y_pred (tf.Tensor): the predicted parameters of the distribution.
+
+        Returns:
+            tfp.distributions.Mixture with the parameters from y_pred.
+        """
+        # The first parameter is the weight, then the parameters from distribution_1 and the final parameters are from distribution_2.
         weight = y_pred[:, 0]
         params_1 = y_pred[:, 1:1+self.num_params_distribution_1]
         params_2 = y_pred[:, 1+self.num_params_distribution_1:]
@@ -272,14 +300,17 @@ class NNMixture(NNDistribution):
         )
     
     def build_output_layers(self):
+        """
+        Returns the output layers for this specific distribuion. The first one is the weight parameter, which has sigmoid activation.
+        Then the layers from distribution_1 and distribution_2 follow.
+
+        Returns:
+            The output layers for the NNMixture distribution.
+        """
         weight = Dense(1, activation='sigmoid')
         params_1 = self.distribution_1.build_output_layers()
         params_2 = self.distribution_2.build_output_layers()
         return weight, *params_1, *params_2
-    
-    # def add_forecast(self, outputs, inputs):
-    #     return tf.concat([outputs[:, 0:1], self.distribution_1.add_forecast(outputs[:, 1:1+self.num_params_distribution_1], inputs), self.distribution_2.add_forecast(outputs[:, 1+self.num_params_distribution_1:], inputs)], axis=1)
-        
 
     def __str__(self):
         return f"Mixture({self.distribution_1}, {self.distribution_2})"
@@ -287,24 +318,59 @@ class NNMixture(NNDistribution):
     def short_name(self):
         return f"mix_{self.distribution_1.short_name()}_{self.distribution_2.short_name()}"
     
-    def has_gev(self):
+    def has_gev(self) -> bool:
+        """
+        Checks whether the underlying distributions are the GEV distribution.
+        """
         return self.distribution_1.has_gev() or self.distribution_2.has_gev()
     
-    def get_gev_shape(self, y_pred):
+    def get_gev_shape(self, y_pred: tf.Tensor) -> Union[tf.Tensor, None]:
+        """
+        Returns the shape of the GEV distribution in case this is part of distribution_1 or distribution_2.
+    
+        Arguments:
+            y_pred (tf.Tensor): the predicted parameters of the distribution.
+
+        Returns:
+            The shape of the GEV distribution (tf.Tensor) in case this is applicable, otherwise None.
+        """
         if self.distribution_1.has_gev():
             return self.distribution_1.get_gev_shape(y_pred[:, 1:1+self.num_params_distribution_1])
         elif self.distribution_2.has_gev():
             return self.distribution_2.get_gev_shape(y_pred[:, 1+self.num_params_distribution_1:])
+        else:
+            return None
         
-    def is_mixture(self):
+    def is_mixture(self) -> bool:
+        """
+        Checks whether this is an Mixture distribution.
+        """
         return True
     
-    def get_weight(self, y_pred):
+    def get_weight(self, y_pred: tf.Tensor) -> tf.Tensor:
+        """
+        Returns the weight of the mixture distribution for the predicted parameters.
+
+        Arguments:
+            y_pred (tf.Tensor): the predicted parameters.
+
+        Returns:
+            The weight of the distributions (tf.Tensor).
+        """
         return y_pred[:, 0]
     
-    def get_shape_and_weight(self, y_pred):
+    def get_shape_and_weight(self, y_pred: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        """
+        Returns the shape and the weight of the predicted parameters. Only applicable in case has_gev is True.
+
+        Arguments:
+            y_pred (tf.Tensor): the predicted parameters of the distribution.
+
+        Returns:
+            A tuple of the shape of the GEV and the weight.
+        """
         if not self.has_gev():
-            return False
+            return None
         
         gev_shape = None
         if self.distribution_1.has_gev():
@@ -317,6 +383,16 @@ class NNMixture(NNDistribution):
         return gev_shape, weight
     
     def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+        """
+        Computes the CDF values for the distribution parameters y_pred at values.
+
+        Arguments:
+            y_pred (tf.Tensor): tensor of the predicted values.
+            values (np.ndarray): the values at which we want to find the CDF.
+
+        Returns:
+            The correct cdf at  values.
+        """
         weight = self.get_weight(y_pred).numpy()
 
         values_1 = self.distribution_1.comp_cdf(y_pred, values)

@@ -152,7 +152,7 @@ class NNConvModel(NNBaseModel):
         }
 
 
-    def call(self, inputs: dict) -> tf.Tensor:
+    def call(self, inputs: dict[str: tf.Tensor]) -> tf.Tensor:
         """
         Perform the forward pass of the CNN model.
 
