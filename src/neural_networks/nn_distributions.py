@@ -131,7 +131,7 @@ class NNDistribution(ABC):
         output = np.zeros((len(values), y_pred.shape[0]))
         distr = self.get_distribution(y_pred)
         for i, value in enumerate(values):
-            output[i] = distr.cdf(value).numpy()
+            output[i] = distr.cdf(value)
 
         return output
 
@@ -141,7 +141,7 @@ class NNTruncNormal(NNDistribution):
     Class representing a truncated normal distribution for the CNNEMOS model.
     """
     @staticmethod
-    def get_distribution(y_pred: tf.Tensor) -> tfp.distribution.TruncatedNormal:
+    def get_distribution(y_pred: tf.Tensor) -> tfp.distributions.TruncatedNormal:
         """
         Returns the TruncatedNormal distribution based on the CNN output.
 
@@ -204,15 +204,17 @@ class NNLogNormal(NNDistribution):
         Returns:
             tfp.distributions.LogNormal: The LogNormal distribution parameterized by the CNN output.
         """
-        loc = y_pred[:, 0]
-        scale = y_pred[:, 1]
+        mean = y_pred[:, 0]
+        var = y_pred[:, 1]
 
-        mean = tf.math.log(loc ** 2) - 0.5 * tf.math.log(scale + loc ** 2)
+        # The loc and scale follow this transformation to ensure that the resulting 
+        # log-normal distribution has expectation mean and variance var
+        loc = tf.math.log(mean ** 2) - 0.5 * tf.math.log(var + mean ** 2)
 
         # We add a small value to avoid numerical instability
-        sigma = tf.sqrt(tf.math.log(1 + scale / loc ** 2) + 1e-6)
+        scale = tf.sqrt(tf.math.log(1 + var / mean ** 2) + 1e-6)
 
-        return tfp.distributions.LogNormal(loc=mean, scale=sigma)
+        return tfp.distributions.LogNormal(loc=loc, scale=scale)
     
     def build_output_layers(self) -> Tuple[Dense, Dense]:
         """
@@ -351,7 +353,7 @@ class NNMixture(NNDistribution):
     """
     Class for the Mixture distribution for CNNEMOS. It contains two underlying NNDistributions and combines these two with an extra weight parameter.
     """
-    def __init__(self, distribution_1, distribution_2):
+    def __init__(self, distribution_1: NNDistribution, distribution_2: NNDistribution):
         if not isinstance(distribution_1, NNDistribution):
             raise ValueError("distribution_1 must be an instance of NNDistribution")
         
@@ -363,7 +365,7 @@ class NNMixture(NNDistribution):
         self.num_params_distribution_1 = len(distribution_1.build_output_layers())
         self.num_params_distribution_2 = len(distribution_2.build_output_layers())
     
-    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distribution.Mixture:
+    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.Mixture:
         """
         Based on y_pred it returns the mixture distribution.
 

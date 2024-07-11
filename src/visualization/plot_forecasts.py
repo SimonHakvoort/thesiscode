@@ -127,7 +127,7 @@ def plot_weight_mixture_cnns(model_dict: dict, data: tf.data.Dataset) -> None:
         y_pred = model.predict(X)
         weight = y_pred[:, 0]
 
-        plt.scatter(y, weight, alpha=0.5, label=name)
+        plt.scatter(y, weight, alpha=0.5, label=name, marker='.')
 
     plt.xlabel("Observed Wind Speed")
     plt.ylabel("Weight for TN")

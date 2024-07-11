@@ -41,7 +41,7 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     plt.show()
     
 
-def make_cpit_diagram(cdf_dict: dict, y: np.ndarray, title: str = "", t: float = 0.0, gev_shape = None):
+def make_cpit_diagram(cdf_dict: dict[str, BaseForecastModel], y: np.ndarray, title: str = "", t: float = 0.0, gev_shape = None):
     """
     Function to make a PIT diagram for a given cdf and data. The cdf needs to have the same shape as y, they are stored in cdf_dict
     It is also possible to make a conditional PIT diagram, by setting t to a value different from 0.

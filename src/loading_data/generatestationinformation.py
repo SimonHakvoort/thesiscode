@@ -109,28 +109,28 @@ location = '/net/pc200239/nobackup/users/hakvoort/'
 pickle_file_location = location + 'station_info.pkl'
 
 # Load all the information in a pickle file
-with open(pickle_file_location, 'wb') as file:
-    pkl.dump(station_info, file)
+# with open(pickle_file_location, 'wb') as file:
+#     pkl.dump(station_info, file)
 
-print("The pickle file has been saved to: ", pickle_file_location)
+# print("The pickle file has been saved to: ", pickle_file_location)
 
 
-# ## to compare the grid cells i found with the grid cells of daniel
+## to compare the grid cells i found with the grid cells of daniel
     
-# pickle_file_location_daniel = '/net/pc230053/nobackup/users/klein/BackupDaniel/st-info.pkl'
+pickle_file_location_daniel = '/net/pc230053/nobackup/users/klein/BackupDaniel/st-info.pkl'
 
-# mypickle = '/net/pc200239/nobackup/users/hakvoort/station_info.pkl'
+mypickle = '/net/pc200239/nobackup/users/hakvoort/station_info.pkl'
 
-# with open(mypickle, 'rb') as file:
-#     station_dict = pkl.load(file)
+with open(mypickle, 'rb') as file:
+    station_dict = pkl.load(file)
 
 
-# with open(pickle_file_location_daniel, 'rb') as file:
-#     data = pkl.load(file)
+with open(pickle_file_location_daniel, 'rb') as file:
+    data = pkl.load(file)
 
-# for key, value in data.items():
-#     if (value['GRID'] != station_dict[key].gridcell):
-#         print("The grid cells do not match for station: ", key)
-#         print("The grid cell in the pickle file is: ", value['GRID'])
-#         print("The grid cell in the station object is: ", station_dict[key].gridcell)
+for key, value in data.items():
+    if (value['GRID'] != station_dict[key].gridcell):
+        print("The grid cells do not match for station: ", key)
+        print("The grid cell in the pickle file is: ", value['GRID'])
+        print("The grid cell in the station object is: ", station_dict[key].gridcell)
 

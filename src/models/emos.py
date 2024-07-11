@@ -15,7 +15,6 @@ class BaseForecastModel(ABC):
     """
     Abstract base class for Climatology and the EMOS models.
     """
-
     @abstractmethod
     def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
         """

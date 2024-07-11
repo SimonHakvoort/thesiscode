@@ -30,7 +30,7 @@ train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 original_data_size = train_data.cardinality().numpy()
 
-batch_size = 32
+batch_size = 64
 
 # train_data = make_importance_sampling_dataset(train_data, bounds)
 
@@ -67,28 +67,28 @@ forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 9
 chain_function_std = 0.25
 chain_function_constant = 0.01
 
 optimizer = 'adam'
-learning_rate = 0.0005
+learning_rate = 0.000105
 
 
 dense_l1_regularization = 0.000
-dense_l2_regularization = 0.0003
-hidden_units_list = [100, 100, 100]
+dense_l2_regularization = 0.031658
+hidden_units_list = [170, 170]
 conv_7x7_units = 4
 conv_5x5_units = 4
 conv_3x3_units = 4
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
-saving = False
+saving = True
 
-epochs = 5
+epochs = 100
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -113,7 +113,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += '_us_fixed_seed_1'
+filepath += 'run_115_fold_3'
 
 
 # make a folder
@@ -179,21 +179,6 @@ best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 
 print(f'Best epoch: {best_epoch}')
 
-print(nn.model.summary())
-
-#end the time
-time_end = time.time()
-
-print("Time: ", time_end - time_start)
-
-print(nn.CRPS(test_data, 10000).numpy())
-
-print(nn.twCRPS(test_data, [12], 10000)[0].numpy())
-
-values = np.linspace(0, 20, 40)
-
-brierscores = nn.Brier_Score(test_data, values)
-
 
 # X, y = next(iter(test_data))
 
@@ -202,6 +187,19 @@ brierscores = nn.Brier_Score(test_data, values)
 if saving:
     nn.save_weights(filepath)
     print("Model saved")
+
+#end the time
+time_end = time.time()
+
+print("Time: ", time_end - time_start)
+
+print(nn.CRPS(test_data, 10000))
+
+print(nn.twCRPS(test_data, [12], 10000)[0])
+
+values = np.linspace(0, 20, 40)
+
+brierscores = nn.Brier_Score(test_data, values)
 
 # save the history
 if saving:
