@@ -63,6 +63,20 @@ class Climatology(BaseForecastModel):
 
         return brier_scores
     
+    def seperate_Bier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+        """
+        Similar to the Brier_Score, except that we do not take the average over the data, hence 
+        the output will be a matrix.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            probability_thresholds (np.ndarray): the thresholds for the Brier score.
+
+        Returns:
+            A matrix (np.ndarray) containing the Brier score for the specified thresholds and all the stations.
+        """
+        return None
+    
     def _get_cdf_station(self, station_code: str) -> Callable[[float], float]:
         """
         Compute the cdf for climatology for a specific station. 

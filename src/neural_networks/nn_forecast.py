@@ -223,6 +223,7 @@ class CNNEMOS(BaseForecastModel):
         Returns:
             an estimate of the CRPS (tf.Tensor)
         """
+        # distribution is a tfp.distributions.Distribution object
         distribution = self.get_distribution(y_pred)
 
         sample_shape = tf.concat([[sample_size], tf.ones_like(distribution.batch_shape_tensor(), dtype=tf.int32)], axis=0)
@@ -271,7 +272,7 @@ class CNNEMOS(BaseForecastModel):
             
         y_true = tf.concat(y_true, axis=0)
         y_pred = tf.concat(y_pred, axis=0)
-        return self._compute_CRPS(y_true, y_pred, sample_size)
+        return self._compute_CRPS(y_true, y_pred, sample_size).numpy()
     
     def _chain_function_indicator(self, x: tf.Tensor, threshold: tf.Tensor) -> tf.Tensor:
         """
@@ -469,6 +470,22 @@ class CNNEMOS(BaseForecastModel):
         Returns:
             np.ndarray: A list of Brier scores corresponding to each threshold.
         """
+        brier_scores = np.mean(self.seperate_Bier_Score(data, probability_thresholds), axis=1)
+
+        return brier_scores
+    
+    def seperate_Bier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+        """
+        Similar to the Brier_Score, except that we do not take the average over the data, hence 
+        the output will be a matrix.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            probability_thresholds (np.ndarray): the thresholds for the Brier score.
+
+        Returns:
+            A matrix (np.ndarray) containing the Brier score for the specified thresholds and all the stations.
+        """
         X, y = next(iter(data))
 
         y_pred = self.predict(X)
@@ -477,7 +494,7 @@ class CNNEMOS(BaseForecastModel):
 
         indicator_values = np.array([self.indicator_function(y, t) for t in probability_thresholds])
 
-        brier_scores = np.mean((indicator_values - cdf_values) ** 2, axis=1)
+        brier_scores = (indicator_values - cdf_values) ** 2
 
         return brier_scores
 

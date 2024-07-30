@@ -60,6 +60,21 @@ class BaseForecastModel(ABC):
         """
         pass
 
+    @abstractmethod
+    def seperate_Bier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+        """
+        Similar to the Brier_Score, except that we do not take the average over the data, hence 
+        the output will be a matrix.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            probability_thresholds (np.ndarray): the thresholds for the Brier score.
+
+        Returns:
+            A matrix (np.ndarray) containing the Brier score for the specified thresholds and all the stations.
+        """
+        pass
+
 class LinearEMOS(BaseForecastModel):
     """
     Class for the EMOS model with linear regression
@@ -625,6 +640,23 @@ class LinearEMOS(BaseForecastModel):
         Returns:
             An np.ndarray containing the Brier scores for the specified thresholds.
         """
+        # Calculate the Brier scores vectorized
+        brier_scores = np.mean(self.seperate_Bier_Score(data, probability_thresholds), axis=1)
+
+        return brier_scores
+    
+    def seperate_Bier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+        """
+        Similar to the Brier_Score, except that we do not take the average over the data, hence 
+        the output will be a matrix.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            probability_thresholds (np.ndarray): the thresholds for the Brier score.
+
+        Returns:
+            A matrix (np.ndarray) containing the Brier score for the specified thresholds and all the stations.
+        """
         X, y = next(iter(data))
 
         # Predict the CDF values for all thresholds
@@ -634,7 +666,7 @@ class LinearEMOS(BaseForecastModel):
         indicator_matrix = np.array([self.indicator_function(y, t) for t in probability_thresholds])
 
         # Calculate the Brier scores vectorized
-        brier_scores = np.mean((indicator_matrix - cdfs) ** 2, axis=1)
+        brier_scores = (indicator_matrix - cdfs) ** 2
 
         return brier_scores
     
