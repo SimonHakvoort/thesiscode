@@ -7,7 +7,6 @@ from src.visualization.reliability_diagram import make_reliability_and_sharpness
 from src.training.training import load_model
 from src.visualization.plot_forecasts import plot_forecast_pdf_tf
 from src.climatology.climatology import Climatology
-from src.visualization.brier_score import get_brier_scores_tf
 from src.models.emos import BootstrapEmos, LinearEMOS
 
 
@@ -40,29 +39,25 @@ test_data = test_data.repeat()
 
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-X, y = next(iter(test_data))
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/base_emos_fold_3'
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/top_twcrps_tn_3'
-
-with open(filepath, 'rb') as f:
-    emos165 = LinearEMOS(pickle.load(f))
-
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/top_twcrps_3'
 
 with open(filepath, 'rb') as f:
-    emos24 = LinearEMOS(pickle.load(f))
+    emos_base = LinearEMOS(pickle.load(f))
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/top_twcrps_ln_3'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-with open(filepath, 'rb') as f:
-    emos66 = LinearEMOS(pickle.load(f))
+model_115_3 = CNNEMOS.my_load(filepath + 'CRPS_mixture_epochs_100run_115_fold_3', train_data)
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/pareto_front_82_3'
+values = np.linspace(0,20, 20)
+base_brier = emos_base.Brier_Score(test_data, values)
 
-with open(filepath, 'rb') as f:
-    emos82 = LinearEMOS(pickle.load(f))
+model115_brier = model_115_3.Brier_Score(test_data, values)
 
-mydict = {'24': emos24, '165': emos165}
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
+us1 = CNNEMOS.my_load(filepath + 'twCRPS_mean_9_std_0.25_constant_0.01_trunc_normal_epochs_200_us_fixed_seed_1', train_data)
 
-t = 15
-make_cpit_diagram_tf(mydict, test_data_original, t)
+us_brier = us1.Brier_Score(test_data, values)
+
+print(1 - model115_brier / base_brier)
+

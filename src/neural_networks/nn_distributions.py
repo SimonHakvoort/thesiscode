@@ -117,13 +117,13 @@ class NNDistribution(ABC):
         """
         return False
     
-    def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+    def comp_cdf(self, y_pred: np.ndarray, values: np.ndarray) -> np.ndarray:
         """
         Computes the cumulative distribution function of the forecast distribution for a range of values.
         
         Args:
-        - X (tf.Tensor): Input data
-        - values (np.ndarray): Values for which to compute the cdf
+        - y_pred (np.ndarray): the predicted parameters of the distribution.
+        - values (np.ndarray): values for which to compute the cdf.
 
         Returns:
         - np.ndarray: The cdf values for each value in the input array, with shape (len(values), num_samples)
@@ -320,13 +320,13 @@ class NNGEV(NNDistribution):
         """
         return y_pred[:, 2]
     
-    def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+    def comp_cdf(self, y_pred: np.ndarray, values: np.ndarray) -> np.ndarray:
         """
         Computes the CDF values for the distribution parameters y_pred at values.
         Based on the CDF values, we need to change the NaNs into 0 or 1 depending on the shape of the distribution.
 
         Arguments:
-            y_pred (tf.Tensor): tensor of the predicted values.
+            y_pred (np.ndarray): tensor of the predicted values.
             values (np.ndarray): the values at which we want to find the CDF.
 
         Returns:
@@ -473,20 +473,20 @@ class NNMixture(NNDistribution):
 
         return gev_shape, weight
     
-    def comp_cdf(self, y_pred: tf.Tensor, values: np.ndarray) -> np.ndarray:
+    def comp_cdf(self, y_pred: np.ndarray, values: np.ndarray) -> np.ndarray:
         """
         Computes the CDF values for the distribution parameters y_pred at values.
 
         Arguments:
-            y_pred (tf.Tensor): tensor of the predicted values.
+            y_pred (np.ndarray): tensor of the predicted values.
             values (np.ndarray): the values at which we want to find the CDF.
 
         Returns:
             The correct cdf at  values.
         """
-        weight = self.get_weight(y_pred).numpy()
+        weight = self.get_weight(y_pred)
 
-        values_1 = self.distribution_1.comp_cdf(y_pred, values)
-        values_2 = self.distribution_2.comp_cdf(y_pred, values)
+        values_1 = self.distribution_1.comp_cdf(y_pred[:, 1:1+self.num_params_distribution_1], values)
+        values_2 = self.distribution_2.comp_cdf(y_pred[:, 1+self.num_params_distribution_1:], values)
 
         return weight * values_1 + (1 - weight) * values_2

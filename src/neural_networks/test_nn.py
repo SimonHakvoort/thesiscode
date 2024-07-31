@@ -4,7 +4,6 @@ import keras
 import numpy as np
 from src.neural_networks.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
 from src.neural_networks.nn_model import NNModel
-from src.models.get_data import get_tensors
 from src.neural_networks.nn_forecast import CNNEMOS
 import tensorflow as tf
 import pickle
@@ -22,9 +21,9 @@ ignore = ['229', '285', '323']
 
 bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
-seed = 42
+# seed = 42
 
-tf.random.set_seed(seed)
+# tf.random.set_seed(seed)
 
 train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
@@ -42,7 +41,7 @@ batch_size = 64
 
 print(original_data_size)
 
-train_data = train_data.shuffle(original_data_size, seed=seed)
+train_data = train_data.shuffle(original_data_size)# , seed=seed)
 
 steps_per_epoch = original_data_size // batch_size
 
@@ -67,7 +66,7 @@ forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_CRPS_sample'
+loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 9
 chain_function_std = 0.25
@@ -113,8 +112,9 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += 'run_115_fold_3'
+filepath += 'run_115_fold_3_twcrps_v2'
 
+print(filepath)
 
 # make a folder
 if saving:

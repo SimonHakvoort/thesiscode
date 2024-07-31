@@ -580,7 +580,7 @@ class CNNEMOS(BaseForecastModel):
         return history
     
 
-    def predict(self, X: dict) -> tf.Tensor:
+    def predict(self, X: dict) -> np.ndarray:
         """
         Makes a prediction and returns the distribution's parameters
 
@@ -588,7 +588,7 @@ class CNNEMOS(BaseForecastModel):
             X (dict): the dict containing the features.
 
         Returns:
-            the predicted mean/std and possible weight of the distribution (tf.Tensor).
+            the predicted mean/std and possible weight of the distribution (np.ndarray).
         """
         return self.model.predict(X)
     
