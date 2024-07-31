@@ -66,7 +66,7 @@ forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 9
 chain_function_std = 0.25
@@ -78,16 +78,16 @@ learning_rate = 0.000105
 
 dense_l1_regularization = 0.000
 dense_l2_regularization = 0.031658
-hidden_units_list = [170, 170]
-conv_7x7_units = 4
-conv_5x5_units = 4
-conv_3x3_units = 4
+hidden_units_list = [20]
+conv_7x7_units = 6
+conv_5x5_units = 1
+conv_3x3_units = 1
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
 saving = True
 
-epochs = 100
+epochs = 130
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
@@ -112,7 +112,7 @@ filepath += 'epochs_' + str(epochs)
 
 
 
-filepath += 'run_115_fold_3_twcrps_v2'
+filepath += 'run_115_fold_3_very_simple_v2'
 
 print(filepath)
 
