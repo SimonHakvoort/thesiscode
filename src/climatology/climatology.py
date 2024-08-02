@@ -9,11 +9,13 @@ from src.models.emos import BaseForecastModel
 class Climatology(BaseForecastModel):
     """
     Class for the climatology model. The model is based on the empirical distribution of past observations, and is done on a station level.
+    In the constructor we call the fit method, which saves the observations that are stored in data, per station.
+    We can then call the CRPS, twCRPS and Brier_Score.
     """
     def __init__(self, data: tf.data.Dataset):
-        self.calibrate(data)
+        self.fit(data)
 
-    def calibrate(self, data: tf.data.Dataset) -> None:
+    def fit(self, data: tf.data.Dataset) -> None:
         """
         Based on the data, we make a dictionary with as keys the station codes, and as values a sorted array of all observations in data.
         The data should contain all the data in a single batch.
@@ -41,6 +43,7 @@ class Climatology(BaseForecastModel):
         for key in self.observations:
             self.observations[key] = np.sort(self.observations[key])
 
+        # An array containing all the station codes.
         self.station_codes = np.unique(X)
 
     def Brier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
@@ -156,11 +159,23 @@ class Climatology(BaseForecastModel):
         return brier_scores / len(X)
     
     def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, sample_size: int = 1000) -> np.ndarray:
+        """
+        Estimates the twCRPS for a single batch of data. It samples from the emperical distirubtion.
+
+        Arguments:
+            data (tf.data.Dataset): the data for which we want to estimate the twCRPS.
+            thresholds (np.ndarray): a one dimensional array containing the thersholds to compute the twCRPS.
+            sample_size (int, optional): the number of samples generated to estimate the twCRPS.
+
+        Returns:
+            An np.ndarray containing the estimates of the twCRPS at the thresholds.
+        """
         X, y = next(iter(data))
         X = X['station_code'].numpy()
         y = y.numpy()
 
         twcrps = np.zeros(len(thresholds))
+        # For every threshold we compute the twCRPS
         for i, threshold in enumerate(thresholds):
             twcrps[i] = self._comp_twCRPS(X, y, threshold, sample_size)
 
@@ -199,6 +214,7 @@ class Climatology(BaseForecastModel):
         inverse_cdfs = {station_code: self._get_inverse_cdf_station(station_code) for station_code in self.station_codes}
 
         # Precompute the samples for each station code
+        # The samples per station have shape (sample_size, 2), one batch for X_1, and one for X_2
         random_samples = {station_code: np.random.uniform(0, 1, (sample_size, 2)) for station_code in self.station_codes}
 
         # Create an array to store the twcrps for each sample

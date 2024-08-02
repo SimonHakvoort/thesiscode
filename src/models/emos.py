@@ -81,6 +81,9 @@ class LinearEMOS(BaseForecastModel):
 
     This class contains the EMOS model, which is used to calibrate forecasts. The model is initialized with a setup, and can be fitted to data using the fit method.
     In case we want to save the model, we can use the to_dict method to get a dictionary containing the parameters and additional settings of the model.
+
+    To determine scores for a class that is fitted to data, we can call Brier_Score, CRPS and twCRPS.
+    Most of the other methods are only used internally in the class.
     """
     def __init__(self, setup):
         """
@@ -122,6 +125,7 @@ class LinearEMOS(BaseForecastModel):
 
         self.num_features = len(self.all_features)
         
+        # neighbourhood_size is used in case we use spatial variance.
         if 'neighbourhood_size' not in setup:
             self.neighbourhood_size = None
         else:
@@ -136,6 +140,8 @@ class LinearEMOS(BaseForecastModel):
         
         self._init_forecast_distribution(setup)
 
+        # The history of the optimization process containing the losses.
+        # This will only be used when we load a saved class in.
         self.hist = []
         if 'history' in setup:
             self.hist = setup['history']
@@ -313,9 +319,6 @@ class LinearEMOS(BaseForecastModel):
             distribution_2)        
         
     
-    def __len__(self) -> int:
-        return len(self.parameter_dict)
-    
     def __str__(self) -> str:
         """
         Returns all the information regarding the setup of the model.
@@ -383,18 +386,18 @@ class LinearEMOS(BaseForecastModel):
             f"{optimizer_info}\n"
             f"{learning_rate_info}\n"
         )
-    
-        
-    
 
     
-    def get_parameters(self):
+    def get_parameters(self) -> dict:
         """
         Return the parameters as np.arrays of the model in a dictionary.
+
+        Returns:
+            A dictionary containing the parameters of the model.
         """
         return self.forecast_distribution.parameters
     
-    def set_parameters(self, parameters):
+    def set_parameters(self, parameters) -> None:
         """
         Set the parameters of the model to the given values.
 
@@ -553,7 +556,7 @@ class LinearEMOS(BaseForecastModel):
             samples (int): the amount of samples used to estimate the expected value of the CRPS.
 
         Returns:
-            an array of shape (n,) containing the losses
+            a tf.Tensor of shape (n,) containing the losses for all the samples.
         """
         forecast_distribution = self.forecast_distribution.get_distribution(X)
 
@@ -562,6 +565,7 @@ class LinearEMOS(BaseForecastModel):
         X_2 = forecast_distribution.sample(samples)
 
         # y will be broadcasted to the shape of X_1.
+        # We then take the mean over the samples, so E_1 and E_2 have shape (n,)
         E_1 = tf.reduce_mean(tf.abs(X_1 - y), axis=0)
         E_2 = tf.reduce_mean(tf.abs(X_1 - X_2), axis=0)
 
@@ -639,7 +643,8 @@ class LinearEMOS(BaseForecastModel):
         Returns:
             An np.ndarray containing the Brier scores for the specified thresholds.
         """
-        # Calculate the Brier scores vectorized
+        # Calculate the Brier scores vectorized using seperate_Brier_Score and then take the mean over all 
+        # samples that have the same threshold. This will give the average Brier score for that specific threshold.
         brier_scores = np.mean(self.seperate_Bier_Score(data, probability_thresholds), axis=1)
 
         return brier_scores
@@ -654,7 +659,7 @@ class LinearEMOS(BaseForecastModel):
             probability_thresholds (np.ndarray): the thresholds for the Brier score.
 
         Returns:
-            A matrix (np.ndarray) containing the Brier score for the specified thresholds and all the stations.
+            A matrix (np.ndarray) containing the Brier score for the specified thresholds and all the samples
         """
         X, y = next(iter(data))
 
@@ -724,22 +729,28 @@ class LinearEMOS(BaseForecastModel):
             samples (int): the amount of samples used to estimate the expected value of the twCRPS
 
         Returns:
-            the loss value (tf.Tensor)
+            a tf.Tensor of shape (n,) containing the losses for all the samples.
         """	
         forecast_distribution = self.forecast_distribution.get_distribution(X)
+
+        #X_1 has shape (samples, n), where n is the number of observations
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
 
+
+
+        # Transform X_2 and X_2 with the specified chaining function.
         vX_1 = chain_function(X_1)
         vX_2 = chain_function(X_2)
- 
+
+        # y will be broadcasted to the shape of X_1.
+        # We then take the mean over the samples, so E_1 and E_2 have shape (n,)
         E_1 = tf.reduce_mean(tf.abs(vX_1 - chain_function(y)), axis=0)
         E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
 
         return E_1 - 0.5 * E_2
     
         
-
     def chain_function_indicator(self, y):
         """
         Implements the chain function in case the weight function is the indicator function, which is used in weighted loss functions.
@@ -798,8 +809,10 @@ class LinearEMOS(BaseForecastModel):
             grads: the gradients of the loss with respect to the parameters of the model.
         """
         with tf.GradientTape() as tape:
+            # Compute the losses for all the samples and multiply this with the corresponding weights.
             weighted_loss = self.loss(X, y) * w
             loss_value = tf.reduce_mean(weighted_loss)
+        
         grads = tape.gradient(loss_value, [*self.forecast_distribution.parameter_dict.values()])
         return loss_value, grads
     
@@ -817,11 +830,15 @@ class LinearEMOS(BaseForecastModel):
             the loss value.
         """
         loss_value, grads = self._compute_loss_and_gradient(X, y, w)
+
+        # This checks whether nan is inside the gradients
         if tf.math.reduce_any(tf.math.is_nan(grads[0])):
             return -1.0
         
+        # Clip the gradients for stability
         clipped_grads = [tf.clip_by_value(grad, -1.0, 1.0) for grad in grads]
 
+        # Apply the gradients to the parameters that are inside the forecast_distribution
         self.optimizer.apply_gradients(zip(clipped_grads, self.forecast_distribution.parameter_dict.values()))
         return loss_value
     
