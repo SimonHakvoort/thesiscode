@@ -544,7 +544,7 @@ class LinearEMOS(BaseForecastModel):
     
     def _crps_computation(self, X: tf.Tensor, y: tf.Tensor, samples: int) -> tf.Tensor:
         """
-        The loss function for the CRPS, based on the forecast distribution and observations.
+        The computation of the CRPS, based on the features and observations.
         We use a sample based approach to estimate the expected value of the CRPS.
 
         Arguments:
@@ -603,7 +603,6 @@ class LinearEMOS(BaseForecastModel):
         if t == 0:
             probabilities = cdf(y_greater)
         elif t > 0:
-            #probabilities = (cdf(observations) - cdf(t)) / (1 - cdf(t))
             upper = cdf(y_greater) - cdf(t)
             lower = 1 - cdf(t)
             # remove the points where lower is 0
@@ -680,7 +679,7 @@ class LinearEMOS(BaseForecastModel):
             sample_size (int): the amount of samples used to estimate the expected value of the twCRPS.
 
         Returns:
-            the twCRPS at the given thresholds.
+            the twCRPS at the given thresholds (np.ndarray).
         """
         X, y = next(iter(data))
         forecast_distribution = self.forecast_distribution.get_distribution(X['features_emos'])

@@ -172,12 +172,12 @@ class NNConvModel(NNBaseModel):
 
         x = grid_input
 
-        # # Put the grid_input through the convolutional block.
-        # for layer, batch_norm in zip(self.conv_7x7_layers, self.batch_norm_7x7_layers):
-        #     x = layer(x)
-        #     x = batch_norm(x)
+        # Put the grid_input through the convolutional block.
+        for layer, batch_norm in zip(self.conv_7x7_layers, self.batch_norm_7x7_layers):
+            x = layer(x)
+            x = batch_norm(x)
 
-        # x = self.max_pooling_2x2(x)
+        x = self.max_pooling_2x2(x)
 
         for layer, batch_norm in zip(self.conv_5x5_layers, self.batch_norm_5x5_layers):
             x = layer(x)

@@ -132,6 +132,10 @@ class ObjectiveCNN:
 
         best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 
+        # In case early stopping is not activated
+        if best_epoch < 0:
+            best_epoch = epochs
+
         print("The best epoch is number: ", best_epoch)
 
         return objective_values, best_epoch
