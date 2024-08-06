@@ -1,18 +1,10 @@
 import os
 # Set environment variable to suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-import numpy as np
 import tensorflow as tf
-from src.neural_networks.get_data import get_tf_data, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, stack_1d_features
-from src.models.train_emos import train_emos
-from src.models.emos import LinearEMOS, BootstrapEmos
-from src.models.get_data import get_tensors
-from src.models.train_emos import train_and_test_emos
-from src.training.training import load_model
-from src.visualization.reliability_diagram import make_reliability_and_sharpness
-from src.models.probability_distributions import TruncGEV
+from src.neural_networks.get_data import load_cv_data
+from src.models.emos import LinearEMOS
 import pickle as pkl
-import time
 
 
 all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -28,7 +20,11 @@ features_names_dict['wind_speed'] = 15
 ignore = ['229', '285', '323']
 
 
-train_data, test_data, data_info = load_cv_data(1, features_names_dict)
+train_data, test_data, data_info = load_cv_data(3, features_names_dict)
+
+print(train_data.cardinality())
+
+print(test_data.cardinality())
 
 def addweight(X, y):
     return X, y, tf.constant(1, dtype=tf.float32)
@@ -47,7 +43,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_twCRPS_sample"
+loss = "loss_CRPS_sample"
 #loss = "loss_cPIT"
 samples = 250
 
@@ -56,11 +52,13 @@ samples = 250
 # if chain_function_normal_cdf is chosen, threshold is necessary
 chain_function = "chain_function_normal_cdf_plus_constant"
 threshold = 8
-chain_function_mean = 8.830960
-chain_function_std = 1.068426
-chain_function_constant = 0.015801
+# chain_function_mean = 8.830960273742676
+# chain_function_std = 1.0684260129928589
+# chain_function_constant = 0.015800999477505684
 
-		
+chain_function_mean = 7.050563812255859
+chain_function_std = 2.405172109603882
+chain_function_constant = 0.06170300021767616		
 				
 
 # possible optimizers: 'SGD', 'Adam'
@@ -117,9 +115,9 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/emos_tf/testing'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_base3'
 
-epochs = 20
+epochs = 450
 
 
 batch_size = None

@@ -98,11 +98,11 @@ forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_CRPS_sample'
+loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function_mean = 9
-chain_function_std = 0.25
-chain_function_constant = 0.01
+chain_function_std = 1
+chain_function_constant = 0.015
 
 optimizer = 'adam'
 learning_rate = 0.000105
@@ -202,16 +202,18 @@ my_list = []
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-with open(filepath + 'epochs_115_crps.pickle', 'rb') as f:
+with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'rb') as f:
     my_list = pickle.load(f)
 
 print(my_list)
+
+print(np.mean(my_list))
+print(np.var(my_list))
 
 train_data_list = [train_data1, train_data2, train_data3]
 test_data_list = [test_data1, test_data2, test_data3]
 steps_list = [steps1, steps2, steps3]
 
-print(steps_list)
 
 for _ in range(0, 100):
     best_epochs = []
@@ -242,7 +244,7 @@ for _ in range(0, 100):
 
     filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-    with open(filepath + 'epochs_115_crps.pickle', 'wb') as f:
+    with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'wb') as f:
         pickle.dump(my_list, f)
 
     print(my_list)

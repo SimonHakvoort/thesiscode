@@ -55,6 +55,7 @@ def make_brier_skill_plot_tf(basemodel: BaseForecastModel,
     if title is not None:
         plt.title(title)
 
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.legend()
     plt.show()
 

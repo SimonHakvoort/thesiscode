@@ -342,6 +342,7 @@ class TruncatedNormalSqrt(ForecastDistribution):
         super().__init__(all_features, location_features, scale_features)
 
         if "a_tn" in parameters and "b_tn" in parameters and "c_tn" in parameters and "d_tn" in parameters:
+            # initializing using the chosen parameters
             self._parameter_dict["a_tn"] = tf.Variable(parameters["a_tn"], dtype = tf.float32, name="a_tn")
             self._parameter_dict["b_tn"] = tf.Variable(parameters["b_tn"], dtype = tf.float32, name="b_tn")
             self._parameter_dict["c_tn"] = tf.Variable(parameters["c_tn"], dtype = tf.float32, name="c_tn")
@@ -355,15 +356,14 @@ class TruncatedNormalSqrt(ForecastDistribution):
             self._parameter_dict['d_tn'] = tf.Variable(random_initialization(len(self.scale_features_indices), 'standard_normal'), dtype = tf.float32, name="d_tn")
             print("Using random initialization for Truncated Normal distribution")
         else:
+            # fixed initializition
             self._parameter_dict['a_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_tn"))
             self._parameter_dict['b_tn'] = tf.Variable(tf.ones(len(self.location_features_indices), dtype=tf.float32), name="b_tn")
             self._parameter_dict['c_tn'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_tn")
             self._parameter_dict['d_tn'] = tf.Variable(tf.ones(len(self.scale_features_indices), dtype=tf.float32), name="d_tn")
-            # print("Using default parameters for truncated normal distribution")
+            print("Using default parameters for truncated normal distribution")
 
     def get_distribution(self, X):
-        # mu = self._parameter_dict['a_tn'] + tf.tensordot(X, self._parameter_dict['b_tn'], axes=1)
-        # sigma = tf.sqrt(self._parameter_dict['c_tn'] + self._parameter_dict['d_tn'] * variance)
         mu = self._parameter_dict['a_tn'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_tn'], axes=1)
         sigma = tf.math.softplus(self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1))
         return tfpd.TruncatedNormal(mu, sigma, 0, 1000)
@@ -553,196 +553,6 @@ class GEV(ForecastDistribution):
     def distribution_name(self) -> str:
         return "gev"
     
-
-            
-    
-class Frechet(ForecastDistribution):
-    def __init__(self, num_features, parameters = {}):
-        super().__init__(num_features)
-
-        constraint = tf.keras.constraints.NonNeg()
-
-        if "a_fr" in parameters and "b_fr" in parameters and "c_fr" in parameters and "d_fr" in parameters and "e_fr" in parameters:
-            self._parameter_dict["a_fr"] = tf.Variable(parameters["a_fr"], dtype = tf.float32, name="a_fr")
-            self._parameter_dict["b_fr"] = tf.Variable(parameters["b_fr"], dtype = tf.float32, name="b_fr")
-            self._parameter_dict["c_fr"] = tf.Variable(parameters["c_fr"], dtype = tf.float32, name="c_fr")
-            self._parameter_dict["d_fr"] = tf.Variable(parameters["d_fr"], dtype = tf.float32, name="d_fr")
-
-            self._parameter_dict["e_fr"] = tf.Variable(parameters["e_fr"], dtype = tf.float32, name="e_fr", constraint=constraint)
-            print("Using given parameters for Frechet distribution")
-        else:
-            self._parameter_dict['a_fr'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_fr"))
-            self._parameter_dict['b_fr'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="b_fr")
-            self._parameter_dict['c_fr'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_fr")
-            self._parameter_dict['d_fr'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="d_fr")
-
-            self._parameter_dict['e_fr'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_fr", constraint=constraint)
-            print("Using default parameters for Frechet distribution")
-
-    def get_distribution(self, X, variance):
-        location = self._parameter_dict['a_fr'] + tf.tensordot(X, self._parameter_dict['b_fr'], axes=1)
-        scale = self._parameter_dict['c_fr'] + tf.tensordot(X, self._parameter_dict['d_fr'], axes=1)  
-        shape = self._parameter_dict['e_fr'] 
-        return tfpd.GeneralizedExtremeValue(location, scale, shape)
-
-    def __str__(self):
-        info = "Frechet distribution with parameters:\n"
-        for key, value in self._parameter_dict.items():
-            info += "{0}: {1}\n".format(key, value)
-        return info
-    
-    def name(self):
-        return "distr_frechet"    
-    
-    def contains_gev(self):
-        return True
-    
-    def get_gev_shape(self):
-        return self._parameter_dict['e_fr'].numpy()
-    
-    def has_negative_scale(self, X, variance):
-        scale = self._parameter_dict['c_fr'] + tf.tensordot(X, self._parameter_dict['d_fr'], axes=1)  
-        return tf.reduce_sum(tf.cast(scale < 0, tf.int32)).numpy() > 0
-
-    
-class GEV2(ForecastDistribution):
-    """
-    Forecast distribution representing a truncated normal EMOS distribution.
-
-    This class implements a generalized extreme value distribution model for forecasting.
-    It inherits from the ForecastDistribution base class and provides functionality
-    for generating truncated normal distribution objects based on input data and variance.
-    It assumes linear relationship between the distribution parameters and the input data.
-    This class does use the variance in the scale of the distribution.
-    Attributes:
-        num_features (int): Number of features used in the model.
-        parameter_dict (dict): Dictionary containing the parameters of the distribution.
-    """
-    def __init__(self, num_features, parameters = {}):
-        super().__init__(num_features)
-        if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
-            self._parameter_dict["a_gev"] = tf.Variable(parameters["a_gev"], dtype = tf.float32, name="a_gev")
-            self._parameter_dict["b_gev"] = tf.Variable(parameters["b_gev"], dtype = tf.float32, name="b_gev")
-            self._parameter_dict["c_gev"] = tf.Variable(parameters["c_gev"], dtype = tf.float32, name="c_gev")
-            self._parameter_dict["d_gev"] = tf.Variable(parameters["d_gev"], dtype = tf.float32, name="d_gev")
-            self._parameter_dict["e_gev"] = tf.Variable(parameters["e_gev"], dtype = tf.float32, name="e_gev")
-
-            self._parameter_dict["extra_gev"] = tf.Variable(parameters["extra_gev"], dtype = tf.float32, name="extra_gev")
-            print("Using given parameters for Generalized Extreme Value distribution 2")
-        else:
-            self._parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_gev"))
-            self._parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="b_gev")
-            self._parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_gev")
-            self._parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="d_gev")
-            self._parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_gev")
-
-            self._parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="extra_gev")
-            print("Using default parameters for Generalized Extreme Value distribution 2")
-
-    def get_distribution(self, X, variance):
-        location = self._parameter_dict['a_gev'] + tf.tensordot(X, self._parameter_dict['b_gev'], axes=1)
-        scale = self._parameter_dict['c_gev'] + tf.tensordot(X, self._parameter_dict['d_gev'], axes=1) + self._parameter_dict['extra_gev'] * variance
-        shape = self._parameter_dict['e_gev'] 
-        return tfpd.GeneralizedExtremeValue(location, scale, shape)
-    
-    def __str__(self):
-        info = "Generalized Extreme Value distribution 2 with parameters:\n"
-        for key, value in self._parameter_dict.items():
-            info += "{0}: {1}\n".format(key, value)
-        return info
-    
-    def name(self):
-        return "distr_gev2"
-    
-class GEV3(ForecastDistribution):
-    """
-    Forecast distribution representing a truncated normal EMOS distribution.
-
-    This class implements a generalized extreme value distribution model for forecasting.
-    It inherits from the ForecastDistribution base class and provides functionality
-    for generating truncated normal distribution objects based on input data and variance.
-    It assumes linear relationship between the distribution parameters and the input data.
-    This class does use the variance in the shape of the distribution.
-
-    Attributes:
-        num_features (int): Number of features used in the model.
-        parameter_dict (dict): Dictionary containing the parameters of the distribution.
-    """
-    def __init__(self, num_features, parameters = {}):
-        super().__init__(num_features)
-        if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
-            self._parameter_dict["a_gev"] = tf.Variable(parameters["a_gev"], dtype = tf.float32, name="a_gev")
-            self._parameter_dict["b_gev"] = tf.Variable(parameters["b_gev"], dtype = tf.float32, name="b_gev")
-            self._parameter_dict["c_gev"] = tf.Variable(parameters["c_gev"], dtype = tf.float32, name="c_gev")
-            self._parameter_dict["d_gev"] = tf.Variable(parameters["d_gev"], dtype = tf.float32, name="d_gev")
-            self._parameter_dict["e_gev"] = tf.Variable(parameters["e_gev"], dtype = tf.float32, name="e_gev")
-
-            self._parameter_dict["extra_gev"] = tf.Variable(parameters["extra_gev"], dtype = tf.float32, name="extra_gev")
-            print("Using given parameters for Generalized Extreme Value distribution 3")
-        else:
-            self._parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_gev"))
-            self._parameter_dict['b_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="b_gev")
-            self._parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_gev")
-            self._parameter_dict['d_gev'] = tf.Variable(tf.ones(self.num_features, dtype=tf.float32), name="d_gev")
-            self._parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_gev")
-
-            self._parameter_dict['extra_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="extra_gev")
-            print("Using default parameters for Generalized Extreme Value distribution 3")
-
-    def get_distribution(self, X, variance):
-        location = self._parameter_dict['a_gev'] + tf.tensordot(X, self._parameter_dict['b_gev'], axes=1)
-        scale = self._parameter_dict['c_gev'] + tf.tensordot(X, self._parameter_dict['d_gev'], axes=1) 
-        shape = self._parameter_dict['e_gev'] + 0.001 * self._parameter_dict['extra_gev'] * variance
-        return tfpd.GeneralizedExtremeValue(location, scale, shape)
-    
-    def __str__(self):
-        info = "Generalized Extreme Value distribution 3 with parameters:\n"
-        for key, value in self._parameter_dict.items():
-            info += "{0}: {1}\n".format(key, value)
-        return info
-    
-    def name(self):
-        return "distr_gev3"
-    
-class TruncatedGEV(ForecastDistribution):
-    def __init__(self, num_features, parameters = {}):
-        super().__init__(num_features)
-        if "a_gev" in parameters and "b_gev" in parameters and "c_gev" in parameters and "d_gev" in parameters and "e_gev" in parameters:
-            self._parameter_dict["a_gev"] = tf.Variable(parameters["a_gev"], dtype = tf.float32, name="a_gev")
-            self._parameter_dict["b_gev"] = tf.Variable(parameters["b_gev"], dtype = tf.float32, name="b_gev")
-            self._parameter_dict["c_gev"] = tf.Variable(parameters["c_gev"], dtype = tf.float32, name="c_gev")
-            self._parameter_dict["d_gev"] = tf.Variable(parameters["d_gev"], dtype = tf.float32, name="d_gev")
-            self._parameter_dict["e_gev"] = tf.Variable(parameters["e_gev"], dtype = tf.float32, name="e_gev")
-            print("Using given parameters for Generalized Extreme Value distribution")
-        else:
-            self._parameter_dict['a_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32, name="a_gev"))
-            self._parameter_dict['b_gev'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="b_gev")
-            self._parameter_dict['c_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32), name="c_gev")
-            self._parameter_dict['d_gev'] = tf.Variable(tf.zeros(self.num_features, dtype=tf.float32), name="d_gev")
-            self._parameter_dict['e_gev'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.3, name="e_gev")
-            print("Using default parameters for Generalized Extreme Value distribution")
-
-    def get_distribution(self, X):
-        location = self._parameter_dict['a_gev'] + tf.tensordot(X, self._parameter_dict['b_gev'], axes=1)
-        scale = self._parameter_dict['c_gev'] + tf.tensordot(X, self._parameter_dict['d_gev'], axes=1)  
-        shape = self._parameter_dict['e_gev'] 
-        return TruncGEV(location, scale, shape)
-
-    def __str__(self):
-        info = "Truncated Generalized Extreme Value distribution with parameters:\n"
-        for key, value in self._parameter_dict.items():
-            info += "{0}: {1}\n".format(key, value)
-        return info
-    
-    def name(self):
-        return "distr_trunc_gev"
-    
-    def contains_gev(self):
-        return True
-    
-    def get_gev_shape(self):
-        return self._parameter_dict['e_gev'].numpy()
-
     
 class Mixture(ForecastDistribution):
     """
@@ -758,6 +568,7 @@ class Mixture(ForecastDistribution):
     def __init__(self, all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters = {}):
         super().__init__(all_features, location_features, scale_features)
         
+        # initialize the parameters of the underlying distributions
         self.distribution_1 = initialize_distribution(distribution_1, all_features, location_features, scale_features, parameters, random_init)
         
         self.distribution_2 = initialize_distribution(distribution_2, all_features, location_features, scale_features, parameters, random_init)
@@ -769,7 +580,7 @@ class Mixture(ForecastDistribution):
             print("Using given weight parameter for Mixture distribution")
         else:
             self._parameter_dict['weight'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 0.5, dtype=tf.float32, trainable=True, name='weight', constraint=constraint)
-            # print("Using default weight parameter for Mixture distribution")
+            print("Using default weight parameter for Mixture distribution")
 
         # This create references to the parameters of distribution_1 and distribution_2 in parameter_dict
         self._parameter_dict.update(self.distribution_1.parameter_dict)
@@ -847,6 +658,7 @@ class MixtureLinear(ForecastDistribution):
     def __init__(self, all_features, location_features, scale_features, distribution_1, distribution_2, random_init, parameters = {}):
         super().__init__(all_features, location_features, scale_features)
         
+        # initialize the parameters of the underlying distribution
         self.distribution_1 = initialize_distribution(distribution_1, all_features, location_features, scale_features, parameters, random_init)
         
         self.distribution_2 = initialize_distribution(distribution_2, all_features, location_features, scale_features, parameters, random_init)
@@ -857,7 +669,6 @@ class MixtureLinear(ForecastDistribution):
         if "weight_a" in parameters and "weight_b" in parameters: # and "weight_c" in parameters:
             self._parameter_dict['weight_a'] = tf.Variable(parameters['weight_a'], dtype = tf.float32, name="weight_a", constraint=constraint_a)
             self._parameter_dict['weight_b'] = tf.Variable(parameters['weight_b'], dtype = tf.float32, name="weight_b", constraint=constraint_b)
-            #self.parameter_dict['weight_c'] = tf.Variable(parameters['weight_c'], dtype = tf.float32, name="weight_c")
             print("Using given weight parameters for weights in Mixture Linear distribution")
         else:
             self._parameter_dict['weight_a'] = tf.Variable(tf.ones(1, dtype=tf.float32) * 5, name="weight_a", trainable=True, constraint=constraint_a)

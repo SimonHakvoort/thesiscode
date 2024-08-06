@@ -4,8 +4,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.constraints import Constraint
-from tensorflow.keras.utils import register_keras_serializable
-import pickle
 
 from abc import ABC, abstractmethod
 
@@ -62,6 +60,10 @@ class MinMaxConstraint(Constraint):
 class NNDistribution(ABC):
     """
     Abstract base class for the parametric distributions of the CNNEMOS.
+    It can be used together with an NNConvModel to make predictions. 
+    Based on the output of the neural network it will make an instance of tfp.distribution.Distribution
+    using the get_distribution method. With buid_output_layers we can return the correct layers for the 
+    output of the neural network. This is dependent on the specific distribution.
     """
     @abstractmethod
     def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.Distribution:
@@ -122,11 +124,11 @@ class NNDistribution(ABC):
         Computes the cumulative distribution function of the forecast distribution for a range of values.
         
         Args:
-        - y_pred (np.ndarray): the predicted parameters of the distribution.
-        - values (np.ndarray): values for which to compute the cdf.
+            y_pred (np.ndarray): the predicted parameters of the distribution.
+            values (np.ndarray): values for which to compute the cdf.
 
         Returns:
-        - np.ndarray: The cdf values for each value in the input array, with shape (len(values), num_samples)
+            np.ndarray: The cdf values for each value in the input array, with shape (len(values), num_samples)
         """
         output = np.zeros((len(values), y_pred.shape[0]))
         distr = self.get_distribution(y_pred)
@@ -153,10 +155,6 @@ class NNTruncNormal(NNDistribution):
         """
         loc = y_pred[:, 0]
         scale = y_pred[:, 1]
-
-        # # Clip the values to ensure they are within the desired ranges
-        # loc = tf.clip_by_value(loc, -2.0, 50.0)
-        # scale = tf.clip_by_value(scale, 0.0, 20.0)
 
         return tfp.distributions.TruncatedNormal(loc=loc, scale=scale, low=0.0, high=1000.0)
     

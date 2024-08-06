@@ -4,7 +4,6 @@ from src.visualization.twcrpss_plot import make_twcrpss_plot_tf
 from src.visualization.brier_score import make_bootstrap_sample, make_brier_skill_plot_tf
 from src.visualization.pit import make_cpit_diagram_tf, comp_multiple_pit_scores
 from src.visualization.reliability_diagram import make_reliability_and_sharpness_tf
-from src.training.training import load_model
 from src.visualization.plot_forecasts import plot_forecast_pdf_tf
 from src.climatology.climatology import Climatology
 from src.models.emos import BootstrapEmos, LinearEMOS
