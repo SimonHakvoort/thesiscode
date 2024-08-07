@@ -4,7 +4,7 @@ from sklearn.calibration import calibration_curve
 import matplotlib.gridspec as gridspec
 import tensorflow as tf
 
-from src.models.emos import BaseForecastModel
+from src.linreg_emos.emos import BaseForecastModel
 
 
 def make_reliability_and_refinement_diagram(emos_dict, X, y, variances, t, n_subset = 11):

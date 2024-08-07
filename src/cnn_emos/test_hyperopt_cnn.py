@@ -5,7 +5,7 @@ import os
 import tensorflow as tf
 import pickle as pkl
 import numpy as np
-from src.neural_networks.hyperopt_cnn import ObjectiveCNN
+from src.cnn_emos.hyperopt_cnn import ObjectiveCNN
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/hyperopt/hyperopt_cnn/'
 

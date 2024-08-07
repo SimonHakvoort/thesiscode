@@ -115,33 +115,6 @@ class Forecast:
         variable = getattr(self, variable_name)
         return variable[i - half:i + half + 1, j - half:j + half + 1]
     
-    # def get_sample_grid(self, station, parameter_names):
-    #     # parameter names is a dict, with as key the parameter name and as value the grid size. If grid size = 1 or 0 or None, the value at the gridcell is returned
-
-    #     X = []
-    #     y = self.observations[station.code][0]
-    #     for key, value in parameter_names.items():
-    #         if key == 'spatial_variance':
-    #             if value == None:
-    #                 raise ValueError('Neighbourhood size must be specified when using spatial variance as a predictor')
-    #             X.append(self.neighbourhood_variance(station.gridcell, value))
-    #         else:
-    #             if value == 0 or value == 1 or value == None:
-    #                 X.append(getattr(self, key)[station.gridcell])
-    #             else:
-    #                 X.append(self.get_grid_variable(station, key, value))
-
-    #     return X, y
-    
-    # def generate_all_samples_grid(self, station_info, parameter_names, station_ignore = []):
-    #     X = {}
-    #     y = []
-    #     for station in station_info.values():
-    #         if station.code in self.observations and station.code not in station_ignore:
-    #             X[station.code], observation = self.get_sample_grid(station, parameter_names)
-    #             y.append(observation)
-        
-    #     return X, y
     
     def generate_ForecastSample(self, station_info: dict, variable_names: dict, ignore: list = []) -> list:
         """
@@ -249,17 +222,13 @@ class ForecastSample():
         else:
             setattr(self, feature_name + '_grid', False)
 
+
     def add_y(self, y: float):
         """
         Adds the observations.
         """
         self.y = y
 
-    # def get_tensor(self) -> tf.Tensor:
-    #     """
-    #     Converts the values of the features to tensors.
-    #     """
-    #     return tf.convert_to_tensor([getattr(self, feature_name) for feature_name in self.feature_names], dtype=tf.float32), tf.convert_to_tensor(self.y, dtype=tf.float32)
     
     def check_if_everything_is_set(self) -> bool:
         """
@@ -274,6 +243,7 @@ class ForecastSample():
             
         return self.y is not None
     
+
     def get_X(self) -> dict:
         """
         Makes a dictionary, with as keys the feature names and as values the associated value, which can be a grid (in case of wind speed) or a singular value.
@@ -307,6 +277,7 @@ class ForecastSample():
         
         return X
      
+
     def get_y(self) -> tf.Tensor:
         """
         Returns the observations as a tensor.

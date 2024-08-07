@@ -4,7 +4,7 @@ import pickle
 
 import tensorflow as tf
 
-from src.models.emos import BaseForecastModel
+from src.linreg_emos.emos import BaseForecastModel
 
 class Climatology(BaseForecastModel):
     """

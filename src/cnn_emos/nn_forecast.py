@@ -4,9 +4,9 @@ import tensorflow_probability as tfp
 import pickle
 
 
-from src.models.emos import BaseForecastModel
-from src.neural_networks.nn_distributions import distribution_name
-from src.neural_networks.nn_model import NNConvModel
+from src.linreg_emos.emos import BaseForecastModel
+from src.cnn_emos.nn_distributions import distribution_name
+from src.cnn_emos.nn_model import NNConvModel
 from typing import Tuple
 
 

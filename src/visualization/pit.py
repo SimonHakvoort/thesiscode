@@ -5,8 +5,8 @@ import numpy as np
 import tensorflow as tf
 
 from src.climatology.climatology import Climatology
-from src.models.emos import BaseForecastModel, LinearEMOS
-from src.neural_networks.nn_forecast import CNNEMOS
+from src.linreg_emos.emos import BaseForecastModel, LinearEMOS
+from src.cnn_emos.nn_forecast import CNNEMOS
 
 def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     """

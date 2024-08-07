@@ -4,7 +4,8 @@ import tensorflow as tf
 import pickle
 
 from typing import Dict, Tuple
-from src.models.get_data import get_fold_i, get_station_info
+from src.linreg_emos.get_data import get_fold_i
+from src.loading_data.station import get_station_info
 
 def get_tf_data(fold, 
                 feature_names: dict,

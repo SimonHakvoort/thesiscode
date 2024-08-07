@@ -2,14 +2,14 @@ import pickle as pkl
 import numpy as np
 from itertools import chain
 
-from src.models.train_emos import train_emos, train_and_test_emos
+from src.linreg_emos.train_emos import train_emos, train_and_test_emos
 from src.visualization.pit import make_cpit_diagram_emos, make_cpit_hist_emos 
 from src.visualization.brier_score import make_brier_skill_plot, brier_plot
-from src.models.get_data import get_tensors, get_normalized_tensor
-from src.models.emos import LinearEMOS
+from src.linreg_emos.get_data import get_tensors, get_normalized_tensor
+from src.linreg_emos.emos import LinearEMOS
 from src.visualization.scoring_tables import make_table
 from src.visualization.twcrpss_plot import make_twcrpss_plot
-from src.models.emos import LinearEMOS
+from src.linreg_emos.emos import LinearEMOS
 from src.visualization.reliability_diagram import make_reliability_diagram, make_reliability_diagram_sklearn
 from src.training.training import load_model, train_model
 from src.visualization.plot_forecasts import plot_forecast_cdf, plot_forecast_pdf, plot_weight_mixture

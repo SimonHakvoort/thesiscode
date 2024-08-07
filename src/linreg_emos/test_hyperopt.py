@@ -5,7 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import pickle as pkl
 import numpy as np
-from src.models.hyperopt_emos import Objective
+from src.linreg_emos.hyperopt_emos import Objective
 import warnings
 import logging
 

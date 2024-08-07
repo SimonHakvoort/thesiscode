@@ -2,9 +2,9 @@
 import time
 import keras
 import numpy as np
-from src.neural_networks.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
-from src.neural_networks.nn_model import NNModel
-from src.neural_networks.nn_forecast import CNNEMOS
+from src.cnn_emos.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
+from src.cnn_emos.nn_model import NNModel
+from src.cnn_emos.nn_forecast import CNNEMOS
 import tensorflow as tf
 import pickle
 import os

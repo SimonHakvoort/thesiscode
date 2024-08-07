@@ -5,8 +5,8 @@ from typing import Callable, List, Tuple, Union
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from src.models.forecast_distributions import Mixture, MixtureLinear, initialize_distribution
-from src.neural_networks.get_data import load_cv_data
+from src.linreg_emos.forecast_distributions import Mixture, MixtureLinear, initialize_distribution
+from src.cnn_emos.get_data import load_cv_data
 from abc import ABC, abstractmethod 
 import time
 tfpd = tfp.distributions

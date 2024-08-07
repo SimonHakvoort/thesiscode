@@ -4,8 +4,8 @@ import numpy as np
 import optuna
 import tensorflow as tf
 
-from src.neural_networks.get_data import load_cv_data
-from src.neural_networks.nn_forecast import CNNEMOS
+from src.cnn_emos.get_data import load_cv_data
+from src.cnn_emos.nn_forecast import CNNEMOS
 
 class ObjectiveCNN:
     """

@@ -3,8 +3,8 @@ import numpy as np
 import tensorflow as tf
 
 from src.climatology.climatology import Climatology
-from src.models.emos import BaseForecastModel, LinearEMOS
-from src.neural_networks.nn_forecast import CNNEMOS
+from src.linreg_emos.emos import BaseForecastModel, LinearEMOS
+from src.cnn_emos.nn_forecast import CNNEMOS
 
 def comp_twcrpss(model_ref, model, X, y, threshold, sample_size = 1000):
     return 1 - model.twCRPS(X, y, threshold, sample_size).numpy() / model_ref.twCRPS(X, y, threshold, sample_size).numpy()
@@ -48,6 +48,7 @@ def make_twcrpss_plot_tf(base_model: BaseForecastModel,
         plt.ylim(ylim[0], ylim[1])
     plt.xlim(values[0], values[-1])
     plt.legend()
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.show()
 
 

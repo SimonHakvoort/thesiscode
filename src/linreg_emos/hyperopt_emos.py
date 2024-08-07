@@ -4,8 +4,8 @@ import numpy as np
 import optuna
 import tensorflow as tf
 
-from src.models.emos import LinearEMOS
-from src.neural_networks.get_data import load_cv_data
+from src.linreg_emos.emos import LinearEMOS
+from src.cnn_emos.get_data import load_cv_data
 
 class Objective:
     def __init__(self, feature_names_dict, objectives, twCRPS = False, train_amount = 1):

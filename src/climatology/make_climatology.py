@@ -1,7 +1,5 @@
-
-
 from src.climatology.climatology import Climatology
-from src.neural_networks.get_data import load_cv_data
+from src.cnn_emos.get_data import load_cv_data
 
 
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -16,6 +14,7 @@ folds = [0,1,2,3]
 
 folder = '/net/pc200239/nobackup/users/hakvoort/models/climatology/'
 
+# For each fold we make a climatology based on the training data
 for fold in folds:
     train_data, test_data, data_info = load_cv_data(fold, features_names_dict)
 

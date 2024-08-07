@@ -5,7 +5,7 @@ import pickle
 
 import pdb
 
-from src.neural_networks.nn_distributions import NNDistribution
+from src.cnn_emos.nn_distributions import NNDistribution
 
 class NNBaseModel(Model):
     
@@ -93,6 +93,7 @@ class NNConvModel(NNBaseModel):
         """
         super(NNConvModel, self).__init__()
 
+        # Set the forecast_distribution as attribute. This should be an NNDistribution instance.
         self._forecast_distribution = forecast_distribution
 
         if not kwargs:
@@ -172,7 +173,7 @@ class NNConvModel(NNBaseModel):
 
         x = grid_input
 
-        # Put the grid_input through the convolutional block.
+        # Put the grid_input through the convolutional blocks.
         for layer, batch_norm in zip(self.conv_7x7_layers, self.batch_norm_7x7_layers):
             x = layer(x)
             x = batch_norm(x)

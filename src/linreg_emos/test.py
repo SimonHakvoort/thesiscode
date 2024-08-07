@@ -1,12 +1,12 @@
-from src.neural_networks.get_data import get_tf_data, stack_1d_features, normalize_1d_features_with_mean_std, load_cv_data
-from src.neural_networks.nn_forecast import CNNEMOS
+from src.cnn_emos.get_data import get_tf_data, stack_1d_features, normalize_1d_features_with_mean_std, load_cv_data
+from src.cnn_emos.nn_forecast import CNNEMOS
 from src.visualization.twcrpss_plot import make_twcrpss_plot_tf
 from src.visualization.brier_score import make_bootstrap_sample, make_brier_skill_plot_tf
 from src.visualization.pit import make_cpit_diagram_tf, comp_multiple_pit_scores
 from src.visualization.reliability_diagram import make_reliability_and_sharpness_tf
 from src.visualization.plot_forecasts import plot_forecast_pdf_tf
 from src.climatology.climatology import Climatology
-from src.models.emos import BootstrapEmos, LinearEMOS
+from src.linreg_emos.emos import BootstrapEmos, LinearEMOS
 
 
 import tensorflow as tf

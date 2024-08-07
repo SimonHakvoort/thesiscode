@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-from src.models.emos import LinearEMOS
-from src.models.forecast_distributions import Mixture, MixtureLinear
-from src.neural_networks.nn_distributions import NNMixture
-from src.neural_networks.nn_forecast import CNNEMOS
+from src.linreg_emos.emos import LinearEMOS
+from src.linreg_emos.forecast_distributions import Mixture, MixtureLinear
+from src.cnn_emos.nn_distributions import NNMixture
+from src.cnn_emos.nn_forecast import CNNEMOS
 from src.visualization.pit import threshold_tf
 
 

@@ -6,7 +6,7 @@ import tensorflow_probability as tfp
 from abc import ABC, abstractmethod
 
 
-from src.models.probability_distributions import DistributionMixture, TruncGEV
+from src.linreg_emos.probability_distributions import DistributionMixture, TruncGEV
 tfpd = tfp.distributions
 
 ### In case a new distribution is added, the following functions need to be updated:

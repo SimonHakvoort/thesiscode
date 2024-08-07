@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from src.climatology.climatology import Climatology
-from src.models.emos import BaseForecastModel
+from src.linreg_emos.emos import BaseForecastModel
 
 
 
