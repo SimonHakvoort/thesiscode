@@ -10,7 +10,6 @@ import pickle
 import os
 import random
 
-from src.visualization.pit import comp_pit_score_tf
 
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
@@ -21,6 +20,7 @@ features_names_dict['wind_speed'] = 15
 ignore = ['229', '285', '323']
 
 bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
+
 
 # seed = 100
 
@@ -50,7 +50,7 @@ train_data3 = train_data3.batch(batch_size)
 
 train_data3 = train_data3.prefetch(tf.data.experimental.AUTOTUNE)
 
-train_data3 = train_data3.repeat()
+# train_data3 = train_data3.repeat()
 
 test_data3 = test_data3.batch(len(test_data3))
 
@@ -93,15 +93,33 @@ test_data1 = test_data1.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
+train_data0, test_data0, data_info = load_cv_data(0, features_names_dict)
 
-forecast_distribution = 'distr_mixture'
+steps0 = train_data0.cardinality() // batch_size
+
+train_data0 = train_data0.shuffle(train_data0.cardinality().numpy())
+
+train_data0 = train_data0.batch(batch_size)
+
+train_data0 = train_data0.prefetch(tf.data.experimental.AUTOTUNE)
+
+train_data0 = train_data0.repeat()
+
+test_data0 = test_data0.batch(len(test_data0))
+
+test_data0 = test_data0.prefetch(tf.data.experimental.AUTOTUNE)
+
+
+X, y = next(iter(train_data0))
+
+forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
 loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
-chain_function_mean = 9
-chain_function_std = 1
+chain_function_mean = 9.0
+chain_function_std = 1.0
 chain_function_constant = 0.015
 
 optimizer = 'adam'
@@ -119,37 +137,6 @@ metrics = None
 saving = False
 
 epochs = 130
-
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
-
-if loss_function == 'loss_twCRPS_sample':
-    name = 'twCRPS'
-    name += '_mean_' + str(chain_function_mean)
-    name += '_std_' + str(chain_function_std)
-    name += '_constant_' + str(chain_function_constant)
-elif loss_function == 'loss_CRPS_sample':
-    name = 'CRPS'
-
-filepath += name + '_'
-
-if forecast_distribution == 'distr_mixture':
-    filepath += 'mixture_'
-elif forecast_distribution == 'distr_trunc_normal':
-    filepath += 'trunc_normal_'
-elif forecast_distribution == 'distr_log_normal':
-    filepath += 'log_normal_'
-
-filepath += 'epochs_' + str(epochs) 
-
-
-
-filepath += 'run_115_fold_3_intermediate_v2'
-
-print(filepath)
-
-# make a folder
-if saving:
-    os.makedirs(filepath, exist_ok=True)
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -193,17 +180,40 @@ setup = {
     'metrics': metrics,
 }
 
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/cnnemos/crps_tn_115'
+
 if saving:
     with open(filepath + '/attributes', 'wb') as f:
         pickle.dump(setup, f)
+
+nn = CNNEMOS(**setup)
+
+#start the time
+time_start = time.time()
+
+
+epochs = 49
+print(steps0)
+print(steps1)
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+# history = nn.fit(train_data3, epochs=100)
+
+history = nn.fit(train_data0, epochs=epochs)#, validation_data=test_data3, early_stopping=early_stopping, verbose='auto')
+
+
+
+# if saving:
+#     nn.save_weights(filepath)
+#     print("Model saved")
 
 
 my_list = []
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'rb') as f:
-    my_list = pickle.load(f)
+# with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'rb') as f:
+#     my_list = pickle.load(f)
 
 print(my_list)
 
@@ -229,7 +239,7 @@ for _ in range(0, 100):
 
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-        history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping, steps_per_epoch=steps_per_epoch, verbose=0)
+        history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping, steps_per_epoch=steps_per_epoch, verbose='auto')
 
         best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 
@@ -244,15 +254,13 @@ for _ in range(0, 100):
 
     filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-    with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'wb') as f:
-        pickle.dump(my_list, f)
+    # with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'wb') as f:
+    #     pickle.dump(my_list, f)
 
     print(my_list)
 
 
-# if saving:
-#     nn.save_weights(filepath)
-#     print("Model saved")
+
 
 # #end the time
 # time_end = time.time()

@@ -3,7 +3,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import pickle
 
-
 from src.linreg_emos.emos import BaseForecastModel
 from src.cnn_emos.nn_distributions import distribution_name
 from src.cnn_emos.nn_model import NNConvModel
@@ -45,9 +44,7 @@ class CNNEMOS(BaseForecastModel):
         _chain_function_normal_cdf_for_twCRPS(x: tf.Tensor) -> tf.Tensor: Chaining function using normal cdf for twCRPS.
         _chain_function_normal_cdf_plus_constant(x: tf.Tensor, normal_distribution: tfp.distributions.Normal, constant: float) -> tf.Tensor: Chaining function using normal cdf plus constant.
         _chain_function_normal_cdf_plus_constant_for_twCRPS(x: tf.Tensor) -> tf.Tensor: Chaining function using normal cdf plus constant for twCRPS.
-        _twCRPS_10(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor: Estimates twCRPS at threshold 10.
         _twCRPS_12(y_true: tf.Tensor, y_pred: tf.Tensor): Estimates twCRPS at threshold 12.
-        _twCRPS_15(y_true: tf.Tensor, y_pred: tf.Tensor): Estimates twCRPS at threshold 15.
         get_gev_shape(X: tf.Tensor): Returns GEV shape if applicable.
         _compute_twCRPS(y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable) -> tf.Tensor: Computes twCRPS.
         _loss_twCRPS_sample(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor: Computes twCRPS as a loss function.
@@ -336,18 +333,6 @@ class CNNEMOS(BaseForecastModel):
     def _chain_function_normal_cdf_plus_constant_for_twCRPS(self, x):
         return self._chain_function_normal_cdf_plus_constant(x, self.chain_function_normal_distribution, self.chain_function_constant)
     
-    def _twCRPS_10(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
-        """
-        Estimates twCRPS at threshold 10, with a sample size of 1000. Can be used to monitor this quantity during training.
-
-        Arguments:
-            y_true (tf.Tensor): the observed wind speed.
-            y_pred (tf.Tensor): the predicted values.
-
-        Returns:
-            An estimate of the twCRPS at threshold 10 (tf.Tensor).
-        """
-        return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 10))
     
     def _twCRPS_12(self, y_true: tf.Tensor, y_pred: tf.Tensor):
         """
@@ -362,18 +347,6 @@ class CNNEMOS(BaseForecastModel):
         """
         return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 12))
     
-    def _twCRPS_15(self, y_true: tf.Tensor, y_pred: tf.Tensor):
-        """
-        Estimates twCRPS at threshold 15, with a sample size of 1000. Can be used to monitor this quantity during training.
-
-        Arguments:
-            y_true (tf.Tensor): the observed wind speed.
-            y_pred (tf.Tensor): the predicted values.
-
-        Returns:
-            An estimate of the twCRPS at threshold 15 (tf.Tensor).
-        """
-        return self._compute_twCRPS(y_true, y_pred, 1000, lambda x: self._chain_function_indicator(x, 15))
     
     def get_gev_shape(self, X: tf.Tensor):
         """
@@ -557,7 +530,7 @@ class CNNEMOS(BaseForecastModel):
         return history
 
     
-    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None, steps_per_epoch = None, verbose ='auto') -> tf.keras.callbacks.History:
+    def fit(self, dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None, verbose ='auto') -> tf.keras.callbacks.History:
         """
         Fits the neural network model to the given dataset.
 
@@ -574,8 +547,8 @@ class CNNEMOS(BaseForecastModel):
         callbacks = []
         if early_stopping is not None:
             callbacks.append(early_stopping)
-            
-        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=callbacks, steps_per_epoch=steps_per_epoch, verbose=verbose)
+  
+        history = self.model.fit(dataset, epochs=epochs, validation_data=validation_data, callbacks=callbacks, verbose=verbose)
 
         return history
     
