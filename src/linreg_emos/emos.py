@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from src.linreg_emos.forecast_distributions import Mixture, MixtureLinear, initialize_distribution
-from src.cnn_emos.get_data import load_cv_data
+from src.loading_data.get_data import load_cv_data
 from abc import ABC, abstractmethod 
 import time
 tfpd = tfp.distributions

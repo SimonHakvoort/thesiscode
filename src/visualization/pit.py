@@ -187,7 +187,6 @@ def threshold_tf(data, t, repeat = True, batching = True):
         filtered_data = filtered_data.batch(dataset_length)
     if repeat:
         filtered_data = filtered_data.repeat()
-    #X, y = next(iter(filtered_data))
 
     return filtered_data
 

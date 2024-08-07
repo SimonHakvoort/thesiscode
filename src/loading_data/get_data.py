@@ -4,8 +4,28 @@ import tensorflow as tf
 import pickle
 
 from typing import Dict, Tuple
-from src.linreg_emos.get_data import get_fold_i
+from src.loading_data.forecast import Forecast
 from src.loading_data.station import get_station_info
+
+def get_fold_i(i: int) -> list[Forecast]:
+    """
+    Load the forecasts from fold i from the pickle files and return them as a list.
+
+    Args:
+        i (int): the fold that needs to get loaded.
+
+    Returns:
+        A list of Forecast objects for fold i.
+    """
+    foldi = []
+
+    for file in os.listdir(f'/net/pc200239/nobackup/users/hakvoort/fold{i}data/'):
+        if file.endswith('.pkl'):
+            with open(f'/net/pc200239/nobackup/users/hakvoort/fold{i}data/' + file, 'rb') as f:
+                forecast = pickle.load(f)
+                foldi.append(forecast)
+    
+    return foldi
 
 def get_tf_data(fold, 
                 feature_names: dict,

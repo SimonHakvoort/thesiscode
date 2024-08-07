@@ -2,7 +2,7 @@
 import time
 import keras
 import numpy as np
-from src.cnn_emos.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
+from src.loading_data.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
 from src.cnn_emos.nn_model import NNModel
 from src.cnn_emos.nn_forecast import CNNEMOS
 import tensorflow as tf

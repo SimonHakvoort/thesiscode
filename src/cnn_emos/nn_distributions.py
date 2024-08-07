@@ -192,7 +192,7 @@ class NNLogNormal(NNDistribution):
     """
     Class representing a log-normal distribution for the CNNEMOS model.
     """
-    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.LogNormal:
+    def get_distribution(self, y_pred: tf.Tensor) -> tfp.distributions.LogNormal: 
         """
         Returns the LogNormal distribution based on the CNN output.
 

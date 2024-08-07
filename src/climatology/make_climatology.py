@@ -1,5 +1,5 @@
 from src.climatology.climatology import Climatology
-from src.cnn_emos.get_data import load_cv_data
+from src.loading_data.get_data import load_cv_data
 
 
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -23,6 +23,8 @@ for fold in folds:
     climatology = Climatology(train_data)
 
     climatology.save(folder + 'climatology_cv_' + str(fold))
+    
+    print('Cimatology of fold ', fold, ' saved!')
 
 
     

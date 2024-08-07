@@ -195,9 +195,9 @@ def make_bootstrap_brier_efficient(base_model: BaseForecastModel,
         base_scores_new_values = base_model.seperate_Bier_Score(data, new_values)
         other_model_scores = models[name].seperate_Bier_Score(data, new_values)
 
-        all_brier_scores_dict[name] = tuple(base_scores_new_values, other_model_scores)
+        all_brier_scores_dict[name] = (base_scores_new_values, other_model_scores)
 
-    data_size = base_model_scores.shape[0]
+    data_size = base_model_scores.shape[1]
 
     scores = {key: np.zeros((bootstrap_size, len(values))) for key in models.keys()}
 
@@ -231,7 +231,7 @@ def make_bootstrap_brier_efficient(base_model: BaseForecastModel,
 
     # plt.errorbar(values, y=base_bss_mean, yerr=base_bss_std, capsize=2, label='Base Model')
     if isinstance(base_model, Climatology):
-        plt.plot(values, base_bss_mean, label='Climatology')
+        plt.plot(values, base_bss_mean, label='Climatology', color='black', linestyle='--')
     else:
         if name_base_model is None:
             naming = 'Reference Model'

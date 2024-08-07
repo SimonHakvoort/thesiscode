@@ -2,7 +2,7 @@ import os
 # Set environment variable to suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
-from src.cnn_emos.get_data import load_cv_data
+from src.loading_data.get_data import load_cv_data
 from src.linreg_emos.emos import LinearEMOS
 import pickle as pkl
 
