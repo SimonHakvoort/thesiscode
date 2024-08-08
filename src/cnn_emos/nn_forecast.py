@@ -1,5 +1,7 @@
+import os
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.data.ops.dataset_ops import DatasetV2 as Dataset
 import tensorflow_probability as tfp
 import pickle
 
@@ -493,7 +495,7 @@ class CNNEMOS(BaseForecastModel):
 
         Parameters:
         - filepath (str): The path to the directory containing the model files.
-        - data (numpy.ndarray): The input data for prediction.
+        - data (tf.data.Dataset): The input data for prediction.
 
         Returns:
         - nnforecast (NNForecast): The loaded neural network forecast model.
@@ -593,3 +595,117 @@ class CNNEMOS(BaseForecastModel):
         self.model.save_weights(filepath + '/model.weights.h5')
 
 
+class CNNBaggingEMOS(BaseForecastModel):
+    def __init__(self, setup, size, filepath):
+        self.setup = setup
+        self.size = size
+        self.filepath = filepath
+
+        self.setup['size'] = size
+        self.setup['filepath'] = filepath
+
+        self.models =  []
+
+        with open(filepath + '/setup', 'wb') as f:
+            pickle.dump(self.setup, f)
+
+
+    def train_and_save_models(self, train_data: tf.data.Dataset, epochs: int = 50):
+        for i in range(self.size):
+            nn = CNNEMOS(**self.setup)
+
+            nn.fit(train_data, epochs=epochs)
+
+            nn.save_weights(os.path.join(self.filepath, f'/weights_{i}'))
+
+            print(f'Weights of model {i} saved!')
+
+    def load_models(self, train_data_load: tf.data.Dataset):
+        self.models = []
+
+        for i in range(self.size):
+            self.setup['compile_model'] = False
+
+            nnforecast = CNNEMOS(self.setup)
+
+            nnforecast.model.compile(optimizer=nnforecast.optimizer, loss=nnforecast.loss_function)
+
+            nnforecast.predict(train_data_load.take(1))
+
+            nnforecast.model.load_weights(os.path.join(self.filepath, f'/weights_{i}') + '/model.weights.h5')
+
+            self.models.append(nnforecast)
+
+
+
+    def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, sample_size: int = 1000) -> float:
+        """
+        Calculates the threshold-weighted Continuous Ranked Probability Score (twCRPS) for a given dataset.
+
+        Parameters:
+            dataset (tf.data.Dataset): The dataset containing input features and true labels.
+            thresholds (np.ndarray): A list of threshold values for computing twCRPS.
+            sample_size (int): The number of samples to use for estimating the twCRPS.
+
+        Returns:
+            list[float]: A list of twCRPS scores corresponding to each threshold value.
+        """
+        if len(self.models) == 0:
+            raise AttributeError("Models should first be loaded!")
+        
+
+        X, y = next(iter(data))
+
+        distributions = []
+
+        for model in self.models:
+            y_pred = []
+            y_pred.append(model.predict(X))
+            y_pred = tf.concat(y_pred, axis=0)
+            distributions.append(model.get_distribution(y_pred))
+
+        y_true = []
+        y_true.append(y)
+        y_true = tf.concat(y_true, axis=0)
+        
+
+        scores = []
+        for threshold in thresholds:
+            X_1_list = []
+            X_2_list = []
+            for distribution in distributions:
+                X_1_samples = distribution.sample(sample_size)
+                X_2_samples = distribution.sample(sample_size)
+
+                X_1_list.append(X_1_samples)
+                X_2_list.append(X_2_samples)
+
+            X_1 = tf.concat(X_1_list, axis=0)
+            X_2 = tf.concat(X_1_list, axis=0)
+
+            vX_1 = tf.maximum(X_1, threshold)
+            vX_2 = tf.maximum(X_2, threshold)
+
+            E_1 = tf.reduce_mean(tf.abs(vX_1 - tf.maximum(tf.squeeze(y_true), threshold)), axis=0)
+            E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
+
+            scores.append(tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2))
+        
+        return np.array(scores)
+    
+    def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
+        """
+        Calculates the Continuous Ranked Probability Score (twCRPS) for a given dataset.
+
+        Parameters:
+            dataset (tf.data.Dataset): The dataset containing input features and true labels.
+            sample_size (int): The number of samples to use for estimating the twCRPS.
+
+        Returns:
+            An estimate of the CRPS
+        """
+        return self.twCRPS(data, [0], sample_size)
+
+        
+
+        

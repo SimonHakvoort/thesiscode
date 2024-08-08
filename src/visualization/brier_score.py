@@ -239,7 +239,7 @@ def make_bootstrap_brier_efficient(base_model: BaseForecastModel,
             naming = name_base_model
         plt.plot(values, base_bss_mean, label=naming)
     
-    plt.xlim(0, 20)
+    plt.xlim(0, values[-1])
     if ylim is not None:
         plt.ylim(ylim[0], ylim[1])
     plt.xlabel('Threshold')
@@ -247,6 +247,7 @@ def make_bootstrap_brier_efficient(base_model: BaseForecastModel,
     plt.legend()
     if title is not None:
         plt.title(title)
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.show()
 
 

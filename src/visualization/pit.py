@@ -109,6 +109,7 @@ def make_cpit_diagram(cdf_dict: dict[str, BaseForecastModel], y: np.ndarray, tit
     plt.legend()
     plt.title(title)
     plt.gca().set_aspect('equal', adjustable='box')
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.show()
 
 def make_cpit_diagram_emos(emos_dict, X, y, title = "", t = 0, base_model = None):

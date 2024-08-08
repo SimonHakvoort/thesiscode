@@ -50,8 +50,6 @@ train_data3 = train_data3.batch(batch_size)
 
 train_data3 = train_data3.prefetch(tf.data.experimental.AUTOTUNE)
 
-# train_data3 = train_data3.repeat()
-
 test_data3 = test_data3.batch(len(test_data3))
 
 test_data3 = test_data3.prefetch(tf.data.experimental.AUTOTUNE)
@@ -66,8 +64,6 @@ train_data2 = train_data2.shuffle(train_data2.cardinality().numpy())
 train_data2 = train_data2.batch(batch_size)
 
 train_data2 = train_data2.prefetch(tf.data.experimental.AUTOTUNE)
-
-train_data2 = train_data2.repeat()
 
 test_data2 = test_data2.batch(len(test_data2))
 
@@ -85,8 +81,6 @@ train_data1 = train_data1.batch(batch_size)
 
 train_data1 = train_data1.prefetch(tf.data.experimental.AUTOTUNE)
 
-train_data1 = train_data1.repeat()
-
 test_data1 = test_data1.batch(len(test_data1))
 
 test_data1 = test_data1.prefetch(tf.data.experimental.AUTOTUNE)
@@ -103,24 +97,26 @@ train_data0 = train_data0.batch(batch_size)
 
 train_data0 = train_data0.prefetch(tf.data.experimental.AUTOTUNE)
 
-train_data0 = train_data0.repeat()
-
 test_data0 = test_data0.batch(len(test_data0))
 
 test_data0 = test_data0.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 X, y = next(iter(train_data0))
-
-forecast_distribution = 'distr_trunc_normal'
+ 
+forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
 loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
-chain_function_mean = 9.0
-chain_function_std = 1.0
-chain_function_constant = 0.015
+# chain_function_mean = 8.84
+# chain_function_std = 1.07
+# chain_function_constant = 0.015
+
+chain_function_mean = 5.419507
+chain_function_std = 7.822199
+chain_function_constant = 0.919453
 
 optimizer = 'adam'
 learning_rate = 0.000105
@@ -134,7 +130,7 @@ conv_3x3_units = 4
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
-saving = False
+saving = True
 
 epochs = 130
 
@@ -180,7 +176,7 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/cnnemos/crps_tn_115'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/cnnemos/model_87'
 
 if saving:
     with open(filepath + '/attributes', 'wb') as f:
@@ -192,94 +188,68 @@ nn = CNNEMOS(**setup)
 time_start = time.time()
 
 
-epochs = 49
-print(steps0)
-print(steps1)
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-
-# history = nn.fit(train_data3, epochs=100)
-
-history = nn.fit(train_data0, epochs=epochs)#, validation_data=test_data3, early_stopping=early_stopping, verbose='auto')
+epochs = 50
 
 
+history = nn.fit(train_data0, epochs=epochs)
 
-# if saving:
-#     nn.save_weights(filepath)
-#     print("Model saved")
-
-
-my_list = []
-
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
-
-# with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'rb') as f:
-#     my_list = pickle.load(f)
-
-print(my_list)
-
-print(np.mean(my_list))
-print(np.var(my_list))
-
-train_data_list = [train_data1, train_data2, train_data3]
-test_data_list = [test_data1, test_data2, test_data3]
-steps_list = [steps1, steps2, steps3]
+if saving:
+    nn.save_weights(filepath)
+    print("Model saved")
 
 
-for _ in range(0, 100):
-    best_epochs = []
-    for x in [0,1,2]:
-        train_data = train_data_list[x]
-        test_data = test_data_list[x]
-        steps_per_epoch = steps_list[x]
+# my_list = []
 
-        nn = CNNEMOS(**setup)
+# filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-        #start the time
-        time_start = time.time()
+# # with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'rb') as f:
+# #     my_list = pickle.load(f)
 
-        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+# print(my_list)
 
-        history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping, steps_per_epoch=steps_per_epoch, verbose='auto')
+# print(np.mean(my_list))
+# print(np.var(my_list))
 
-        best_epoch = early_stopping.stopped_epoch - early_stopping.patience
-
-        if best_epoch < 0:
-            best_epoch = epochs
-
-        print(f'Best epoch: {best_epoch}')
-
-        best_epochs.append(best_epoch)
-
-    my_list.append(best_epochs)
-
-    filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
-
-    # with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'wb') as f:
-    #     pickle.dump(my_list, f)
-
-    print(my_list)
+# train_data_list = [train_data1, train_data2, train_data3]
+# test_data_list = [test_data1, test_data2, test_data3]
+# steps_list = [steps1, steps2, steps3]
 
 
+# for _ in range(0, 100):
+#     best_epochs = []
+#     for x in [0,1,2]:
+#         train_data = train_data_list[x]
+#         test_data = test_data_list[x]
+#         steps_per_epoch = steps_list[x]
+
+#         nn = CNNEMOS(**setup)
+
+#         #start the time
+#         time_start = time.time()
+
+#         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+#         history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping, verbose='auto')
+
+#         best_epoch = early_stopping.stopped_epoch - early_stopping.patience
+
+#         if best_epoch < 0:
+#             best_epoch = epochs
+
+#         print(f'Best epoch: {best_epoch}')
+
+#         best_epochs.append(best_epoch)
+
+#     my_list.append(best_epochs)
+
+#     filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
+
+#     with open(filepath + 'epochs_run_87', 'wb') as f:
+#         pickle.dump(my_list, f)
+
+#     print(my_list)
 
 
-# #end the time
-# time_end = time.time()
-
-# print("Time: ", time_end - time_start)
-
-# print(nn.CRPS(test_data, 10000))
-
-# print(nn.twCRPS(test_data, [12], 10000)[0])
-
-# values = np.linspace(0, 20, 40)
-
-# brierscores = nn.Brier_Score(test_data, values)
-
-# # save the history
-# if saving:
-#     with open(filepath + '/history.pickle', 'wb') as f:
-#         pickle.dump(history.history, f)
-#         print("History saved")
 
 
 
