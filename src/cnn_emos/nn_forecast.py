@@ -445,11 +445,11 @@ class CNNEMOS(BaseForecastModel):
         Returns:
             np.ndarray: A list of Brier scores corresponding to each threshold.
         """
-        brier_scores = np.mean(self.seperate_Bier_Score(data, probability_thresholds), axis=1)
+        brier_scores = np.mean(self.seperate_Brier_Score(data, probability_thresholds), axis=1)
 
         return brier_scores
     
-    def seperate_Bier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+    def seperate_Brier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
         """
         Similar to the Brier_Score, except that we do not take the average over the data, hence 
         the output will be a matrix.
@@ -500,7 +500,7 @@ class CNNEMOS(BaseForecastModel):
         Returns:
         - nnforecast (NNForecast): The loaded neural network forecast model.
         """
-        with open(filepath + '/attributes', 'rb') as f:
+        with open(os.path.join(filepath + '/attributes'), 'rb') as f:
             attributes = pickle.load(f)
 
         attributes['compile_model'] = False
@@ -511,7 +511,7 @@ class CNNEMOS(BaseForecastModel):
 
         nnforecast.predict(data.take(1))
 
-        nnforecast.model.load_weights(filepath + '/model.weights.h5')
+        nnforecast.model.load_weights(os.path.join(filepath + '/model.weights.h5'))
 
         return nnforecast
 
@@ -606,8 +606,19 @@ class CNNBaggingEMOS(BaseForecastModel):
 
         self.models =  []
 
-        with open(filepath + '/setup', 'wb') as f:
+        with open(os.path.join(filepath + '/setup'), 'wb') as f:
             pickle.dump(self.setup, f)
+
+    @classmethod
+    def my_load(cls, filepath: str) -> 'CNNBaggingEMOS':
+        with open(os.path.join(filepath + '/setup'), 'rb') as f:
+            setup = pickle.load(f)
+
+        size = setup['size']
+        
+        return cls(setup, size, filepath)
+
+        
 
 
     def train_and_save_models(self, train_data: tf.data.Dataset, epochs: int = 50):
@@ -616,9 +627,16 @@ class CNNBaggingEMOS(BaseForecastModel):
 
             nn.fit(train_data, epochs=epochs)
 
-            nn.save_weights(os.path.join(self.filepath, f'/weights_{i}'))
+            # Construct the directory and file path
+            path_model_i = os.path.join(self.filepath, f'weights_{i}')
+            
+            # Ensure the directory exists
+            os.makedirs(path_model_i, exist_ok=True)
+
+            nn.save_weights(path_model_i)
 
             print(f'Weights of model {i} saved!')
+
 
     def load_models(self, train_data_load: tf.data.Dataset):
         self.models = []
@@ -626,13 +644,13 @@ class CNNBaggingEMOS(BaseForecastModel):
         for i in range(self.size):
             self.setup['compile_model'] = False
 
-            nnforecast = CNNEMOS(self.setup)
+            nnforecast = CNNEMOS(**self.setup)
 
             nnforecast.model.compile(optimizer=nnforecast.optimizer, loss=nnforecast.loss_function)
 
             nnforecast.predict(train_data_load.take(1))
 
-            nnforecast.model.load_weights(os.path.join(self.filepath, f'/weights_{i}') + '/model.weights.h5')
+            nnforecast.model.load_weights(os.path.join(self.filepath, f'weights_{i}', 'model.weights.h5'))
 
             self.models.append(nnforecast)
 
@@ -651,8 +669,7 @@ class CNNBaggingEMOS(BaseForecastModel):
             list[float]: A list of twCRPS scores corresponding to each threshold value.
         """
         if len(self.models) == 0:
-            raise AttributeError("Models should first be loaded!")
-        
+            raise AttributeError("Models should first be loaded!")     
 
         X, y = next(iter(data))
 
@@ -705,6 +722,54 @@ class CNNBaggingEMOS(BaseForecastModel):
             An estimate of the CRPS
         """
         return self.twCRPS(data, [0], sample_size)
+    
+    
+    def seperate_Brier_Score(self, data: Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+        """
+        Similar to the Brier_Score, except that we do not take the average over the data, hence 
+        the output will be a matrix.
+
+        Arguments:
+            data (tf.data.Dataset): the dataset containing the input data and observations.
+            probability_thresholds (np.ndarray): the thresholds for the Brier score.
+
+        Returns:
+            A matrix (np.ndarray) containing the Brier score for the specified thresholds and all the stations.
+        """
+        if len(self.models) == 0:
+            raise AttributeError("Models should first be loaded!")
+        
+        X, y = next(iter(data))
+
+        cdf_values = np.zeros(shape=(len(self.models), len(probability_thresholds), y.shape[0]))
+
+        for i, forecast_model in enumerate(self.models):
+            y_pred = forecast_model.predict(X)
+            cdf_values[i, :, :] = forecast_model.model._forecast_distribution.comp_cdf(y_pred, probability_thresholds)
+
+        avg_cdf_values = np.mean(cdf_values, axis=0)
+
+        indicator_values = np.array([tf.cast(y <= t, tf.float32) for t in probability_thresholds])
+
+        brier_scores = (indicator_values - avg_cdf_values) ** 2
+
+        return brier_scores
+    
+    def Brier_Score(self, data: Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+        """
+        Calculates the Brier score for a given dataset and a list of thresholds.
+        It computes the Brier score for a single batch.
+
+        Args:
+            data (tf.data.Dataset): The dataset containing input features and true labels.
+            probability_thresholds (np.ndarray): A list of thresholds to calculate the Brier score.
+
+        Returns:
+            np.ndarray: A list of Brier scores corresponding to each threshold.
+        """
+        brier_scores = np.mean(self.seperate_Brier_Score(data, probability_thresholds), axis=1)
+
+        return brier_scores
 
         
 

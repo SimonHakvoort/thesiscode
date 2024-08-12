@@ -66,7 +66,7 @@ class Climatology(BaseForecastModel):
 
         return brier_scores
     
-    def seperate_Bier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
+    def seperate_Brier_Score(self, data: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
         """
         Similar to the Brier_Score, except that we do not take the average over the data, hence 
         the output will be a matrix.
