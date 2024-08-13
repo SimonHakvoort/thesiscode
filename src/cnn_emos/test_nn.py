@@ -128,9 +128,9 @@ conv_3x3_units = 4
 
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
-saving = True
+saving = False
 
-epochs = 130
+epochs = 10
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -174,11 +174,11 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/cnnemos/model_87'
+# filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/cnnemos/model_87'
 
-if saving:
-    with open(filepath + '/attributes', 'wb') as f:
-        pickle.dump(setup, f)
+# if saving:
+#     with open(filepath + '/attributes', 'wb') as f:
+#         pickle.dump(setup, f)
 
 nn = CNNEMOS(**setup)
 
@@ -186,14 +186,16 @@ nn = CNNEMOS(**setup)
 time_start = time.time()
 
 
-epochs = 50
+epochs = 3
 
 
-history = nn.fit(train_data0, epochs=epochs)
+history = nn.fit(train_data1, epochs=epochs)
 
-if saving:
-    nn.save_weights(filepath)
-    print("Model saved")
+testing = nn.twCRPS(test_data0, [0,1,2,3], 1000)
+y = 2
+# if saving:
+#     nn.save_weights(filepath)
+#     print("Model saved")
 
 
 # my_list = []

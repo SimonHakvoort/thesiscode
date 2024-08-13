@@ -130,6 +130,6 @@ bagging = CNNBaggingEMOS.my_load(filepath)
 
 bagging.load_models(train_data0)
 
-bs = bagging.Brier_Score(test_data0, [0,1,2,3,4,5])
+bs = bagging.twCRPS(test_data0, [0,1,2,3,4,5])
 
 x = 3

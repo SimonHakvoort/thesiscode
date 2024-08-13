@@ -417,19 +417,16 @@ class CNNEMOS(BaseForecastModel):
         Returns:
             list[float]: A list of twCRPS scores corresponding to each threshold value.
         """
-        y_true = []
         y_pred = []
 
         X, y = next(iter(data))
         y_pred.append(self.predict(X))
-        y_true.append(y)
-
-        y_true = tf.concat(y_true, axis=0)
+        
         y_pred = tf.concat(y_pred, axis=0)
 
         scores = []
         for threshold in thresholds:
-            scores.append(self._compute_twCRPS(y_true, y_pred, sample_size, lambda x: self._chain_function_indicator(x, threshold)))
+            scores.append(self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, threshold)))
         return np.array(scores)
     
     
@@ -681,11 +678,6 @@ class CNNBaggingEMOS(BaseForecastModel):
             y_pred = tf.concat(y_pred, axis=0)
             distributions.append(model.get_distribution(y_pred))
 
-        y_true = []
-        y_true.append(y)
-        y_true = tf.concat(y_true, axis=0)
-        
-
         scores = []
         for threshold in thresholds:
             X_1_list = []
@@ -703,7 +695,7 @@ class CNNBaggingEMOS(BaseForecastModel):
             vX_1 = tf.maximum(X_1, threshold)
             vX_2 = tf.maximum(X_2, threshold)
 
-            E_1 = tf.reduce_mean(tf.abs(vX_1 - tf.maximum(tf.squeeze(y_true), threshold)), axis=0)
+            E_1 = tf.reduce_mean(tf.abs(vX_1 - tf.maximum(tf.squeeze(y), threshold)), axis=0)
             E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
 
             scores.append(tf.reduce_mean(E_1) - 0.5 * tf.reduce_mean(E_2))
