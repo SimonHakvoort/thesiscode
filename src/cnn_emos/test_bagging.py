@@ -33,11 +33,11 @@ train_data0, test_data0, data_info = load_cv_data(0, features_names_dict)
 
 
  
-forecast_distribution = 'distr_mixture'
+forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 # chain_function_mean = 8.84
 # chain_function_std = 1.07
@@ -105,13 +105,18 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_cnn/bagging_model_87'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_cnn/bagging_base'
+# bagging_model_87_mixture
+# bagging_model_87_tn
+# bagging_extreme_mixture
 
 size = 10
 
 bagging = CNNBaggingEMOS(setup, size, filepath)
 
-bagging.train_and_save_models(train_data0, epochs = 50, batch_size = batch_size)
+bagging.train_and_save_models(train_data0, epochs = 47, batch_size = batch_size)
+
+
 
 # bagging = CNNBaggingEMOS.my_load(filepath)
 

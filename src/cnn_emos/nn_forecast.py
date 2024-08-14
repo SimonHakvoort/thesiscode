@@ -671,7 +671,7 @@ class CNNBaggingEMOS(BaseForecastModel):
             print(f'Weights of model {i} saved!')
 
 
-    def make_bootstrap_dataset(data: tf.data.Dataset, batch_size: int) -> tf.data.Dataset:
+    def make_bootstrap_dataset(self, data: tf.data.Dataset, batch_size: int) -> tf.data.Dataset:
         """
         Creates a bootstrapped dataset from the given dataset.
 
@@ -683,27 +683,47 @@ class CNNBaggingEMOS(BaseForecastModel):
             tf.data.Dataset: A new dataset that is a bootstrapped version of the
                             input dataset, with the specified batch size.
         """
-        # Calculate the size of the dataset
-        dataset_size = data.cardinality()
+        data_list = []
+        observations_list = []
 
-        # Function to return a single data point based on a given index
-        def bootstrap_sample(index):
-            # Skip to the index and take one element
-            return data.skip(index).take(1)
-        
-        # Generate a dataset of random indices for bootstrapping
-        bootstrapped_indices = tf.data.Dataset.range(dataset_size).map(
-            lambda _: tf.random.uniform((), minval=0, maxval=dataset_size, dtype=tf.int64)
-        )
+        for element in data:
+            features, label = element
+            features_dict = {
+                'station_code': features['station_code'].numpy(),
+                'features_1d': features['features_1d'].numpy(),
+                'features_emos': features['features_emos'].numpy(),
+                'wind_speed_grid': features['wind_speed_grid'].numpy(),
+                'wind_speed_forecast': features['wind_speed_forecast'].numpy()
+            }
+            data_list.append(features_dict)
+            observations_list.append(label.numpy())
 
-        # Use the indices to create the bootstrapped dataset
-        bootstrapped_dataset = bootstrapped_indices.flat_map(bootstrap_sample)
+        num_samples = len(data_list)
+        indices = np.random.choice(num_samples, size=num_samples, replace=True)
 
-        bootstrapped_dataset = bootstrapped_dataset.shuffle(dataset_size)
+        # Apply bootstrapping
+        bootstrapped_data_list = [data_list[i] for i in indices]
+        bootstrapped_labels_list = [observations_list[i] for i in indices]
 
+        def create_dataset(data_list, labels_list):
+            features = {
+                'station_code': tf.constant([d['station_code'] for d in data_list]),
+                'features_1d': tf.constant([d['features_1d'] for d in data_list]),
+                'features_emos': tf.constant([d['features_emos'] for d in data_list]),
+                'wind_speed_grid': tf.constant([d['wind_speed_grid'] for d in data_list]),
+                'wind_speed_forecast': tf.constant([d['wind_speed_forecast'] for d in data_list])
+            }
+            labels = tf.constant(labels_list)
+            return tf.data.Dataset.from_tensor_slices((features, labels))
+
+        # Create the bootstrapped dataset
+        bootstrapped_dataset = create_dataset(bootstrapped_data_list, bootstrapped_labels_list)
+
+        bootstrapped_dataset = bootstrapped_dataset.shuffle(bootstrapped_dataset.cardinality())
+                                                            
         bootstrapped_dataset = bootstrapped_dataset.batch(batch_size)
 
-        bootstrapped_dataset = bootstrapped_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+        bootstrapped_dataset = bootstrapped_dataset.prefetch(tf.data.experimental.AUTOTUNE)                                     
 
         return bootstrapped_dataset
 
