@@ -41,7 +41,7 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     plt.show()
     
 
-def make_cpit_diagram(cdf_dict: dict[str, BaseForecastModel], y: np.ndarray, title: str = "", t: float = 0.0, gev_shape = None):
+def make_cpit_diagram(cdf_dict: dict, y: np.ndarray, title: str = "", t: float = 0.0, gev_shape = None):
     """
     Function to make a PIT diagram for a given cdf and data. The cdf needs to have the same shape as y, they are stored in cdf_dict
     It is also possible to make a conditional PIT diagram, by setting t to a value different from 0.
@@ -61,9 +61,14 @@ def make_cpit_diagram(cdf_dict: dict[str, BaseForecastModel], y: np.ndarray, tit
         raise ValueError("t needs to be greater than 0")
     elif t == 0:
         for name, cdf in cdf_dict.items():
+            # Compute the cdf values
             probabilities = cdf(y)
+
+            # If the gev_shape is not None we have to change the NaNs based on the shape.
             if gev_shape[name] is not None:
-                probabilities = np.array(probabilities)  
+                probabilities = np.array(probabilities) 
+
+                # Store the shape values. 
                 shape_values = np.array(gev_shape[name])
                 
                 # change the probabilities such that nan at i becomes 1 if gev_shape[i] < 0 and 0 if gev_shape[i] > 0
@@ -74,10 +79,14 @@ def make_cpit_diagram(cdf_dict: dict[str, BaseForecastModel], y: np.ndarray, tit
                 probabilities[nan_indices & (shape_values > 0)] = 0
 
             plt.plot(np.sort(probabilities), np.linspace(0, 1, len(probabilities)), label = name)
-            
+
+    # Enter the else in case we want a conditional PIT (t > 0)        
     else:
         for name, cdf in cdf_dict.items():
+            # Compute the probabilities
             probabilities = (cdf(y) - cdf(t)) / (1 - cdf(t))
+
+            # Again check the GEV shape.
             if gev_shape[name] is not None:
                 probabilities = np.array(probabilities)  
                 shape_values = np.array(gev_shape[name])
@@ -90,8 +99,8 @@ def make_cpit_diagram(cdf_dict: dict[str, BaseForecastModel], y: np.ndarray, tit
                 probabilities[nan_indices & (shape_values > 0)] = 0  
 
 
-            #remove the nan from probabilities
-            # these can occur if cdf(t) = 1, which occurs in the dataset for large t.
+            # We remove NaN from probabilities
+            # these can occur if cdf(t) == 1, which occurs in the dataset for large t.
             # therefore there is often one value removed from the diagram
             probabilities = tf.boolean_mask(probabilities, tf.math.is_finite(probabilities))
             probabilities = tf.sort(probabilities)
@@ -112,69 +121,6 @@ def make_cpit_diagram(cdf_dict: dict[str, BaseForecastModel], y: np.ndarray, tit
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.show()
 
-def make_cpit_diagram_emos(emos_dict, X, y, title = "", t = 0, base_model = None):
-    """
-    Function to make a PIT diagram for a dictionary of EMOS models and data.
-
-    Args:
-    - emos_dict: dictionary of EMOS models
-    - X: tensor with shape (n, m), where n is the number of samples and m is the number of features
-    - y: array with shape (n,) with the true values
-    - variances: array with shape (n,) with the variances in the neighborhood of the true values
-    - title: title of the diagram
-    - t: real valued number greater than 0
-    - base_model: EMOS model, optional
-
-    Returns:
-    - None
-    """
-    if t < 0:
-        raise ValueError("t needs to be greater than 0")
-    elif t > 0:
-        X, y = threshold(X, y, t)
-
-    cdf_dict = {}
-    for name, emos in emos_dict.items():
-        distribution = emos.forecast_distribution.get_distribution(X)
-        cdf_dict[name] = distribution.cdf
-
-    gev_shape = {}
-
-    if base_model is not None:
-        distribution = base_model.forecast_distribution.get_distribution(X)
-        cdf_dict["Base Model"] = distribution.cdf
-        gev_shape["Base Model"] = base_model.forecast_distribution.get_gev_shape()
-
-
-    for name, emos in emos_dict.items():
-        gev_shape[name] = emos.forecast_distribution.get_gev_shape()
-
-    make_cpit_diagram(cdf_dict, y, title, t, gev_shape)
-
-
-
-
-def threshold(X, y, t):
-    """
-    Checks for which indices in y the value is greater than t, and then returns the rows of X, y, variance for which this is the case
-
-    Args:
-    - X: tensor with shape (n, m), where n is the number of samples and m is the number of features
-    - y: array with shape (n,) with the true values
-    - variances: array with shape (n,) with the variances in the neighborhood of the true values
-
-    Returns:
-    - X: tensor
-    - y: tensor
-    - variance: tensor
-    """
-    indices = tf.where(y > t)
-    indices = tf.reshape(indices, [-1])
-
-    y_greater = tf.gather(y, indices)
-    X_greater = tf.gather(X, indices)
-    #variance_greater = tf.gather(variance, indices)
-    return X_greater, y_greater
 
 def threshold_tf(data, t, repeat = True, batching = True):
     def filter_function(X, y):
@@ -205,8 +151,15 @@ def make_cpit_diagram_tf(model_dict: dict[str, BaseForecastModel], data: tf.data
     # We first compute the filtered data based on the threshold.
     data_filtered = threshold_tf(data, t)
     X, y = next(iter(data_filtered)) 
+
+    # Used to store the cdf functions.
     cdf_dict = {}
+
+    # Used to store the GEV shapes. It can contain None.
+    # This is necessary because if we compute the cdf outside of the domain we get NaN instead of 0 or 1.
     gev_shapes = {}
+
+
     for name, model in model_dict.items():
         if isinstance(model, Climatology):
             raise ValueError("Climatology has not been implemented for cpit diagrams!")

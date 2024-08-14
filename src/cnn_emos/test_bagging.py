@@ -29,22 +29,9 @@ bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
 batch_size = 64
 
-train_data0, test_data0, data_info = load_cv_data(3, features_names_dict)
-
-steps0 = train_data0.cardinality() // batch_size
-
-train_data0 = train_data0.shuffle(train_data0.cardinality().numpy())
-
-train_data0 = train_data0.batch(batch_size)
-
-train_data0 = train_data0.prefetch(tf.data.experimental.AUTOTUNE)
-
-test_data0 = test_data0.batch(len(test_data0))
-
-test_data0 = test_data0.prefetch(tf.data.experimental.AUTOTUNE)
+train_data0, test_data0, data_info = load_cv_data(0, features_names_dict)
 
 
-X, y = next(iter(train_data0))
  
 forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
@@ -118,18 +105,18 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/bagging'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_cnn/bagging_model_87'
 
-# size = 3
+size = 10
 
-# bagging = CNNBaggingEMOS(setup, size, filepath)
+bagging = CNNBaggingEMOS(setup, size, filepath)
 
-# bagging.train_and_save_models(train_data0, epochs = 10)
+bagging.train_and_save_models(train_data0, epochs = 50, batch_size = batch_size)
 
-bagging = CNNBaggingEMOS.my_load(filepath)
+# bagging = CNNBaggingEMOS.my_load(filepath)
 
-bagging.load_models(train_data0)
+# bagging.load_models(train_data0)
 
-bs = bagging.twCRPS(test_data0, [0,1,2,3,4,5])
+# bs = bagging.twCRPS(test_data0, [0,1,2,3,4,5])
 
-x = 3
+# x = 3

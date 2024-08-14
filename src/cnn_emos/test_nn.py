@@ -20,23 +20,8 @@ ignore = ['229', '285', '323']
 bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
 
-# seed = 100
-
-# tf.random.set_seed(seed)
-# np.random.seed(seed)
-# random.seed(seed)
-
 batch_size = 64
 
-# train_data = make_importance_sampling_dataset(train_data, bounds)
-
-# train_data = train_data.cache()
-
-# dataset_length = [i for i,_ in enumerate(train_data)][-1] + 1
-
-# print(dataset_length)
-
-# # dataset_length = 28595
 
 train_data3, test_data3, data_info = load_cv_data(3, features_names_dict)
 
@@ -85,22 +70,37 @@ test_data1 = test_data1.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 
-train_data0, test_data0, data_info = load_cv_data(0, features_names_dict)
+# train_data0, test_data0, data_info = load_cv_data(0, features_names_dict)
 
-steps0 = train_data0.cardinality() // batch_size
+# dataset_size = train_data0.cardinality()
 
-train_data0 = train_data0.shuffle(train_data0.cardinality().numpy())
+# def bootstrap_sample(index):
+#     return train_data0.skip(index).take(1)
 
-train_data0 = train_data0.batch(batch_size)
+# # Generate bootstrapped indices with parallel processing
+# bootstrapped_indices = tf.data.Dataset.range(dataset_size).map(
+#     lambda _: tf.random.uniform([], minval=0, maxval=dataset_size, dtype=tf.int64),
+#     num_parallel_calls=tf.data.experimental.AUTOTUNE  # Parallelize the map operation
+# )
 
-train_data0 = train_data0.prefetch(tf.data.experimental.AUTOTUNE)
+# # Create the bootstrapped dataset
+# bootstrapped_dataset = bootstrapped_indices.flat_map(bootstrap_sample)
 
-test_data0 = test_data0.batch(len(test_data0))
+# # Ensure the bootstrapped dataset has the same size
+# bootstrapped_dataset = bootstrapped_dataset.take(dataset_size)
 
-test_data0 = test_data0.prefetch(tf.data.experimental.AUTOTUNE)
+# train_data0 = train_data0.shuffle(train_data0.cardinality().numpy())
+
+# train_data0 = train_data0.batch(batch_size)
+
+# train_data0 = train_data0.prefetch(tf.data.experimental.AUTOTUNE)
+
+# test_data0 = test_data0.batch(len(test_data0))
+
+# test_data0 = test_data0.prefetch(tf.data.experimental.AUTOTUNE)
 
 
-X, y = next(iter(train_data0))
+# X, y = next(iter(train_data0))
  
 forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
@@ -130,7 +130,7 @@ metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
 saving = False
 
-epochs = 10
+epochs = 130
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -180,74 +180,73 @@ setup = {
 #     with open(filepath + '/attributes', 'wb') as f:
 #         pickle.dump(setup, f)
 
-nn = CNNEMOS(**setup)
+# nn = CNNEMOS(**setup)
 
-#start the time
-time_start = time.time()
-
-
-epochs = 3
+# #start the time
+# time_start = time.time()
 
 
-history = nn.fit(train_data1, epochs=epochs)
+# epochs = 3
 
-testing = nn.twCRPS(test_data0, [0,1,2,3], 1000)
-y = 2
+
+# history = nn.fit(train_data0, epochs=epochs)
+
+# testing = nn.twCRPS(test_data0, [0,1,2,3], 1000)
+# y = 2
 # if saving:
 #     nn.save_weights(filepath)
 #     print("Model saved")
 
 
-# my_list = []
+my_list = []
 
-# filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-# # with open(filepath + 'epochs_115_twcrps_m9_std1_c_015.pickle', 'rb') as f:
-# #     my_list = pickle.load(f)
+with open(filepath + 'epochs_run_87', 'rb') as f:
+    my_list = pickle.load(f)
 
-# print(my_list)
+print(my_list)
 
-# print(np.mean(my_list))
-# print(np.var(my_list))
+print(np.mean(my_list))
+print(np.var(my_list))
 
-# train_data_list = [train_data1, train_data2, train_data3]
-# test_data_list = [test_data1, test_data2, test_data3]
-# steps_list = [steps1, steps2, steps3]
+train_data_list = [train_data1, train_data2, train_data3]
+test_data_list = [test_data1, test_data2, test_data3]
+steps_list = [steps1, steps2, steps3]
 
 
-# for _ in range(0, 100):
-#     best_epochs = []
-#     for x in [0,1,2]:
-#         train_data = train_data_list[x]
-#         test_data = test_data_list[x]
-#         steps_per_epoch = steps_list[x]
+for _ in range(0, 100):
+    best_epochs = []
+    for x in [0,1,2]:
+        train_data = train_data_list[x]
+        test_data = test_data_list[x]
 
-#         nn = CNNEMOS(**setup)
+        nn = CNNEMOS(**setup)
 
-#         #start the time
-#         time_start = time.time()
+        #start the time
+        time_start = time.time()
 
-#         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-#         history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping, verbose='auto')
+        history = nn.fit(train_data, epochs=epochs, validation_data=test_data , early_stopping=early_stopping, verbose='auto')
 
-#         best_epoch = early_stopping.stopped_epoch - early_stopping.patience
+        best_epoch = early_stopping.stopped_epoch - early_stopping.patience
 
-#         if best_epoch < 0:
-#             best_epoch = epochs
+        if best_epoch < 0:
+            best_epoch = epochs
 
-#         print(f'Best epoch: {best_epoch}')
+        print(f'Best epoch: {best_epoch}')
 
-#         best_epochs.append(best_epoch)
+        best_epochs.append(best_epoch)
 
-#     my_list.append(best_epochs)
+    my_list.append(best_epochs)
 
-#     filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
+    filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-#     with open(filepath + 'epochs_run_87', 'wb') as f:
-#         pickle.dump(my_list, f)
+    with open(filepath + 'epochs_run_87', 'wb') as f:
+        pickle.dump(my_list, f)
 
-#     print(my_list)
+    print(my_list)
 
 
 

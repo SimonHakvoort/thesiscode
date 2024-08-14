@@ -417,16 +417,19 @@ class CNNEMOS(BaseForecastModel):
         Returns:
             list[float]: A list of twCRPS scores corresponding to each threshold value.
         """
-        y_pred = []
-
         X, y = next(iter(data))
+
+        # We use tf.concat to ensure that y_pred is a tf.Tensor instead of np.ndarray
+        y_pred = []
         y_pred.append(self.predict(X))
-        
         y_pred = tf.concat(y_pred, axis=0)
 
         scores = []
+
+        # For each threshold we compute the twCRPS.
         for threshold in thresholds:
             scores.append(self._compute_twCRPS(y, y_pred, sample_size, lambda x: self._chain_function_indicator(x, threshold)))
+
         return np.array(scores)
     
     
@@ -552,17 +555,18 @@ class CNNEMOS(BaseForecastModel):
         return history
     
 
-    def predict(self, X: dict) -> np.ndarray:
+    def predict(self, X: dict, verbose = 'auto') -> np.ndarray:
         """
         Makes a prediction and returns the distribution's parameters
 
         Arguments:
             X (dict): the dict containing the features.
+            verbose: verbosity mode. 0 = silent, 1 = progress bar, 2 = single line. "auto" becomes 1 for most cases.
 
         Returns:
             the predicted mean/std and possible weight of the distribution (np.ndarray).
         """
-        return self.model.predict(X)
+        return self.model.predict(X, verbose=verbose)
     
     def get_prob_distribution(self, data: tf.data.Dataset) -> Tuple[tfp.distributions.Distribution, tf.Tensor]:
         """
@@ -575,15 +579,12 @@ class CNNEMOS(BaseForecastModel):
             the distribution and the observations Tuple[tfp.distributions.Distribution, tf.Tensor].
         """
         y_pred = []
-        y_true = []
 
         X, y = next(iter(data))
         y_pred.append(self.predict(X))
-        y_true.append(y)
 
         y_pred = tf.concat(y_pred, axis=0)
-        y_true = tf.concat(y_true, axis=0)
-        return self.model._forecast_distribution.get_distribution(y_pred), y_true
+        return self.model._forecast_distribution.get_distribution(y_pred), y
     
     def save_weights(self, filepath: str) -> None:
         """
@@ -593,7 +594,21 @@ class CNNEMOS(BaseForecastModel):
 
 
 class CNNBaggingEMOS(BaseForecastModel):
-    def __init__(self, setup, size, filepath):
+    """
+    Bagging estimator of CNNEMOS models. There are self.size models in the bagging estimator, which takes the average predictive distribution.
+    With train_and_save_models it can train and then save the models on a data set for a fixed amount of epochs.
+    The seperate models can be loaded back in with load_models. The full class can be loaded my_load. 
+    If all the models are loaded in you can use the methods (tw)CRPS and Brier_Score
+    """
+    def __init__(self, setup: dict, size: int, filepath: str):
+        """
+        Constructor of the class.
+
+        Arguments:
+            setup (dict): contains the setup for the CNNEMOS objects.
+            size (int): number of estimators for bagging.
+            filepath (str): filepath to save the class and its components.
+        """
         self.setup = setup
         self.size = size
         self.filepath = filepath
@@ -603,11 +618,21 @@ class CNNBaggingEMOS(BaseForecastModel):
 
         self.models =  []
 
+        # We directly pickle the setup such that this can be loaded back in
         with open(os.path.join(filepath + '/setup'), 'wb') as f:
             pickle.dump(self.setup, f)
 
     @classmethod
     def my_load(cls, filepath: str) -> 'CNNBaggingEMOS':
+        """
+        A classmethod to load the class in.
+
+        Arguments:
+            filepath (str): folder containing the class.
+
+        Returns:
+            The class (the models are not directly loaded in).
+        """
         with open(os.path.join(filepath + '/setup'), 'rb') as f:
             setup = pickle.load(f)
 
@@ -615,14 +640,25 @@ class CNNBaggingEMOS(BaseForecastModel):
         
         return cls(setup, size, filepath)
 
-        
+    def train_and_save_models(self, train_data: tf.data.Dataset, epochs: int = 50, batch_size: int = 64) -> None:
+        """
+        Train and save self.size number of models on train_data.
 
+        Arguments:
+            train_data (tf.data.Dataset): the training data.
+            epochs (int): the number of epochs to train each model.
+            batch_size (int): the batch size used in training.
 
-    def train_and_save_models(self, train_data: tf.data.Dataset, epochs: int = 50):
+        Returns: 
+            None
+        """
         for i in range(self.size):
             nn = CNNEMOS(**self.setup)
 
-            nn.fit(train_data, epochs=epochs)
+            # Make a bootstrapped dataset
+            bootstrap_data = self.make_bootstrap_dataset(train_data, batch_size)
+
+            nn.fit(bootstrap_data, epochs=epochs)
 
             # Construct the directory and file path
             path_model_i = os.path.join(self.filepath, f'weights_{i}')
@@ -635,7 +671,50 @@ class CNNBaggingEMOS(BaseForecastModel):
             print(f'Weights of model {i} saved!')
 
 
+    def make_bootstrap_dataset(data: tf.data.Dataset, batch_size: int) -> tf.data.Dataset:
+        """
+        Creates a bootstrapped dataset from the given dataset.
+
+        Args:
+            data (tf.data.Dataset): The input dataset to bootstrap from.
+            batch_size (int): The size of batches to create in the bootstrapped dataset.
+
+        Returns:
+            tf.data.Dataset: A new dataset that is a bootstrapped version of the
+                            input dataset, with the specified batch size.
+        """
+        # Calculate the size of the dataset
+        dataset_size = data.cardinality()
+
+        # Function to return a single data point based on a given index
+        def bootstrap_sample(index):
+            # Skip to the index and take one element
+            return data.skip(index).take(1)
+        
+        # Generate a dataset of random indices for bootstrapping
+        bootstrapped_indices = tf.data.Dataset.range(dataset_size).map(
+            lambda _: tf.random.uniform((), minval=0, maxval=dataset_size, dtype=tf.int64)
+        )
+
+        # Use the indices to create the bootstrapped dataset
+        bootstrapped_dataset = bootstrapped_indices.flat_map(bootstrap_sample)
+
+        bootstrapped_dataset = bootstrapped_dataset.shuffle(dataset_size)
+
+        bootstrapped_dataset = bootstrapped_dataset.batch(batch_size)
+
+        bootstrapped_dataset = bootstrapped_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+
+        return bootstrapped_dataset
+
+
     def load_models(self, train_data_load: tf.data.Dataset):
+        """
+        Load all the models in. This can only be done if train_and_save_models has been called before.
+
+        Arguments:
+            train_data_load (tf.data.Dataset): data used to load themodels in.
+        """
         self.models = []
 
         for i in range(self.size):
@@ -656,6 +735,7 @@ class CNNBaggingEMOS(BaseForecastModel):
     def twCRPS(self, data: tf.data.Dataset, thresholds: np.ndarray, sample_size: int = 1000) -> float:
         """
         Calculates the threshold-weighted Continuous Ranked Probability Score (twCRPS) for a given dataset.
+        Samples are generated for each model in self.models, and then added together to estimate the twCRPS.
 
         Parameters:
             dataset (tf.data.Dataset): The dataset containing input features and true labels.
@@ -674,7 +754,7 @@ class CNNBaggingEMOS(BaseForecastModel):
 
         for model in self.models:
             y_pred = []
-            y_pred.append(model.predict(X))
+            y_pred.append(model.predict(X, verbose=0))
             y_pred = tf.concat(y_pred, axis=0)
             distributions.append(model.get_distribution(y_pred))
 
@@ -719,7 +799,7 @@ class CNNBaggingEMOS(BaseForecastModel):
     def seperate_Brier_Score(self, data: Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
         """
         Similar to the Brier_Score, except that we do not take the average over the data, hence 
-        the output will be a matrix.
+        the output will be a matrix. We compute the cdf values for each model, and then average it to compute the Brier Score for a sample.
 
         Arguments:
             data (tf.data.Dataset): the dataset containing the input data and observations.
@@ -736,7 +816,7 @@ class CNNBaggingEMOS(BaseForecastModel):
         cdf_values = np.zeros(shape=(len(self.models), len(probability_thresholds), y.shape[0]))
 
         for i, forecast_model in enumerate(self.models):
-            y_pred = forecast_model.predict(X)
+            y_pred = forecast_model.predict(X, verbose=0)
             cdf_values[i, :, :] = forecast_model.model._forecast_distribution.comp_cdf(y_pred, probability_thresholds)
 
         avg_cdf_values = np.mean(cdf_values, axis=0)
@@ -750,7 +830,7 @@ class CNNBaggingEMOS(BaseForecastModel):
     def Brier_Score(self, data: Dataset, probability_thresholds: np.ndarray) -> np.ndarray:
         """
         Calculates the Brier score for a given dataset and a list of thresholds.
-        It computes the Brier score for a single batch.
+        It computes the Brier score for a single batch. We compute the cdf values for each model, and then average it to compute the Brier Score for a sample.
 
         Args:
             data (tf.data.Dataset): The dataset containing input features and true labels.
@@ -763,6 +843,42 @@ class CNNBaggingEMOS(BaseForecastModel):
 
         return brier_scores
 
+
+    def get_gev_shape(self) -> bool:
+        """
+        Returns None if there is no GEV distribution in the parametric distribution. Otherwise it returns its shape.
+        """
+        return self.models[0].get_gev_shape
         
+    def get_prob_distribution(self, data: tf.data.Dataset):
+        """
+        Based on the data it returns the distributions and the observations.
+        A single batch should contain the entire dataset.
+
+        Arguments:
+            data (tf.data.Dataset): data for which we compute the distribution. A single batch is taken.
+
+        Returns:
+            the distribution and the observations Tuple[tfp.distributions.Distribution, tf.Tensor].
+        """
+        
+        class AverageDistribution:
+            # A helper class to simply compute the average cdf values.
+            def __init__(self, distributions: list[tfp.distributions.Distribution]):
+                self.distributions = distributions
+
+            def cdf(self, x):
+                # Compute the average CDF value at x across all distributions
+                return tf.reduce_mean([dist.cdf(x) for dist in self.distributions], axis=0)
+            
+        distributions = []
+
+        for model in self.models:
+            distr, observations = model.get_prob_distribution(data)
+
+            distributions.append(distr)
+
+        return AverageDistribution(distributions), observations
+
 
         
