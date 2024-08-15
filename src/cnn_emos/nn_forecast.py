@@ -568,12 +568,13 @@ class CNNEMOS(BaseForecastModel):
         """
         return self.model.predict(X, verbose=verbose)
     
-    def get_prob_distribution(self, data: tf.data.Dataset) -> Tuple[tfp.distributions.Distribution, tf.Tensor]:
+    def get_prob_distribution(self, data: tf.data.Dataset, verbose = 'auto') -> Tuple[tfp.distributions.Distribution, tf.Tensor]:
         """
         Based on the data it returns the distributions and the observations.
 
         Arguments:
             data (tf.data.Dataset): data for which we compute the distribution. A single batch is taken.
+            verbose: verbosity mode. 0 = silent, 1 = progress bar, 2 = single line. "auto" becomes 1 for most cases.
 
         Returns:
             the distribution and the observations Tuple[tfp.distributions.Distribution, tf.Tensor].
@@ -581,7 +582,7 @@ class CNNEMOS(BaseForecastModel):
         y_pred = []
 
         X, y = next(iter(data))
-        y_pred.append(self.predict(X))
+        y_pred.append(self.predict(X, verbose=verbose))
 
         y_pred = tf.concat(y_pred, axis=0)
         return self.model._forecast_distribution.get_distribution(y_pred), y
@@ -598,9 +599,11 @@ class CNNBaggingEMOS(BaseForecastModel):
     Bagging estimator of CNNEMOS models. There are self.size models in the bagging estimator, which takes the average predictive distribution.
     With train_and_save_models it can train and then save the models on a data set for a fixed amount of epochs.
     The seperate models can be loaded back in with load_models. The full class can be loaded my_load. 
-    If all the models are loaded in you can use the methods (tw)CRPS and Brier_Score
+    If all the models are loaded in you can use the methods (tw)CRPS and Brier_Score.
+    
+    Optionally, we can make a bootstrapped training dataset, such that each model has a different training dataset.
     """
-    def __init__(self, setup: dict, size: int, filepath: str):
+    def __init__(self, setup: dict, size: int, filepath: str, bootstrap_training_data: bool = False):
         """
         Constructor of the class.
 
@@ -608,13 +611,16 @@ class CNNBaggingEMOS(BaseForecastModel):
             setup (dict): contains the setup for the CNNEMOS objects.
             size (int): number of estimators for bagging.
             filepath (str): filepath to save the class and its components.
+            bootstrap_training_data (bool): to determine whether the traninig data is bootstrapped.
         """
         self.setup = setup
         self.size = size
         self.filepath = filepath
+        self.bootstrap_training_data = bootstrap_training_data
 
         self.setup['size'] = size
         self.setup['filepath'] = filepath
+        self.setup['bootstrap_training_data'] = bootstrap_training_data
 
         self.models =  []
 
@@ -637,15 +643,16 @@ class CNNBaggingEMOS(BaseForecastModel):
             setup = pickle.load(f)
 
         size = setup['size']
+        bootstrap_training_data = setup['bootstrap_training_data']
         
-        return cls(setup, size, filepath)
+        return cls(setup, size, filepath, bootstrap_training_data)
 
-    def train_and_save_models(self, train_data: tf.data.Dataset, epochs: int = 50, batch_size: int = 64) -> None:
+    def train_and_save_models(self, data: tf.data.Dataset, epochs: int = 50, batch_size: int = 64) -> None:
         """
         Train and save self.size number of models on train_data.
 
         Arguments:
-            train_data (tf.data.Dataset): the training data.
+            data (tf.data.Dataset): the training data.
             epochs (int): the number of epochs to train each model.
             batch_size (int): the batch size used in training.
 
@@ -655,10 +662,15 @@ class CNNBaggingEMOS(BaseForecastModel):
         for i in range(self.size):
             nn = CNNEMOS(**self.setup)
 
-            # Make a bootstrapped dataset
-            bootstrap_data = self.make_bootstrap_dataset(train_data, batch_size)
+            # Optionally we bootstrap the dataset.
+            if self.bootstrap_training_data:
+                # Make a bootstrapped dataset
+                train_data = self.make_bootstrap_dataset(data, batch_size)
+            else:
+                # Use the original dataset, which is shuffled and batched
+                train_data = self.prepare_dataset(data, batch_size)
 
-            nn.fit(bootstrap_data, epochs=epochs)
+            nn.fit(train_data, epochs=epochs)
 
             # Construct the directory and file path
             path_model_i = os.path.join(self.filepath, f'weights_{i}')
@@ -683,6 +695,7 @@ class CNNBaggingEMOS(BaseForecastModel):
             tf.data.Dataset: A new dataset that is a bootstrapped version of the
                             input dataset, with the specified batch size.
         """
+        # We add all the elements to lists.
         data_list = []
         observations_list = []
 
@@ -698,6 +711,7 @@ class CNNBaggingEMOS(BaseForecastModel):
             data_list.append(features_dict)
             observations_list.append(label.numpy())
 
+        # We select the indices for bootstrapping
         num_samples = len(data_list)
         indices = np.random.choice(num_samples, size=num_samples, replace=True)
 
@@ -717,15 +731,28 @@ class CNNBaggingEMOS(BaseForecastModel):
             return tf.data.Dataset.from_tensor_slices((features, labels))
 
         # Create the bootstrapped dataset
-        bootstrapped_dataset = create_dataset(bootstrapped_data_list, bootstrapped_labels_list)
+        bootstrapped_dataset = create_dataset(bootstrapped_data_list, bootstrapped_labels_list)                                    
 
-        bootstrapped_dataset = bootstrapped_dataset.shuffle(bootstrapped_dataset.cardinality())
-                                                            
-        bootstrapped_dataset = bootstrapped_dataset.batch(batch_size)
+        return self.prepare_dataset(bootstrapped_dataset, batch_size)
+    
+    def prepare_dataset(self, data: tf.data.Dataset, batch_size: int) -> tf.data.Dataset:
+        """
+        Prepare the data by shuffling, batching and prefetching.
 
-        bootstrapped_dataset = bootstrapped_dataset.prefetch(tf.data.experimental.AUTOTUNE)                                     
+        Arguments:
+            data (tf.data.Dataset): the data to be processed.
+            batch_size (int): the batch size.
 
-        return bootstrapped_dataset
+        Returns:
+            The data (tf.data.Dataset) which is batched and shuffled.
+        """
+        output_data = data.shuffle(data.cardinality())
+
+        output_data = output_data.batch(batch_size)
+
+        output_data = output_data.prefetch(tf.data.experimental.AUTOTUNE)
+
+        return output_data
 
 
     def load_models(self, train_data_load: tf.data.Dataset):
@@ -864,11 +891,11 @@ class CNNBaggingEMOS(BaseForecastModel):
         return brier_scores
 
 
-    def get_gev_shape(self) -> bool:
+    def get_gev_shape(self, X: tf.Tensor) -> bool:
         """
         Returns None if there is no GEV distribution in the parametric distribution. Otherwise it returns its shape.
         """
-        return self.models[0].get_gev_shape
+        return self.models[0].get_gev_shape(X)
         
     def get_prob_distribution(self, data: tf.data.Dataset):
         """
@@ -894,7 +921,7 @@ class CNNBaggingEMOS(BaseForecastModel):
         distributions = []
 
         for model in self.models:
-            distr, observations = model.get_prob_distribution(data)
+            distr, observations = model.get_prob_distribution(data, verbose=0)
 
             distributions.append(distr)
 

@@ -186,14 +186,14 @@ def make_bootstrap_brier_efficient(base_model: BaseForecastModel,
     """
     scores = {key: np.zeros((bootstrap_size, len(values))) for key in models.keys()}
 
-    base_model_scores = base_model.seperate_Bier_Score(data, values)
+    base_model_scores = base_model.seperate_Brier_Score(data, values)
 
     all_brier_scores_dict = {}
 
     for i, name in enumerate(models.keys()):
         new_values = values + (i + 1) * 0.1
-        base_scores_new_values = base_model.seperate_Bier_Score(data, new_values)
-        other_model_scores = models[name].seperate_Bier_Score(data, new_values)
+        base_scores_new_values = base_model.seperate_Brier_Score(data, new_values)
+        other_model_scores = models[name].seperate_Brier_Score(data, new_values)
 
         all_brier_scores_dict[name] = (base_scores_new_values, other_model_scores)
 
