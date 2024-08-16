@@ -43,7 +43,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 # possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
-loss = "loss_CRPS_sample"
+loss = "loss_twCRPS_sample"
 #loss = "loss_cPIT"
 samples = 250
 
@@ -56,9 +56,13 @@ threshold = 8
 # chain_function_std = 1.0684260129928589
 # chain_function_constant = 0.015800999477505684
 
-chain_function_mean = 7.050563812255859
-chain_function_std = 2.405172109603882
-chain_function_constant = 0.06170300021767616		
+# chain_function_mean = 7.050563812255859
+# chain_function_std = 2.405172109603882
+# chain_function_constant = 0.06170300021767616		
+
+chain_function_mean = 5.419507
+chain_function_std = 7.822199
+chain_function_constant = 0.919453
 				
 
 # possible optimizers: 'SGD', 'Adam'
@@ -115,7 +119,7 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_base3'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_tn_cnn_weight3'
 
 epochs = 450
 
@@ -127,14 +131,16 @@ emos = LinearEMOS(setup)
 my_dict = emos.fit(train_data, epochs)
 
 
-print(emos.CRPS(test_data, 10000))
+# print(emos.CRPS(test_data, 10000))
 
-print(emos.forecast_distribution.get_gev_shape())
+# print(emos.forecast_distribution.get_gev_shape())
 
 mydict = emos.to_dict()
 
 with open(filepath, 'wb') as f:
     pkl.dump(mydict, f)
+
+print(filepath)
 
 # print(emos.CRPS(test_data, 10000))
 # print(emos.twCRPS(test_data, [12], 10000))

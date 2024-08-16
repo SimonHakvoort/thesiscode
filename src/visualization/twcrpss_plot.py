@@ -2,15 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-from src.climatology.climatology import Climatology
-from src.linreg_emos.emos import BaseForecastModel, LinearEMOS
-from src.cnn_emos.nn_forecast import CNNEMOS
-
-def comp_twcrpss(model_ref, model, X, y, threshold, sample_size = 1000):
-    return 1 - model.twCRPS(X, y, threshold, sample_size).numpy() / model_ref.twCRPS(X, y, threshold, sample_size).numpy()
+from src.linreg_emos.emos import BaseForecastModel
 
 
-def make_twcrpss_plot_tf(base_model: BaseForecastModel, 
+def make_twcrpss_plot(base_model: BaseForecastModel, 
                          model_dict: dict[str, BaseForecastModel], 
                          data: tf.data.Dataset, 
                          values: np.ndarray, 

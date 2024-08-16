@@ -41,7 +41,7 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     plt.show()
     
 
-def make_cpit_diagram(cdf_dict: dict, y: np.ndarray, title: str = "", t: float = 0.0, gev_shape = None):
+def make_cpit_diagram_from_cdf(cdf_dict: dict, y: np.ndarray, title: str = "", t: float = 0.0, gev_shape = None):
     """
     Function to make a PIT diagram for a given cdf and data. The cdf needs to have the same shape as y, they are stored in cdf_dict
     It is also possible to make a conditional PIT diagram, by setting t to a value different from 0.
@@ -137,7 +137,7 @@ def threshold_tf(data, t, repeat = True, batching = True):
 
     return filtered_data
 
-def make_cpit_diagram_tf(model_dict: dict[str, BaseForecastModel], data: tf.data.Dataset, t: int = 0, base_model: BaseForecastModel = None, base_model_name: str = 'Base Model'):
+def make_cpit_diagram(model_dict: dict[str, BaseForecastModel], data: tf.data.Dataset, t: int = 0, base_model: BaseForecastModel = None, base_model_name: str = 'Base Model'):
     """
     A a conditional PIT diagram for all the models in model_dict. 
 
@@ -175,7 +175,7 @@ def make_cpit_diagram_tf(model_dict: dict[str, BaseForecastModel], data: tf.data
         cdf_dict[base_model_name] = distribution.cdf
         gev_shapes[base_model_name] = model.get_gev_shape(X)
         
-    make_cpit_diagram(cdf_dict, observations, t=t, gev_shape=gev_shapes)
+    make_cpit_diagram_from_cdf(cdf_dict, observations, t=t, gev_shape=gev_shapes)
 
 def comp_pit_score_tf(model, data, t = 0):
     # this function integrates the area between the pit curve and the diagonal

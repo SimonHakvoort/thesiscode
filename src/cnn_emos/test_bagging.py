@@ -33,7 +33,7 @@ train_data0, test_data0, data_info = load_cv_data(0, features_names_dict)
 
 
  
-forecast_distribution = 'distr_trunc_normal'
+forecast_distribution = 'distr_mixture'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
@@ -105,17 +105,17 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_cnn/bagging_model_87_tn'
-# bagging_base
-# bagging_model_87_mixture
-# bagging_model_87_tn
-# bagging_extreme_mixture
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/model_87_mixture'
+
+# tn_crps
+# model_87_tn
+# model_87_mixture
 
 size = 10
 
-bagging = CNNBaggingEMOS(setup, size, filepath)
+bagging = CNNBaggingEMOS(setup, size, filepath,  bootstrap_training_data=False)
 
-bagging.train_and_save_models(train_data0, epochs = 47, batch_size = batch_size)
+bagging.train_and_save_models(train_data0, epochs = 50, batch_size = batch_size)
 
 
 

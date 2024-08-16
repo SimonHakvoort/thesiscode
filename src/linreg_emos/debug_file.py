@@ -1,9 +1,9 @@
 from src.loading_data.get_data import get_tf_data, stack_1d_features, normalize_1d_features_with_mean_std, load_cv_data
 from src.cnn_emos.nn_forecast import CNNEMOS
-from src.visualization.twcrpss_plot import make_twcrpss_plot_tf
-from src.visualization.brier_score import make_bootstrap_brier_efficient, make_bootstrap_sample, make_brier_skill_plot_tf
-from src.visualization.pit import make_cpit_diagram_tf, comp_multiple_pit_scores
-from src.visualization.reliability_diagram import make_reliability_and_sharpness_tf
+from src.visualization.twcrpss_plot import make_twcrpss_plot
+from src.visualization.brier_score import make_bootstrap_brier, make_bootstrap_sample, make_brier_skill_plot
+from src.visualization.pit import make_cpit_diagram, comp_multiple_pit_scores
+from src.visualization.reliability_diagram import make_reliability_and_sharpness
 from src.visualization.plot_forecasts import plot_forecast_pdf_tf
 from src.climatology.climatology import Climatology
 from src.linreg_emos.emos import BootstrapEmos, LinearEMOS
@@ -60,5 +60,5 @@ all_linear_models = {'Extreme': extreme, 'Intermediate': intermdiate, 'Vanilla':
 
 ylim = [-0.1,0.1]
 values = np.linspace(0,20,20)
-make_bootstrap_brier_efficient(emos_base, linear_weight_models, test_data0, values, ylim=ylim, bootstrap_size=1000, name_base_model='Vanilla')
+make_bootstrap_brier(emos_base, linear_weight_models, test_data0, values, ylim=ylim, bootstrap_size=1000, name_base_model='Vanilla')
 

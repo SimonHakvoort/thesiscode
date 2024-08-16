@@ -8,7 +8,7 @@ from src.linreg_emos.emos import BaseForecastModel
 
 
 
-def make_brier_skill_plot_tf(basemodel: BaseForecastModel, 
+def make_brier_skill_plot(basemodel: BaseForecastModel, 
                              models: dict[str, BaseForecastModel], 
                              data: tf.data.Dataset, 
                              values: np.ndarray, 
@@ -59,106 +59,8 @@ def make_brier_skill_plot_tf(basemodel: BaseForecastModel,
     plt.legend()
     plt.show()
 
-def make_bootstrap_sample(X: dict, y: tf.Tensor) -> tf.data.Dataset:
-    # Get the number of samples
-    num_samples = X['features_emos'].shape[0]
-    
-    indices = np.random.choice(num_samples, num_samples, replace=True)
-    
-    X_bootstrap = {key: tf.gather(value, indices) for key, value in X.items()}
-    
-    y_bootstrap = tf.gather(y, indices)
-    
-    dataset = tf.data.Dataset.from_tensor_slices((X_bootstrap, y_bootstrap))
-    
-    dataset = dataset.batch(len(dataset))
-    
-    return dataset
 
 def make_bootstrap_brier(base_model: BaseForecastModel, 
-                         models: dict[str, BaseForecastModel], 
-                         data: tf.data.Dataset,
-                         values: np.ndarray, 
-                         ylim: Union[Tuple[float, float], None] = None, 
-                         bootstrap_size: int = 1000, 
-                         title: str = None, 
-                         name_base_model: str = None) -> None:
-    """
-    Plots the bootstrapped Brier scores in a single plot. 
-    For each model in dict we compute the Brier scores at values plus a small constant and then compute the BSS.
-    We add the small constant to ensure that the error bars do not overlap, and vary the constant per model.
-
-    Arguments:
-        base_model (BaseForecastModel): model to use as reference model.
-        models (dict[str, BaseForecastModel]): BaseForecastModel instances to compare to base_model.
-        data (tf.data.Dataset): data for which we compute the bootstrapped BS.
-        values (np.ndarray): array at which we want to compute the bootstrapped BS.
-        ylim (Union[Tuple[float, float], None], optional): limit of the y-axis of the plot.
-        bootstrap_size (int, optional): size of the bootstrap.
-        title (str, optional): title for the plot.
-        name_base_model (str, optional): the name of the base_model to put in the legend.
-
-    Returns:
-        None.
-    """
-    scores = {key: np.zeros((bootstrap_size, len(values))) for key in models.keys()}
-
-    base_brier_scores = np.zeros((bootstrap_size, len(values)))
-
-    X, y = next(iter(data))
-
-    for i in range(bootstrap_size):
-        bootstrap_data = make_bootstrap_sample(X, y)
-
-        base_brier_scores[i, :] = base_model.Brier_Score(bootstrap_data, values)
-
-        for j, name in enumerate(models.keys()):
-            new_values = values + (j + 1) * 0.1
-
-            base_scores_shift = base_model.Brier_Score(bootstrap_data, new_values)
-
-            model_scores = models[name].Brier_Score(bootstrap_data, new_values)
-
-            bss = 1 - model_scores / base_scores_shift
-
-            scores[name][i, :] = bss
-        
-    for i, name in enumerate(models.keys()):
-        score = scores[name]
-
-        new_values = values + (i + 1) * 0.1
-
-        mean = np.mean(score, axis=0)
-        std = np.std(score, axis=0)
-
-        plt.errorbar(new_values, y=mean, yerr=std, capsize=2, label=name)
-
-    base_means = np.mean(base_brier_scores, axis=0)
-    bss_scores_base = 1 - base_brier_scores / base_means[np.newaxis, :]
-    base_bss_mean = np.mean(bss_scores_base, axis=0)
-    base_bss_std = np.std(bss_scores_base, axis=0)
-
-    # plt.errorbar(values, y=base_bss_mean, yerr=base_bss_std, capsize=2, label='Base Model')
-    if isinstance(base_model, Climatology):
-        plt.plot(values, base_bss_mean, label='Climatology')
-    else:
-        if name_base_model is None:
-            naming = 'Reference Model'
-        else:
-            naming = name_base_model
-        plt.plot(values, base_bss_mean, label=naming)
-    
-    plt.xlim(0, 20)
-    if ylim is not None:
-        plt.ylim(ylim[0], ylim[1])
-    plt.xlabel('Threshold')
-    plt.ylabel('Brier Skill Scores')
-    plt.legend()
-    if title is not None:
-        plt.title(title)
-    plt.show()
-
-def make_bootstrap_brier_efficient(base_model: BaseForecastModel, 
                          models: dict[str, BaseForecastModel], 
                          data: tf.data.Dataset,
                          values: np.ndarray, 
