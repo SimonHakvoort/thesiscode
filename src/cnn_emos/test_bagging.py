@@ -33,11 +33,11 @@ train_data0, test_data0, data_info = load_cv_data(0, features_names_dict)
 
 
  
-forecast_distribution = 'distr_mixture'
+forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 # chain_function_mean = 8.84
 # chain_function_std = 1.07
@@ -60,8 +60,6 @@ conv_3x3_units = 4
 metrics = ['twCRPS_12']# ['twCRPS_10', 'twCRPS_12', 'twCRPS_15']
 metrics = None
 saving = True
-
-epochs = 130
 
 setup_distribution = {
     'forecast_distribution': forecast_distribution,
@@ -99,30 +97,36 @@ setup = {
     'setup_optimizer': setup_optimizer,
     'sample_size': 1000,
     'setup_nn_architecture': setup_nn_architecture,
-
     'features_1d_mean': data_info['features_1d_mean'],
     'features_1d_std': data_info['features_1d_std'],
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/model_87_mixture'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/tn_crps'
 
 # tn_crps
+# tn_crps_variance_check
+# tn_crps_variance_check2
 # model_87_tn
 # model_87_mixture
+# sharp_sigmoid_tn
 
-size = 10
+# size = 10
 
-bagging = CNNBaggingEMOS(setup, size, filepath,  bootstrap_training_data=False)
+# bagging = CNNBaggingEMOS(setup, size, filepath,  bootstrap_training_data=False)
 
-bagging.train_and_save_models(train_data0, epochs = 50, batch_size = batch_size)
+# bagging.train_and_save_models(train_data0, epochs = 47, batch_size = batch_size)
 
 
 
-# bagging = CNNBaggingEMOS.my_load(filepath)
+bagging = CNNBaggingEMOS.my_load(filepath)
 
-# bagging.load_models(train_data0)
+train_data0 = train_data0.batch(64)
 
-# bs = bagging.twCRPS(test_data0, [0,1,2,3,4,5])
+test_data0 = test_data0.batch(10)
 
-# x = 3
+bagging.load_models(train_data0)
+
+bs = bagging.twCRPS(test_data0, [3], sample_size=50)
+
+x = 3

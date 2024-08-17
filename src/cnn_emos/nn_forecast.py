@@ -800,15 +800,15 @@ class CNNBaggingEMOS(BaseForecastModel):
         distributions = []
 
         for model in self.models:
-            y_pred = []
-            y_pred.append(model.predict(X, verbose=0))
-            y_pred = tf.concat(y_pred, axis=0)
+            # For each model we get the corresponding distribution
+            y_pred = model.predict(X, verbose=0)
             distributions.append(model.get_distribution(y_pred))
 
         scores = []
         for threshold in thresholds:
             X_1_list = []
             X_2_list = []
+            # For each distribution we sample from the distribution
             for distribution in distributions:
                 X_1_samples = distribution.sample(sample_size)
                 X_2_samples = distribution.sample(sample_size)
@@ -816,11 +816,16 @@ class CNNBaggingEMOS(BaseForecastModel):
                 X_1_list.append(X_1_samples)
                 X_2_list.append(X_2_samples)
 
+            # X_1 and X_2 have shape (sample_size * self.size) x y.shape 
             X_1 = tf.concat(X_1_list, axis=0)
-            X_2 = tf.concat(X_1_list, axis=0)
+            X_2 = tf.concat(X_2_list, axis=0)
+            
+            # Additionally, we shuffle the tensor containing the samples. This needs to be done along the first dimension
+            X_1_shuffled = tf.random.shuffle(X_1)
+            X_2_shuffled = tf.random.shuffle(X_2)
 
-            vX_1 = tf.maximum(X_1, threshold)
-            vX_2 = tf.maximum(X_2, threshold)
+            vX_1 = tf.maximum(X_1_shuffled, threshold)
+            vX_2 = tf.maximum(X_2_shuffled, threshold)
 
             E_1 = tf.reduce_mean(tf.abs(vX_1 - tf.maximum(tf.squeeze(y), threshold)), axis=0)
             E_2 = tf.reduce_mean(tf.abs(vX_2 - vX_1), axis=0)
