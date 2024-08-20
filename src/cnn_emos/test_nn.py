@@ -187,12 +187,12 @@ my_list = []
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-# with open(filepath + 'epochs_run_87', 'rb') as f:
-#     my_list = pickle.load(f)
+with open(filepath + 'epochs_sharp_sigmoid_tn', 'rb') as f:
+    my_list = pickle.load(f)
 
 print(my_list)
 
-print(np.mean(my_list))
+print(np.mean(my_list) * 2/3)
 print(np.var(my_list))
 
 train_data_list = [train_data1, train_data2, train_data3]

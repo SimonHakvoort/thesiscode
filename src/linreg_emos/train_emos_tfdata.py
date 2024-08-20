@@ -20,7 +20,7 @@ features_names_dict['wind_speed'] = 15
 ignore = ['229', '285', '323']
 
 
-train_data, test_data, data_info = load_cv_data(3, features_names_dict)
+train_data, test_data, data_info = load_cv_data(0, features_names_dict)
 
 print(train_data.cardinality())
 
@@ -50,8 +50,8 @@ samples = 250
 # possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
 # if chain_function_indicator is chosen, threshold is not necessary
 # if chain_function_normal_cdf is chosen, threshold is necessary
-chain_function = "chain_function_normal_cdf_plus_constant"
-threshold = 8
+chain_function = "chain_function_indicator"
+chain_function_threshold = 12
 # chain_function_mean = 8.830960273742676
 # chain_function_std = 1.0684260129928589
 # chain_function_constant = 0.015800999477505684
@@ -70,7 +70,7 @@ optimizer = "Adam"
 learning_rate = 0.01
 
 # possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_mixture_linear"
+forecast_distribution = "distr_log_normal"
 
 # necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
@@ -86,7 +86,7 @@ setup = {'loss': loss,
          'learning_rate': learning_rate, 
          'forecast_distribution': forecast_distribution,
          'chain_function': chain_function,
-         'threshold': threshold,
+         'chain_function_threshold': chain_function_threshold,
          'distribution_1': distribution_1,
          'distribution_2': distribution_2,
          'chain_function_mean': chain_function_mean,
@@ -119,7 +119,7 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 
 #save the model:
 # filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_ml_tn_ln_cnn_weight3'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_ln_indictor_weight'
 
 epochs = 450
 

@@ -923,6 +923,9 @@ class CNNBaggingEMOS(BaseForecastModel):
                 # Compute the average CDF value at x across all distributions
                 return tf.reduce_mean([dist.cdf(x) for dist in self.distributions], axis=0)
             
+            def prob(self, x):
+                return tf.reduce_mean([dist.pdf(x) for dist in self.distributions], axis=0)
+            
         distributions = []
 
         for model in self.models:
