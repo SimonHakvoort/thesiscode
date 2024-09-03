@@ -327,18 +327,20 @@ class NNGEV(NNDistribution):
         Returns:
             The correct cdf at  values.
         """
+        # Get the GEV shape
         shape = self.get_gev_shape(y_pred)
 
         output = np.zeros((len(values), y_pred.shape[0]))
         distr = self.get_distribution(y_pred)
 
         for i, value in enumerate(values):
+            # Compute the CDF values
             cdf_value = distr.cdf(value).numpy()
             nan_indices = np.isnan(cdf_value)  # Find NaN indices
             shape_less_than_zero = shape < 0  # Find shape < 0 indices
             output[i] = cdf_value
 
-            # Update NaN values based on the condition
+            # Update NaN values based whether the shape is less or greater than 0.
             output[i, nan_indices & shape_less_than_zero] = 1
             output[i, nan_indices & ~shape_less_than_zero] = 0
 
@@ -357,6 +359,8 @@ class NNMixture(NNDistribution):
 
         self.distribution_1 = distribution_1
         self.distribution_2 = distribution_2
+
+        # With num_params_distribution_i we can select the correct parameters from the Tensors.
         self.num_params_distribution_1 = len(distribution_1.build_output_layers())
         self.num_params_distribution_2 = len(distribution_2.build_output_layers())
     
@@ -375,11 +379,14 @@ class NNMixture(NNDistribution):
         params_1 = y_pred[:, 1:1+self.num_params_distribution_1]
         params_2 = y_pred[:, 1+self.num_params_distribution_1:]
         
+        # Get the two distributions
         dist_1 = self.distribution_1.get_distribution(params_1)
         dist_2 = self.distribution_2.get_distribution(params_2)
 
+        # Make a categorical distribution with the weight parameter.
         cat = tfp.distributions.Categorical(probs=tf.stack([weight, 1 - weight], axis=-1))
 
+        # Return a mixture distribution consisting of distr_1, distr_2 and cat.
         return tfp.distributions.Mixture(
             cat,
             [dist_1, dist_2]
@@ -401,7 +408,7 @@ class NNMixture(NNDistribution):
     def __str__(self):
         return f"Mixture({self.distribution_1}, {self.distribution_2})"
     
-    def short_name(self):
+    def short_name(self) -> str:
         return f"mix_{self.distribution_1.short_name()}_{self.distribution_2.short_name()}"
     
     def has_gev(self) -> bool:
@@ -481,6 +488,7 @@ class NNMixture(NNDistribution):
         """
         weight = self.get_weight(y_pred)
 
+        # Compute the CDF values for each distribution.
         values_1 = self.distribution_1.comp_cdf(y_pred[:, 1:1+self.num_params_distribution_1], values)
         values_2 = self.distribution_2.comp_cdf(y_pred[:, 1+self.num_params_distribution_1:], values)
 
