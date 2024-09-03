@@ -297,7 +297,7 @@ class CNNEMOS(BaseForecastModel):
         Returns:
             the maximum of x and self.chain_function_threshold (tf.Tensor)
         """
-        return self.chain_function_indicator(x, self.chain_function_threshold)
+        return self._chain_function_indicator(x, self.chain_function_threshold)
     
         
     def _chain_function_normal_cdf(self, x: tf.Tensor, normal_distribution: tfp.distributions.Normal) -> tf.Tensor:

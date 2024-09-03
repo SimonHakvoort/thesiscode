@@ -6,7 +6,7 @@ from src.loading_data.get_data import load_cv_data
 from src.linreg_emos.emos import LinearEMOS
 import pickle as pkl
 
-
+# Load the training and test data.
 all_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 location_features = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
@@ -19,13 +19,10 @@ features_names_dict['wind_speed'] = 15
 
 ignore = ['229', '285', '323']
 
-
 train_data, test_data, data_info = load_cv_data(0, features_names_dict)
 
-print(train_data.cardinality())
 
-print(test_data.cardinality())
-
+# Prepare the training data, by adding a constant weight and batching and shuffling the data set.
 def addweight(X, y):
     return X, y, tf.constant(1, dtype=tf.float32)
 
@@ -42,24 +39,26 @@ test_data = test_data.batch(test_data.cardinality())
 test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
-# possible loss functions: 'loss_CRPS_sample', 'loss_log_likelihood', 'loss_Brier_score', 'loss_twCRPS_sample'
+# Choose the loss function
 loss = "loss_twCRPS_sample"
 #loss = "loss_cPIT"
 samples = 250
 
-# possible chain functions: 'chain_function_indicator' and 'chain_function_normal_cdf'
-# if chain_function_indicator is chosen, threshold is not necessary
-# if chain_function_normal_cdf is chosen, threshold is necessary
+# Select the chaining function in case the twCRPS is used. Also select the parameters.
 chain_function = "chain_function_indicator"
-chain_function_threshold = 12
+chain_function_threshold = 14
+
+### Sharp sigmoid parameters
 # chain_function_mean = 8.830960273742676
 # chain_function_std = 1.0684260129928589
 # chain_function_constant = 0.015800999477505684
 
+### Sigmoid parameters
 # chain_function_mean = 7.050563812255859
 # chain_function_std = 2.405172109603882
 # chain_function_constant = 0.06170300021767616		
 
+### Best CNN parameters
 chain_function_mean = 5.419507
 chain_function_std = 7.822199
 chain_function_constant = 0.919453
@@ -69,10 +68,9 @@ chain_function_constant = 0.919453
 optimizer = "Adam"
 learning_rate = 0.01
 
-# possible forecast distributions: 'distr_trunc_normal', 'distr_log_normal', 'distr_gev' and 'distr_mixture'/'distr_mixture_linear', which can be a mixture distribution of two previously mentioned distributions.
-forecast_distribution = "distr_log_normal"
+# Select the parametric distribution. The variables distribution_1 and distribution_2 only get used in case an (adaptive) mixture distibution is selected. 
+forecast_distribution = "distr_trunc_normal"
 
-# necessary in case of a mixture distribution
 distribution_1 = "distr_trunc_normal"
 distribution_2 = "distr_log_normal"
 
@@ -100,6 +98,7 @@ setup = {'loss': loss,
         'printing': printing,
          }
 
+# In case we a mixture distribution we pretrain the seperate models.
 if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == 'distr_mixture':
     setup['forecast_distribution'] = distribution_1
 
@@ -117,12 +116,8 @@ if forecast_distribution == 'distr_mixture_linear' or forecast_distribution == '
 
     setup['parameters'] = {**emos1.get_parameters(), **emos2.get_parameters()}
 
-#save the model:
-# filepath = '/net/pc200239/nobackup/users/hakvoort/models/bootstrap_emos/tn_ln_M13_STD2_C07'
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_ln_indictor_weight'
 
 epochs = 450
-
 
 batch_size = None
 
@@ -130,35 +125,10 @@ emos = LinearEMOS(setup)
 
 my_dict = emos.fit(train_data, epochs)
 
-
-# print(emos.CRPS(test_data, 10000))
-
-# print(emos.forecast_distribution.get_gev_shape())
-
+# Saving the model.
 mydict = emos.to_dict()
+
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_tn_indictor_weight_14'
 
 with open(filepath, 'wb') as f:
     pkl.dump(mydict, f)
-
-print(filepath)
-
-# print(emos.CRPS(test_data, 10000))
-# print(emos.twCRPS(test_data, [12], 10000))
-
-# bootstrap = BootstrapEmos.load(filepath)
-
-#bootstrap = BootstrapEmos(setup, filepath, epochs, batch_size, cv, features_names_dict)
-
-# bootstrap.num_models = 1000
-
-# bootstrap.save_bootstrap_info()
-
-# bootstrap.train_models(1000 - bootstrap.num_models)
-
-# twCRPS = bootstrap.CRPS(test_data, 1000)
-
-# print(twCRPS)
-
-# print(np.mean(twCRPS))
-
-

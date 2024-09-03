@@ -1,14 +1,11 @@
 import time
 import numpy as np
-from src.loading_data.get_data import get_fold_is, load_cv_data, load_train_test_data, make_importance_sampling_dataset, normalize_1d_features, normalize_1d_features_with_mean_std, save_cv_data, stack_1d_features, get_tf_data
-from src.cnn_emos.nn_model import NNModel
+from src.loading_data.get_data import load_cv_data
 from src.cnn_emos.nn_forecast import CNNEMOS
 import tensorflow as tf
 import pickle
-import os
-import random
 
-
+# Load the data for the folds
 features_names = ['wind_speed', 'press', 'kinetic', 'humid', 'geopot']
 
 features_names_dict = {name: 1 for name in features_names}
@@ -85,14 +82,16 @@ test_data0 = test_data0.batch(len(test_data0))
 test_data0 = test_data0.prefetch(tf.data.experimental.AUTOTUNE)
 
 
-# X, y = next(iter(train_data0))
- 
+ # Select the parametric distribution. The variables distribution_1 and distribution_2 only get used in case a mixture distibution is selected. 
 forecast_distribution = 'distr_trunc_normal'
 distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
+# Choice of loss function. In case the twCRPS is used, a weight function including its parameters should be selected.
 loss_function = 'loss_twCRPS_sample'
-chain_function = 'chain_function_normal_cdf_plus_constant'
+# chain_function = 'chain_function_normal_cdf_plus_constant'
+chain_function = 'chain_function_indicator'
+chain_function_threshold = 12
 chain_function_mean = 8.84
 chain_function_std = 1.07
 chain_function_constant = 0.015
@@ -139,6 +138,7 @@ setup_loss = {
     'chain_function_mean': chain_function_mean,
     'chain_function_std': chain_function_std,
     'chain_function_constant': chain_function_constant,
+    'chain_function_threshold': chain_function_threshold,
 }
 
 setup_optimizer = {
@@ -187,8 +187,8 @@ my_list = []
 
 filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-with open(filepath + 'epochs_sharp_sigmoid_tn', 'rb') as f:
-    my_list = pickle.load(f)
+# with open(filepath + 'epochs_indicator_12_tn', 'rb') as f:
+#     my_list = pickle.load(f)
 
 print(my_list)
 
@@ -228,7 +228,7 @@ for _ in range(0, 100):
 
     filepath = '/net/pc200239/nobackup/users/hakvoort/models/conv_nn/'
 
-    with open(filepath + 'epochs_sharp_sigmoid_tn', 'wb') as f:
+    with open(filepath + 'epochs_indicator_12_tn', 'wb') as f:
         pickle.dump(my_list, f)
 
     print(my_list)
