@@ -145,20 +145,6 @@ class Forecast:
 
                 samples_list.append(sample)
         return samples_list
-        
-
-    def generate_all_samples(self, station_info, variable_names, station_ignore = [], neighbourhood_size = None):
-        # generate samples for all stations in station_info
-        # station_info is a dictionary with station codes as keys and Station instances as values
-        X = []
-        y = []
-        for station in station_info.values():
-            if station.code in self.observations and station.code not in station_ignore:
-                x, observation = self.generate_sample(station, variable_names, neighbourhood_size)
-                X.append(x)
-                y.append(observation)
-
-        return tf.convert_to_tensor(X, dtype=tf.float32), tf.convert_to_tensor(y, dtype=tf.float32)
     
     def __contains__(self, station_code: str) -> bool:
         """
@@ -177,27 +163,6 @@ class ForecastSample():
     """
     The ForecastSample class represents a sample of forecast data for a specific station. 
     Each sample consists of various weather features and the observed value at the station.
-
-    Attributes:
-        feature_names (list): List of feature names for the forecast sample.
-        station_code (str): Code of the station for which the sample is generated.
-        y (float or None): Observed value at the station. Initialized to None.
-
-    Methods:
-        add_feature(feature_name: str, value: Union[np.ndarray, float]):
-            Adds a feature to the sample. Sets the feature value and a boolean indicating if it is a grid.
-        
-        add_y(y: float):
-            Sets the observed value at the station.
-        
-        check_if_everything_is_set() -> bool:
-            Checks if all features and the observed value are set.
-        
-        get_X() -> dict:
-            Returns the features as a dictionary of tensors. If the feature is a grid, the key will be the feature name with '_grid' suffix.
-        
-        get_y() -> tf.Tensor:
-            Returns the observed value as a tensor.
     """
     def __init__(self, feature_names: list, station_code: str):
         self.feature_names = feature_names

@@ -469,21 +469,7 @@ class LinearEMOS(BaseForecastModel):
         
         return np.full(X['features_emos'].shape[0], gev_shape)
     
-    def normalize_features(self, X):
-        """
-        Normalize the features of the model.
 
-        Arguments:
-            X: the input data of shape (n, m), where n is the number of samples and m is the number of features.
-
-        Returns:
-            the normalized input data.
-        """
-        if self.feature_mean is None or self.feature_std is None:
-            raise ValueError("Feature mean and standard deviation not set")
-        return (X - self.feature_mean) / self.feature_std
-
-    
     def indicator_function(self, y, t):
         """
         The indicator function, which returns 1 if y <= t, and 0 otherwise.
@@ -497,7 +483,8 @@ class LinearEMOS(BaseForecastModel):
         """
         return tf.cast(y <= t, tf.float32)
  
-    def loss_log_likelihood(self, X, y):
+
+    def loss_log_likelihood(self, X: tf.Tensor, y: tf.Tensor):
         """
         The loss fuction for the log likelihood, based on the forecast distribution and observations.
 
@@ -506,11 +493,12 @@ class LinearEMOS(BaseForecastModel):
             y (tf.Tensor): the observations of shape (n,).
 
         Returns:
-        - the loss value.
+            the loss value.
         """
         forecast_distribution = self.forecast_distribution.get_distribution(X)
-        return -tf.reduce_mean(forecast_distribution.log_prob(y))
+        return -forecast_distribution.log_prob(y)
     
+
     def get_prob_distribution(self, data: tf.data.Dataset) -> Tuple[tfp.distributions.Distribution, tf.Tensor]:
         """
         Returns the distribution and the observations a single batch taken from data.
@@ -525,6 +513,7 @@ class LinearEMOS(BaseForecastModel):
         distributions = self.forecast_distribution.get_distribution(X['features_emos'])
 
         return distributions, y
+    
     
     def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
         """
@@ -688,6 +677,7 @@ class LinearEMOS(BaseForecastModel):
         twcrps = np.zeros(len(thresholds))
 
         for i, threshold in enumerate(thresholds):
+            # The computation is similar to loss_twCRPS_sample_general
             chain_function = lambda x: self.chain_function_indicator_general(x, threshold)
             X_1 = forecast_distribution.sample(sample_size)
             X_2 = forecast_distribution.sample(sample_size)
@@ -733,8 +723,6 @@ class LinearEMOS(BaseForecastModel):
         #X_1 has shape (samples, n), where n is the number of observations
         X_1 = forecast_distribution.sample(samples)
         X_2 = forecast_distribution.sample(samples)
-
-
 
         # Transform X_2 and X_2 with the specified chaining function.
         vX_1 = chain_function(X_1)

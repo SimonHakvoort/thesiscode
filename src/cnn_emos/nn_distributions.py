@@ -4,11 +4,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.constraints import Constraint
-
 from abc import ABC, abstractmethod
 
-
-import pdb
 
 def distribution_name(distribution: str, **kwargs):
     """

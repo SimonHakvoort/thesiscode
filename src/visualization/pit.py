@@ -15,14 +15,14 @@ def make_cpit_hist(cdf, y, bins = 20, title = "", t = 0):
     Note that in case t > 0 then we assume that y only contains values greater than 0.
 
     Args:
-    - cdf: cumulative distribution function of shape (n,)
-    - y: array with shape (n,) with the true values
-    - bins: number of bins for the histogram
-    - title: title of the histogram
-    - t: real valued number greater than 0
+        cdf: cumulative distribution function of shape (n,)
+        y: array with shape (n,) with the true values
+        bins: number of bins for the histogram
+        title: title of the histogram
+        t: real valued number greater than 0
 
     Returns:
-    - None
+        None
     """
     if t < 0:
         raise ValueError("t needs to be greater than 0")

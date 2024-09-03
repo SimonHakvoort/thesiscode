@@ -290,7 +290,7 @@ class TruncatedNormal(ForecastDistribution):
             X (tf.Tensor): tensor containing the features.
 
         Returns:
-            A truncated normal distribution.
+            A truncated normal distribution with the selected parameters.
         """
         mu = self._parameter_dict['a_tn'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_tn'], axes=1)
         sigma_squared = self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1)
@@ -321,7 +321,7 @@ class TruncatedNormalSqrt(ForecastDistribution):
     for generating truncated normal distribution objects based on input data.
     It assumes linear relationship between the distribution parameters and the input data.
     """
-    def __init__(self, all_features, location_features, scale_features, random_init, parameters: Dict[str, float] = {}):
+    def __init__(self, all_features: List[str], location_features: List[str], scale_features: List[str], random_init: bool, parameters: Dict[str, float] = {}):
         """
         Constructor for the TruncatedNormalSqrt class. Initializes the parameters of the distribution.
         In case parameters is provided, it sets the parameters to the given values. Otherwise, it
@@ -361,7 +361,7 @@ class TruncatedNormalSqrt(ForecastDistribution):
             self._parameter_dict['d_tn'] = tf.Variable(tf.ones(len(self.scale_features_indices), dtype=tf.float32), name="d_tn")
             print("Using default parameters for truncated normal distribution")
 
-    def get_distribution(self, X):
+    def get_distribution(self, X: tf.Tensor):
         mu = self._parameter_dict['a_tn'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_tn'], axes=1)
         sigma = tf.math.softplus(self._parameter_dict['c_tn'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_tn'], axes=1))
         return tfpd.TruncatedNormal(mu, sigma, 0, 1000)
@@ -392,7 +392,7 @@ class LogNormal(ForecastDistribution):
     for generating truncated normal distribution objects based on input data.
     It assumes linear relationship between the distribution parameters and the input data.
     """
-    def __init__(self, all_features, location_features, scale_features, random_init, parameters = {}):
+    def __init__(self, all_features: List[str], location_features: List[str], scale_features: List[str], random_init: bool, parameters: Dict[str, float] = {}):
         """
         Constructor for the LogNormal class. Initializes the parameters of the distribution.
         In case parameters is provided, it sets the parameters to the given values. Otherwise, it
@@ -431,6 +431,15 @@ class LogNormal(ForecastDistribution):
             # print("Using default parameters for Log Normal distribution")
 
     def get_distribution(self, X: tf.Tensor) -> tfp.distributions.Distribution:
+        """
+        Computes the parameters of the log-normal distribution based on the input data.
+
+        Argument:
+            X (tf.Tensor): the input data.
+
+        Returns:
+            The log-normal distribution with the selected parameters.
+        """
         m = self._parameter_dict['a_ln'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_ln'], axes=1)
         v = self._parameter_dict['c_ln'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_ln'], axes=1)
 
@@ -467,12 +476,8 @@ class GEV(ForecastDistribution):
     for generating truncated normal distribution objects based on input data and variance.
     It assumes linear relationship between the distribution parameters and the input data.
     This class does not use the variance in the distribution parameters.
-
-    Attributes:
-        num_features (int): Number of features used in the model.
-        parameter_dict (dict): Dictionary containing the parameters of the distribution.
     """
-    def __init__(self, all_features, location_features, scale_features, random_init, parameters = {}):
+    def __init__(self, all_features: List[str], location_features: List[str], scale_features: List[str], random_init: bool, parameters: Dict[str, float] = {}):
         """
         Constructor for the GEV class. Initializes the parameters of the distribution.
         In case parameters is provided, it sets the parameters to the given values. Otherwise, it
@@ -513,6 +518,15 @@ class GEV(ForecastDistribution):
             # print("Using default parameters for Generalized Extreme Value distribution")
 
     def get_distribution(self, X: tf.Tensor) -> tfp.distributions.Distribution:
+        """
+        Returns the GEV distribution with the selected parameters based on the input data.
+
+        Arguments:
+            X (tf.Tensor): the input data.
+
+        Returns: 
+            The GEV distribution.
+        """
         location = self._parameter_dict['a_gev'] + tf.tensordot(tf.gather(X, self.location_features_indices, axis=1), self._parameter_dict['b_gev'], axes=1)
 
         scale = self._parameter_dict['c_gev'] + tf.tensordot(tf.gather(X, self.scale_features_indices, axis=1), self._parameter_dict['d_gev'], axes=1)

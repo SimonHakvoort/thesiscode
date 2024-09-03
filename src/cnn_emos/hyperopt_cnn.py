@@ -13,29 +13,20 @@ class ObjectiveCNN:
 
     This class facilitates the preprocessing of data, training of models, and computation of objective 
     functions for evaluating model performance during hyperparameter optimization.
-
-    Attributes:
-        feature_names_dict (dict): Dictionary mapping feature names to their respective indices or descriptions.
-        objectives (list): List of objective functions to be used for model evaluation. Valid objectives 
-                           include 'CRPS' and 'twCRPS<value>'.
-        train_amount (int): Number of times to train the model on each fold for stability and robustness.
-        feature_names_list (list): List of feature names extracted from feature_names_dict.
+    It trains each model on the fold for a set number of times and then takes the average performance of all models 
+    over the three folds. Early stopping is used to retrieve the best parameters.
     
-    Methods:
-        get_data_i(i: int, batch_size: int) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
-            Preprocesses and returns the training and test datasets for the specified fold.
-        
-        compute_objective(nnforecast: CNNEMOS, objective: str, test_data: tf.data.Dataset) -> float:
-            Computes and returns the specified objective value for the given test data.
-        
-        train_on_fold_i(setup: dict, fold: int, epochs: int, batch_size: int) -> Tuple[np.ndarray, int]:
-            Trains the model on the specified fold and returns the objective values and best epoch.
-        
-        __call__(trial: optuna.Trial) -> list:
-            Executes the objective function for Optuna hyperparameter optimization, returning the list of 
-            objective values.
+    This class should be used in combination with a optuna study object as objective function.
     """
-    def __init__(self, feature_names_dict, objectives, train_amount = 3):
+    def __init__(self, feature_names_dict: dict, objectives: list, train_amount: int = 3):
+        """
+        Creates an instance of the ObjectiveCNN class
+
+        Arguments:
+            feature_names_dict (dict): dictionary containing the feature names and the grid sizes.
+            objective (list): a list of objectives used during the optimization process.
+            train_amount (int): number of times we train a model on a specific fold.
+        """
         self.feature_names_dict = feature_names_dict
         self.objectives = objectives
         self.train_amount = train_amount
@@ -152,35 +143,7 @@ class ObjectiveCNN:
         """
         setup = {}
 
-        # forecast_distribution = trial.suggest_categorical('Forecast Distribution', ['distr_trunc_normal', 'distr_log_normal', 'distr_mixture'])
-
-        # distribution_1 = 'distr_trunc_normal'
-        # distribution_2 = 'distr_log_normal'
-
-        # loss_function = 'loss_twCRPS_sample'
-
-        # chain_function = 'chain_function_normal_cdf_plus_constant'
-
-        # chain_function_mean = trial.suggest_float('cf mean', -5, 15)
-        # chain_function_std = trial.suggest_float('cf std', 0.0001, 10, log=True)
-        # chain_function_constant = trial.suggest_float('cf constant', 0.000001, 1, log=False)
-
-        # optimizer = trial.suggest_categorical('Optimizer', ['adam', 'sgd'])
-        # learning_rate = trial.suggest_float('Learning Rate', 0.0001, 0.03)
-
-        # dense_l2_regularization = trial.suggest_float('L2 Regularization', 0.00005, 0.1, log=True)
-
-        # number_of_layers = trial.suggest_int('Number of Layers', 1, 5)
-        # number_of_units = trial.suggest_int('Number of Units per Layer', 30, 200, step=10)
-
-        # hidden_units_list = [number_of_units for _ in range(number_of_layers)]
-
-        # batch_size = trial.suggest_categorical('Batch Size', [16, 32, 64, 128, 256, 512, 1024])
-
-        # conv_7x7_units = trial.suggest_int('Conv 7x7 units', 1, 5)
-        # conv_5x5_units = trial.suggest_int('Conv 5x5 units', 1, 5)
-        # conv_3x3_units = trial.suggest_int('Conv 3x3 units', 1, 5)
-        forecast_distribution = 'distr_mixture'
+        forecast_distribution = trial.suggest_categorical('Forecast Distribution', ['distr_trunc_normal', 'distr_log_normal', 'distr_mixture'])
 
         distribution_1 = 'distr_trunc_normal'
         distribution_2 = 'distr_log_normal'
@@ -193,18 +156,21 @@ class ObjectiveCNN:
         chain_function_std = trial.suggest_float('cf std', 0.0001, 10, log=True)
         chain_function_constant = trial.suggest_float('cf constant', 0.000001, 1, log=False)
 
-        optimizer = 'adam'
-        learning_rate = 0.000105
+        optimizer = trial.suggest_categorical('Optimizer', ['adam', 'sgd'])
+        learning_rate = trial.suggest_float('Learning Rate', 0.0001, 0.03)
 
-        dense_l2_regularization = 0.031658
+        dense_l2_regularization = trial.suggest_float('L2 Regularization', 0.00005, 0.1, log=True)
 
-        hidden_units_list = [170, 170]
-        
-        conv_7x7_units = 4
-        conv_5x5_units = 4
-        conv_3x3_units = 4
+        number_of_layers = trial.suggest_int('Number of Layers', 1, 5)
+        number_of_units = trial.suggest_int('Number of Units per Layer', 30, 200, step=10)
 
-        batch_size = 64
+        hidden_units_list = [number_of_units for _ in range(number_of_layers)]
+
+        batch_size = trial.suggest_categorical('Batch Size', [16, 32, 64, 128, 256, 512, 1024])
+
+        conv_7x7_units = trial.suggest_int('Conv 7x7 units', 1, 5)
+        conv_5x5_units = trial.suggest_int('Conv 5x5 units', 1, 5)
+        conv_3x3_units = trial.suggest_int('Conv 3x3 units', 1, 5)
 
         sample_size = 1000
         epochs = 100

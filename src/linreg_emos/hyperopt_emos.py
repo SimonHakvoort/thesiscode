@@ -8,7 +8,26 @@ from src.linreg_emos.emos import LinearEMOS
 from src.loading_data.get_data import load_cv_data
 
 class Objective:
-    def __init__(self, feature_names_dict, objectives, twCRPS = False, train_amount = 1):
+    """
+    Class used as an objective function with Optuna for hyperparameter optimization of LinearEMOS.
+
+    This class facilitates the preprocessing of data, training of models, and computation of objective 
+    functions for evaluating model performance during hyperparameter optimization.
+    It trains each model on the fold for a set number of times and then takes the average performance of all models 
+    over the three folds.
+    
+    This class should be used in combination with a optuna study object as objective function.
+    """
+    def __init__(self, feature_names_dict: dict, objectives: list, twCRPS: bool = True, train_amount: int = 1):
+        """
+        Initializes the Objective class.
+
+        Arguments:
+            feature_names_dict (dict): a dict containing the feature names with the associated grid sizes.
+            objectives (list): a list of all the objective that are optimized.
+            twCRPS (bool): boolean indicating whether we use the twCRPS as loss function. Otherwise the CRPS is used.
+            train_amount (int): whether we train multiple models on the same fold and then average the losses.
+        """
         self.twCRPS = twCRPS
         self.feature_names_dict = feature_names_dict
         self.feature_names_list = list(feature_names_dict.keys())
@@ -63,7 +82,21 @@ class Objective:
             twCRPS_num = objective[6:]
             return emos.twCRPS(test_data, [int(twCRPS_num)], 90000)[0]
         
-    def train_emos_i(self, setup, fold, epochs, perform_batching, batch_size = None):
+    def train_emos_i(self, setup: dict, fold: int, epochs: int, perform_batching: bool, batch_size = None) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Train a LinearEMOS model with the specified setup on the fold. It returns the losses of the objective values and an additional 
+        array containing the losses on the additional metrics (these additional metrics are not used during the optimization, only for documentation).
+
+        Arguments:
+            setup (dict): setup of the LinearEMOS model.
+            fold (int): fold number to train on.
+            epochs (int): number of epochs used to train the model.
+            perform_batching (bool): indicating whether batching is performed.
+            batch_size: the batch size in case perform_batching is true.
+
+        Returns:
+            A tuple containig an array with the losses for the optimization process and with additional metrics.
+        """
         train_data, test_data = self.get_data_i(fold)
 
         if perform_batching:
@@ -73,6 +106,7 @@ class Objective:
 
         train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
+        # In case we have a mixture type distribtution, we pretrain the models.
         if setup['forecast_distribution'] == 'distr_mixture' or setup['forecast_distribution'] == 'distr_mixture_linear':
             distribution = setup['forecast_distribution']
             setup['forecast_distribution'] = setup['distribution_1']
@@ -90,6 +124,7 @@ class Objective:
 
         emos.fit(train_data, epochs=epochs, printing=False)
 
+        # We remove the key 'parameters', otherwise setup will contain this key the next time this method is called.
         if setup['forecast_distribution'] == 'distr_mixture' or setup['forecast_distribution'] == 'distr_mixture_linear':
             setup.pop('parameters')
 
@@ -99,6 +134,7 @@ class Objective:
 
         print('Objective values for fold', fold, ':', objective_values)
 
+        # Save the additional metrics.
         additional_metrics = {}
         if 'CRPS' not in self.objectives:
             crps = self.compute_objective(emos, 'CRPS', test_data).numpy()

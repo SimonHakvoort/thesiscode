@@ -14,7 +14,7 @@ bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
 batch_size = 64
 
-train_data, test_data, data_info = load_cv_data(2, features_names_dict)
+train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 # The train data should not be shuffled and batched, since this will be done during the optimization process.
 
@@ -102,7 +102,7 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/tn_crps_fold2'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/tn_crps_fold3'
 
 size = 10
 
