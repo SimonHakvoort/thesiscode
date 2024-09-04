@@ -14,7 +14,7 @@ bounds = {7.5: 1, 9: 3, 12: 4, 15: 9, 100: 15}
 
 batch_size = 64
 
-train_data, test_data, data_info = load_cv_data(1, features_names_dict)
+train_data, test_data, data_info = load_cv_data(3, features_names_dict)
 
 # The train data should not be shuffled and batched, since this will be done during the optimization process.
 
@@ -25,7 +25,7 @@ distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
 # Choice of loss function. In case the twCRPS is used, a weight function including its parameters should be selected.
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 # chain_function = 'chain_function_indicator'
 chain_function_threshold = 12
@@ -102,11 +102,11 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/model_87_tn_fold1'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/tn_crps_fold_3_'
 
 size = 10
 
 # Make a CNNBaggingEMOS instance and train the models.
 bagging = CNNBaggingEMOS(setup, size, filepath,  bootstrap_training_data=False)
 
-bagging.train_and_save_models(train_data, epochs = 72, batch_size = batch_size)
+bagging.train_and_save_models(train_data, epochs = 71, batch_size = batch_size)
