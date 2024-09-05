@@ -25,20 +25,20 @@ distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
 # Choice of loss function. In case the twCRPS is used, a weight function including its parameters should be selected.
-loss_function = 'loss_CRPS_sample'
+loss_function = 'loss_twCRPS_sample'
 chain_function = 'chain_function_normal_cdf_plus_constant'
 # chain_function = 'chain_function_indicator'
 chain_function_threshold = 12
 
 ### Sharp sigmoid parameters
-# chain_function_mean = 8.84
-# chain_function_std = 1.07
-# chain_function_constant = 0.015
+chain_function_mean = 8.84
+chain_function_std = 1.07
+chain_function_constant = 0.015
 
 ### Best CNN parameters
-chain_function_mean = 5.419507
-chain_function_std = 7.822199
-chain_function_constant = 0.919453
+# chain_function_mean = 5.419507
+# chain_function_std = 7.822199
+# chain_function_constant = 0.919453
 
 ### Sigmoid parameters
 # chain_function_mean = 7.050563812255859
@@ -102,11 +102,11 @@ setup = {
     'metrics': metrics,
 }
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/tn_crps_fold_3_'
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/bagging_same_data/sharp_sigmoid_tn_fold3'
 
 size = 10
 
 # Make a CNNBaggingEMOS instance and train the models.
 bagging = CNNBaggingEMOS(setup, size, filepath,  bootstrap_training_data=False)
 
-bagging.train_and_save_models(train_data, epochs = 71, batch_size = batch_size)
+bagging.train_and_save_models(train_data, epochs = 74, batch_size = batch_size)
