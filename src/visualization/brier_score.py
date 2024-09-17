@@ -139,7 +139,7 @@ def make_bootstrap_brier(base_model: BaseForecastModel,
             naming = 'Reference Model'
         else:
             naming = name_base_model
-        plt.plot(values, base_bss_mean, label=naming)
+        plt.plot(values, base_bss_mean, label=naming, color='black', linestyle='--')
     
     plt.xlim(0, values[-1])
     if ylim is not None:
