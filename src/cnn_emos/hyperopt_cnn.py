@@ -103,9 +103,11 @@ class ObjectiveCNN:
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
         attempt = 0
-        max_attempts = 1000
+        max_attempts = 10
         success = False
 
+        # This was specifically for the GEV distribution, which could randomly crash. 
+        # To prevent the hyperopt algorithm from stopping we kept training models until one succeeded.
         while not success and attempt < max_attempts:
             try:
                 nn_forecast = CNNEMOS(**setup)
@@ -152,9 +154,11 @@ class ObjectiveCNN:
 
         chain_function = 'chain_function_normal_cdf_plus_constant'
 
+        # Selection of the parameters from the weight function in the twCRPS.
+        # For the standard deviation we use logarithmic scale.
         chain_function_mean = trial.suggest_float('cf mean', -5, 15)
         chain_function_std = trial.suggest_float('cf std', 0.0001, 10, log=True)
-        chain_function_constant = trial.suggest_float('cf constant', 0.000001, 1, log=False)
+        chain_function_constant = trial.suggest_float('cf constant', 0.000001, 1)
 
         optimizer = trial.suggest_categorical('Optimizer', ['adam', 'sgd'])
         learning_rate = trial.suggest_float('Learning Rate', 0.0001, 0.03)
@@ -173,6 +177,9 @@ class ObjectiveCNN:
         conv_3x3_units = trial.suggest_int('Conv 3x3 units', 1, 5)
 
         sample_size = 1000
+
+        # The maximum number of epochs will be 100.
+        # The number of epochs that are used will likely be less because of early stopping.
         epochs = 100
 
         setup_distribution = {
@@ -219,14 +226,20 @@ class ObjectiveCNN:
 
         for fold in folds:
             losses = np.zeros(len(self.objectives))
+
             for iteration in range(self.train_amount):
                 losses, best_epoch = self.train_on_fold_i(setup, fold, epochs, batch_size)
+
                 print("Model ", iteration + 1, " on fold ", fold, " has loss ", losses)
+
                 objective_values += losses
+
                 num_epochs.append(best_epoch)
 
+        # We want the average loss of a single model on a single fold.
         objective_values /= (3 * self.train_amount)
         
+        # We also save the average number of epochs needed to train the models.
         avg_epochs = np.mean(num_epochs)
 
         trial.set_user_attr('Average Epochs', avg_epochs)

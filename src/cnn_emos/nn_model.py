@@ -1,9 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Dense, Concatenate, Flatten, Conv2D, MaxPooling2D, BatchNormalization
-import pickle
-
-import pdb
 
 from src.cnn_emos.nn_distributions import NNDistribution
 

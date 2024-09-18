@@ -83,7 +83,7 @@ class Climatology(BaseForecastModel):
     def _get_cdf_station(self, station_code: str) -> Callable[[float], float]:
         """
         Compute the cdf for climatology for a specific station. 
-        We simply what the fraction of observations are that exceed x.
+        We do this by computing the fraction of observations that exceed x.
 
         Arguments:
             station_code (str): the station code for which the cdf is computed.
@@ -93,7 +93,7 @@ class Climatology(BaseForecastModel):
         """
         def cdf(x: float):
             """
-            Checks what the fraction of observations are that exceed x.
+            Computes the fraction of observations are that exceed x.
 
             Arguments:
                 x (float): the value to compare against the station's observations.
@@ -253,7 +253,7 @@ class Climatology(BaseForecastModel):
         
     def save(self, filepath: str) -> None:
         """
-        Saves the Climatology by pickling self.
+        Saves the Climatology object by pickling self.
 
         Arguments:
             filepath (str): string indicating where to save the object.
