@@ -821,7 +821,7 @@ class LinearEMOS(BaseForecastModel):
             return -1.0
         
         # Clip the gradients for stability
-        clipped_grads = [tf.clip_by_value(grad, -1.0, 1.0) for grad in grads]
+        clipped_grads = [tf.clip_by_value(grad, -2.0, 2.0) for grad in grads]
 
         # Apply the gradients to the parameters that are inside the forecast_distribution
         self.optimizer.apply_gradients(zip(clipped_grads, self.forecast_distribution.parameter_dict.values()))
@@ -848,22 +848,23 @@ class LinearEMOS(BaseForecastModel):
             data (tf.data.Dataset): the dataset containing the input data (X), the observations (y) and the corresponding weights (w).
             epochs (int): the amount of epochs to train the model.
             printing (bool): whether to print the loss value at each epoch.
-            validation_data (tf.data.Dataset): dataset on which the validation is performed at the end of every epoch.
+            validation_data (tf.data.Dataset): dataset on which the validation is performed every 0.5 seconds (decorator for train_step should be removed).
 
         Returns:
-            a dictionary with two keys, hist which contains the history of losses per epoch, and time_hist, which contains the losses at intervals of 0.1 seconds.
+            a dictionary with two keys, hist which contains the history of losses per epoch, and validation_loss, which contains the losses at intervals of 0.5 seconds for the validation data.
         """
+
+        # If we have validation data, we compute the validation loss every 0.5 seconds.
         validation_loss = {}
 
         if validation_data is not None:
             X_val, y_val = next(iter(validation_data))
             X_val = X_val['features_emos']
             val_loss = self.loss(X_val, y_val)
-            validation_loss[0] = total_loss = tf.reduce_mean(val_loss).numpy()
+            validation_loss[0] = tf.reduce_mean(val_loss).numpy()
 
 
         start = time.time()
-        time_losses = 0
         interval = 0.5
 
         num_batches = 0
@@ -878,24 +879,23 @@ class LinearEMOS(BaseForecastModel):
                 epoch_losses += loss_value
                 batch_count += 1.0
 
-                # Save the loss value for each time interval
-                time_losses += loss_value
-                current_time = time.time()
-
                 if validation_data is not None:
-                    # Check wheter more than 0.2 second has passed
+                    current_time = time.time()
+                    # Check whether more than 0.5 seconds has passed since and we have at least performed one step.
                     if current_time - start > interval and num_batches > 1:
                         val_loss = self.loss(X_val, y_val)
-                        total_loss = tf.reduce_mean(val_loss).numpy()
-                        validation_loss[current_time - start] = total_loss
+                        validation_loss[current_time - start] = tf.reduce_mean(val_loss).numpy()
                         interval += 0.5
                         num_batches = 0
                     else:
                         num_batches += 1
 
             epoch_mean_loss = epoch_losses / batch_count
+
             self.hist.append(epoch_mean_loss)
-            if printing and epoch % 1 == 0:
+
+            # Every 10 epochs we print the loss value.
+            if printing and epoch % 10 == 0:
                 tf.print("Epoch: ", epoch, " Loss: ", epoch_mean_loss)
 
         output_dict = {'hist': self.hist, 'validation_loss': validation_loss}

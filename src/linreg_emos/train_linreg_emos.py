@@ -46,7 +46,7 @@ samples = 250
 
 # Select the chaining function in case the twCRPS is used. Also select the parameters.
 chain_function = "chain_function_indicator"
-chain_function_threshold = 14
+chain_function_threshold = 12
 
 ### Sharp sigmoid parameters
 # chain_function_mean = 8.830960273742676

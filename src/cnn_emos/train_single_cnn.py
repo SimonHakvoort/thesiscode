@@ -40,7 +40,7 @@ distribution_1 = 'distr_trunc_normal'
 distribution_2 = 'distr_log_normal'
 
 # Choice of loss function. In case the twCRPS is used, a weight function including its parameters should be selected.
-loss_function = 'loss_twCRPS_sample'
+loss_function = 'loss_CRPS_sample'
 # chain_function = 'chain_function_normal_cdf_plus_constant'
 chain_function = 'chain_function_indicator'
 chain_function_threshold = 12
@@ -118,10 +118,12 @@ if saving:
 
 nn = CNNEMOS(**setup)
 
-epochs = 47
+epochs = 6
 
 history = nn.fit(train_data0, epochs=epochs)
 
+x = nn.CRPS(test_data0)
+print(x)
 if saving:
     nn.save_weights(filepath)
     print("Model saved")

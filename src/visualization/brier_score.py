@@ -146,7 +146,14 @@ def make_bootstrap_brier(base_model: BaseForecastModel,
         plt.ylim(ylim[0], ylim[1])
     plt.xlabel('Threshold')
     plt.ylabel('Brier Skill Scores')
-    plt.legend()
+
+    # Ensure that the order in the legend is correct (base model should be at the top)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    num_models = len(models)
+    order = np.arange(1, num_models + 1)
+    order = np.append(order, 0)
+    plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order])
+
     if title is not None:
         plt.title(title)
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)

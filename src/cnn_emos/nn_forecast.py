@@ -248,8 +248,6 @@ class CNNEMOS(BaseForecastModel):
             an estimate of the CRPS (tf.Tensor)
         """
         return self._compute_CRPS(y_true, y_pred, self.sample_size)
-
-
     
     def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
         """
@@ -262,16 +260,13 @@ class CNNEMOS(BaseForecastModel):
         Returns:
             float: The CRPS value.
         """
-        y_true = []
         y_pred = []
 
         X, y = next(iter(data))
         y_pred.append(self.predict(X))
-        y_true.append(y)
             
-        y_true = tf.concat(y_true, axis=0)
         y_pred = tf.concat(y_pred, axis=0)
-        return self._compute_CRPS(y_true, y_pred, sample_size).numpy()
+        return self._compute_CRPS(y, y_pred, sample_size).numpy()
     
     def _chain_function_indicator(self, x: tf.Tensor, threshold: tf.Tensor) -> tf.Tensor:
         """
