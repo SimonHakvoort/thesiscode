@@ -557,54 +557,6 @@ class LinearEMOS(BaseForecastModel):
 
         return E_1 - 0.5 * E_2
     
-    def loss_cPIT(self, X: tf.Tensor, y: tf.Tensor):
-        """
-        Loss function that can be used where we minimize the cPIT scores for threshold 0, 5, 10 and 15.
-
-        Arguments:
-            X (tf.Tensor): the features.
-            y (tf.Tensor): the observations.
-
-        Returns:
-            The average cPIT score over the thresdholds.
-        """
-        return tf.reduce_mean([self.calc_cPIT(X, y, t) for t in [0, 5, 10, 15]])
-    
-    def calc_cPIT(self, X: tf.Tensor, y: tf.Tensor, t: float) -> tf.Tensor:
-        """
-        Function used for computing cPIT scores.
-
-        Arguments:
-            X (tf.Tensor): the input data of shape (n, m), where n is the number of samples and m is the number of features.
-            y (tf.Tensor): the observations of shape (n,).
-            t (float): threshold for which the cPIT score should be computed.
-
-        Returns:
-            tf.Tensor containing the cPIT scores.
-        """
-        indices = tf.where(y > t)
-        indices = tf.reshape(indices, [-1])
-
-        y_greater = tf.gather(y, indices)
-        X_greater = tf.gather(X, indices)
-
-        cdf = self.forecast_distribution.get_distribution(X_greater).cdf
-
-        if t == 0:
-            probabilities = cdf(y_greater)
-        elif t > 0:
-            upper = cdf(y_greater) - cdf(t)
-            lower = 1 - cdf(t)
-            # remove the points where lower is 0
-            mask = tf.where(lower == 0, False, True)
-            upper = tf.boolean_mask(upper, mask)
-            lower = tf.boolean_mask(lower, mask)
-            probabilities = upper / lower
-
-        probabilities = tf.sort(probabilities)
-
-        return tf.reduce_mean(tf.abs(probabilities - tf.linspace(0.0, 1.0, tf.shape(probabilities)[0])))
-
     def loss_CRPS_sample(self, X: tf.Tensor, y: tf.Tensor) -> tf.Tensor:
         """
         Function that is used in the constructor to set as loss function, with sample size self.samples.
