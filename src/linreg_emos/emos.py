@@ -1,9 +1,10 @@
 import copy
+import math
 from typing import Callable, List, Tuple, Union
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from src.linreg_emos.forecast_distributions import Mixture, MixtureLinear, initialize_distribution
+from src.linreg_emos.forecast_distributions import Mixture, MixtureLinear, TruncatedNormal, initialize_distribution
 from abc import ABC, abstractmethod 
 import time
 tfpd = tfp.distributions
@@ -514,6 +515,26 @@ class LinearEMOS(BaseForecastModel):
 
         return distributions, y
     
+    def CRPS_analytical(self, X: tf.Tensor, y: tf.Tensor) -> float:
+        if not isinstance(self.forecast_distribution, TruncatedNormal):
+            raise ValueError("We only have the analytical solution for the TN distribution!")
+
+        forecast_distribution = self.forecast_distribution.get_distribution(X)
+
+        standard_gaussian = tfp.distributions.Normal(0, 1)
+
+        p = standard_gaussian.cdf(forecast_distribution.loc / forecast_distribution.scale)
+
+        s = (y - forecast_distribution.loc) / forecast_distribution.scale
+
+        loc = forecast_distribution.loc
+
+        scale = forecast_distribution.scale
+
+        crps = scale / (p ** 2 + 0.0000001) * (s * p * (2 * standard_gaussian.cdf(s) + p - 2) + 2 * p * standard_gaussian.prob(s) - standard_gaussian.cdf(loc * tf.sqrt(2.0) / scale) / tf.sqrt(math.pi))
+
+        return crps
+
     
     def CRPS(self, data: tf.data.Dataset, sample_size: int = 1000) -> float:
         """
@@ -847,7 +868,7 @@ class LinearEMOS(BaseForecastModel):
             self.hist.append(epoch_mean_loss)
 
             # Every 10 epochs we print the loss value.
-            if printing and epoch % 10 == 0:
+            if printing:
                 tf.print("Epoch: ", epoch, " Loss: ", epoch_mean_loss)
 
         output_dict = {'hist': self.hist, 'validation_loss': validation_loss}

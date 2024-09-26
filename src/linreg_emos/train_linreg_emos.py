@@ -40,8 +40,7 @@ test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 # Choose the loss function
-loss = "loss_twCRPS_sample"
-#loss = "loss_cPIT"
+loss = "CRPS_analytical"
 samples = 250
 
 # Select the chaining function in case the twCRPS is used. Also select the parameters.
@@ -128,7 +127,9 @@ my_dict = emos.fit(train_data, epochs)
 # Saving the model.
 mydict = emos.to_dict()
 
-filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_tn_indictor_weight_14'
+print(emos.CRPS(test_data))
+
+filepath = '/net/pc200239/nobackup/users/hakvoort/models/final_models/linregemos/emos_tn_analytical4'
 
 with open(filepath, 'wb') as f:
     pkl.dump(mydict, f)

@@ -16,49 +16,11 @@ class CNNEMOS(BaseForecastModel):
     CNNEMOS is a class designed to model the relationship between input features and distribution parameters using a Convolutional Neural Network (CNN) within the framework of an Ensemble Model Output Statistics (EMOS). 
 
     This class includes methods to:
-    - Initialize the model with specified parameters
-    - Compile and train the model
+    - Initialize the model
+    - Compile and train the model with a specified loss function
     - Predict distribution parameters
     - Calculate various performance metrics such as CRPS and Brier Score
     - Save and load model weights and training history
-
-    Attributes:
-        sample_size (int): The number of samples used for estimation.
-        features_names (list): List of feature names.
-        features_1d_mean (np.ndarray): Mean of the 1D features.
-        features_1d_std (np.ndarray): Standard deviation of the 1D features.
-        model (NNConvModel): The CNN model instance.
-        optimizer (tf.keras.optimizers.Optimizer): The optimizer for the model.
-        loss_function (callable): The loss function used for training.
-        metrics (list): List of metrics to monitor during training.
-
-    Methods:
-        _init_loss_function(**kwargs): Initializes the loss function based on provided arguments.
-        _init_optimizer(**kwargs): Initializes the optimizer for the neural network.
-        _init_chain_function(**kwargs): Initializes the chaining function for twCRPS.
-        get_distribution(y_pred: tf.Tensor) -> tfp.distributions.Distribution: Returns the corresponding distribution for a prediction.
-        _compute_CRPS(y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int) -> tf.Tensor: Computes the CRPS.
-        _loss_CRPS_sample(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor: Computes CRPS as a loss function.
-        CRPS(dataset: tf.data.Dataset, sample_size: int) -> float: Calculates CRPS for a given dataset.
-        _chain_function_indicator(x: tf.Tensor, threshold: tf.Tensor) -> tf.Tensor: Chaining function for an indicator.
-        _chain_function_indicator_for_twCRPS(x: tf.Tensor) -> tf.Tensor: Chaining function for an indicator with a specific threshold.
-        _chain_function_normal_cdf(x: tf.Tensor, normal_distribution: tfp.distributions.Normal) -> tf.Tensor: Chaining function using normal cdf.
-        _chain_function_normal_cdf_for_twCRPS(x: tf.Tensor) -> tf.Tensor: Chaining function using normal cdf for twCRPS.
-        _chain_function_normal_cdf_plus_constant(x: tf.Tensor, normal_distribution: tfp.distributions.Normal, constant: float) -> tf.Tensor: Chaining function using normal cdf plus constant.
-        _chain_function_normal_cdf_plus_constant_for_twCRPS(x: tf.Tensor) -> tf.Tensor: Chaining function using normal cdf plus constant for twCRPS.
-        _twCRPS_12(y_true: tf.Tensor, y_pred: tf.Tensor): Estimates twCRPS at threshold 12.
-        get_gev_shape(X: tf.Tensor): Returns GEV shape if applicable.
-        _compute_twCRPS(y_true: tf.Tensor, y_pred: tf.Tensor, sample_size: int, chain_function: callable) -> tf.Tensor: Computes twCRPS.
-        _loss_twCRPS_sample(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor: Computes twCRPS as a loss function.
-        twCRPS(data: tf.data.Dataset, thresholds: list[float], sample_size: int) -> list[float]: Calculates twCRPS for given thresholds.
-        Brier_Score(dataset: tf.data.Dataset, probability_thresholds: np.ndarray) -> np.ndarray: Calculates Brier score for a dataset and probability_thresholds.
-        indicator_function(y: tf.Tensor, threshold: float) -> tf.Tensor: Applies an indicator function to input values.
-        my_load(cls, filepath: str, data: tf.data.Dataset) -> 'NNForecast': Loads a neural network forecast model from a file.
-        load_history(filepath: str) -> tf.keras.callbacks.History: Loads the training history of a neural network forecast model.
-        fit(dataset: tf.data.Dataset, epochs: int = 10, validation_data: tf.data.Dataset = None, early_stopping = None, steps_per_epoch = None, verbose ='auto') -> tf.keras.callbacks.History: Fits the neural network model to the given dataset.
-        predict(X: dict) -> tf.Tensor: Makes a prediction and returns the distribution parameters.
-        get_prob_distribution(data: tf.data.Dataset) -> Tuple[tfp.distributions.Distribution, tf.Tensor]: Returns distributions and observations for given data.
-        save_weights(filepath: str) -> None: Saves the model weights to the specified filepath.
     """
     def __init__(self, **kwargs):
         if not kwargs:
