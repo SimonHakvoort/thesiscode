@@ -172,9 +172,9 @@ class ObjectiveCNN:
 
         batch_size = trial.suggest_categorical('Batch Size', [16, 32, 64, 128, 256, 512, 1024])
 
-        conv_7x7_units = trial.suggest_int('Conv 7x7 units', 1, 5)
-        conv_5x5_units = trial.suggest_int('Conv 5x5 units', 1, 5)
-        conv_3x3_units = trial.suggest_int('Conv 3x3 units', 1, 5)
+        conv_7x7_units = 4 # trial.suggest_int('Conv 7x7 units', 1, 5)
+        conv_5x5_units = 4 # trial.suggest_int('Conv 5x5 units', 1, 5)
+        conv_3x3_units = 4 # trial.suggest_int('Conv 3x3 units', 1, 5)
 
         sample_size = 1000
 
