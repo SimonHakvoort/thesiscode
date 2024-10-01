@@ -37,7 +37,7 @@ def make_twcrpss_plot(base_model: BaseForecastModel,
     # plot horizontal black striped line at y=0
     plt.plot([values[0], values[-1]], [0, 0], color="black", linestyle="dashed", label=base_model_name)
     
-    plt.xlabel('Threshold (m/s)')
+    plt.xlabel('Wind Speed Threshold (m/s)')
     plt.ylabel('twCRPSS')
     if ylim is not None:
         plt.ylim(ylim[0], ylim[1])

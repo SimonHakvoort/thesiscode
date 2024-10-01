@@ -42,8 +42,8 @@ def make_brier_skill_plot(basemodel: BaseForecastModel,
     # print a striped black horizontal line at y=0
     plt.axhline(0, color='black', linestyle='--', label=name_base_model)
 
-    plt.xlabel('wind speed threshold (m/s)')
-    plt.ylabel('Brier skill score')
+    plt.xlabel('Wind Speed Threshold (m/s)')
+    plt.ylabel('Brier Skill Score')
     if values[0] < 0.5:
         plt.xlim(0, values[-1])
     else:
@@ -144,7 +144,7 @@ def make_bootstrap_brier(base_model: BaseForecastModel,
     plt.xlim(0, values[-1])
     if ylim is not None:
         plt.ylim(ylim[0], ylim[1])
-    plt.xlabel('Threshold')
+    plt.xlabel('Wind Speed Threshold (m/s)')
     plt.ylabel('Brier Skill Scores')
 
     # Ensure that the order in the legend is correct (base model should be at the top)
